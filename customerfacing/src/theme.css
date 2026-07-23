@@ -1,0 +1,121 @@
+/* =========================================================================
+   Marketplace STOREFRONT theme — premium, warm (charcoal + orange/coral).
+   Deliberately NOT blue/purple (that's the admin theme).
+   ========================================================================= */
+
+:root {
+  /* ---- Brand (warm) ---- */
+  --brand-50: #fff7ed;
+  --brand-100: #ffedd5;
+  --brand-500: #f97316;
+  --brand-600: #ea580c; /* primary */
+  --brand-700: #c2410c; /* hover */
+  --brand-contrast: #ffffff;
+  --accent-500: #ff5a5f; /* coral */
+  --brand-gradient: linear-gradient(120deg, #ff7a18 0%, #ff5a5f 100%);
+
+  /* ---- Ink / dark surfaces (neutral, no blue tint) ---- */
+  --ink: #17171a;
+  --ink-2: #26262b;
+
+  /* ---- Neutrals / background ---- */
+  --bg: #f5f4f2; /* warm light gray */
+  --surface: #ffffff;
+  --surface-2: #f2f1ee;
+  --text: #1a1a1a;
+  --text-muted: #6b6b70;
+  --border: #e6e4e0;
+
+  /* ---- States ---- */
+  --success: #16a34a;
+  --success-bg: #ecfdf3;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --info: #ea580c;
+  --info-bg: #fff7ed;
+  --star: #f5a623;
+
+  /* ---- Shape / depth ---- */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --shadow-sm: 0 1px 2px rgba(20, 20, 20, 0.06);
+  --shadow: 0 6px 20px rgba(20, 20, 20, 0.09);
+  --shadow-lg: 0 16px 40px rgba(20, 20, 20, 0.14);
+
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+a { color: var(--brand-700); text-decoration: none; }
+a:hover { color: var(--brand-600); }
+h1, h2, h3, h4 { margin: 0 0 0.5em; line-height: 1.22; font-weight: 700; letter-spacing: -0.01em; }
+h1 { font-size: 1.7rem; }
+
+/* ============================ COMPONENTS ============================= */
+
+.container { max-width: 1680px; margin: 0 auto; padding: 22px clamp(20px, 4vw, 56px); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+}
+.card--flush { padding: 0; overflow: hidden; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 18px; font: inherit; font-weight: 600;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); cursor: pointer;
+  transition: filter 0.15s, background 0.15s, box-shadow 0.15s, transform 0.05s;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary {
+  background: var(--brand-600); border-color: transparent; color: #fff; box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover { background: var(--brand-700); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn-sm { padding: 7px 13px; font-size: 0.85rem; }
+.btn-block { width: 100%; }
+
+.input {
+  width: 100%; padding: 11px 14px; font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus { outline: none; border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--brand-100); }
+.label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 10px; font-size: 0.72rem; font-weight: 700;
+  border-radius: 999px; background: var(--surface-2); color: var(--text-muted);
+}
+.badge-success { background: var(--success-bg); color: var(--success); }
+.badge-warning { background: var(--warning-bg); color: var(--warning); }
+.badge-danger { background: var(--danger-bg); color: var(--danger); }
+.badge-info { background: var(--info-bg); color: var(--info); }
+
+.table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.table th { text-align: left; padding: 12px 16px; background: var(--surface-2); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.table td { padding: 12px 16px; border-top: 1px solid var(--border); }
+
+.muted { color: var(--text-muted); }
+.price { color: var(--text); font-weight: 800; }
+.stars { color: var(--star); letter-spacing: 1px; }

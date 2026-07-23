@@ -1,0 +1,156 @@
+/* =========================================================================
+   Marketplace — SHARED THEME (single design language across admin + storefront)
+   Keep this file identical in adminDashboard/src/theme.css and
+   customerfacing/src/theme.css. Change tokens here to re-theme the app.
+   ========================================================================= */
+
+:root {
+  /* ---- Brand ---- */
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5; /* primary */
+  --brand-700: #4338ca; /* primary hover */
+  --brand-contrast: #ffffff;
+  --accent-500: #7c3aed; /* violet, for gradients */
+  --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+
+  /* ---- Neutrals / background ---- */
+  --bg: #f6f7fb; /* app background */
+  --surface: #ffffff; /* cards, panels */
+  --surface-2: #f0f2f8; /* subtle fills, table headers */
+  --sidebar-bg: #1e1b3a; /* deep indigo (brand-tinted dark) */
+  --sidebar-text: #c7c9e2;
+  --sidebar-active: var(--brand-gradient);
+
+  --text: #111827;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+
+  /* ---- States ---- */
+  --success: #059669;
+  --success-bg: #ecfdf5;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --info: #2563eb;
+  --info-bg: #eff6ff;
+
+  /* ---- Shape / depth ---- */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06);
+  --shadow: 0 4px 16px rgba(17, 24, 39, 0.08);
+  --shadow-lg: 0 12px 32px rgba(17, 24, 39, 0.12);
+
+  /* ---- Type & spacing ---- */
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sidebar-w: 248px;
+}
+
+/* ---- Reset / base ---- */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+a { color: var(--brand-600); text-decoration: none; }
+a:hover { color: var(--brand-700); }
+h1, h2, h3, h4 { margin: 0 0 0.5em; line-height: 1.25; font-weight: 700; }
+h1 { font-size: 1.6rem; }
+
+/* ============================ COMPONENTS ============================= */
+
+.container { max-width: 1140px; margin: 0 auto; padding: 24px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+}
+.card--flush { padding: 0; overflow: hidden; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: filter 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-primary {
+  background: var(--brand-gradient);
+  border-color: transparent;
+  color: var(--brand-contrast);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover { filter: brightness(1.06); background: var(--brand-gradient); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+
+.input {
+  width: 100%;
+  padding: 11px 13px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-100);
+}
+.label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.badge-success { background: var(--success-bg); color: var(--success); }
+.badge-warning { background: var(--warning-bg); color: var(--warning); }
+.badge-danger { background: var(--danger-bg); color: var(--danger); }
+.badge-info { background: var(--info-bg); color: var(--info); }
+
+.table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.table td { padding: 12px 16px; border-top: 1px solid var(--border); }
+.table tr:hover td { background: var(--surface-2); }
+
+.muted { color: var(--text-muted); }
+.price { color: var(--brand-700); font-weight: 700; }

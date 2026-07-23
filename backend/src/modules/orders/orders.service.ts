@@ -1,0 +1,377 @@
+import { SOCKET_EVENTS, type OrderStatusUpdated } from '@app/shared';
+import { AppError } from '../../common/AppError.js';
+import { sum, percentOf } from '../../common/money.js';
+import { Product } from '../products/product.model.js';
+import { Store } from '../stores/store.model.js';
+import { Order } from './order.model.js';
+import { getSettings } from '../settings/settings.model.js';
+import { ledgerService } from '../ledger/ledger.service.js';
+import { computeDiscount, markCouponUsed } from '../coupons/coupons.module.js';
+import { User } from '../auth/user.model.js';
+import { emailProvider } from '../../providers/email/index.js';
+import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
+import { notify } from '../notifications/notifications.module.js';
+
+const NEXT_STATUS = ['pending', 'paid', 'fulfilled', 'cancelled'] as const;
+export type OrderStatus = (typeof NEXT_STATUS)[number];
+
+export interface OrderItemInput {
+  productId: string;
+  variantSku: string;
+  qty: number;
+  modifierNames?: string[];
+}
+export interface CreateOrderInput {
+  items: OrderItemInput[];
+  couponCode?: string;
+  contact?: { name?: string; phone?: string; email?: string };
+  shippingAddress?: { line1?: string; city?: string; pincode?: string };
+}
+
+function orderNumber(): string {
+  return `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+export const ordersService = {
+  /** Rebuild every line price from the DB. The client price is never trusted. */
+  async create(customerId: string, input: CreateOrderInput) {
+    if (!input.items?.length) throw AppError.badRequest('EMPTY_CART', 'Cart is empty');
+
+    const lines = [];
+    const lowStockAlerts: { storeId: string; productId: string; variantSku: string; stock: number }[] = [];
+    for (const item of input.items) {
+      const product = await Product.findById(item.productId).lean();
+      if (!product) throw AppError.notFound(`Product ${item.productId} not found`);
+      const variant = product.variants.find((v) => v.sku === item.variantSku);
+      if (!variant) throw AppError.badRequest('VARIANT_NOT_FOUND', 'Variant not found');
+      if (item.qty < 1) throw AppError.badRequest('BAD_QTY', 'Quantity must be >= 1');
+      if (variant.trackInventory !== false && variant.stock < item.qty)
+        throw AppError.badRequest('INSUFFICIENT_STOCK', `${product.title}: only ${variant.stock} in stock`);
+      const remaining = variant.stock - item.qty;
+      if (variant.trackInventory !== false && remaining <= 5)
+        lowStockAlerts.push({ storeId: String(product.storeId), productId: String(product._id), variantSku: variant.sku, stock: remaining });
+
+      // Resolve selected modifiers against the product definition (server truth).
+      const chosen: { name: string; priceDelta: number }[] = [];
+      for (const name of item.modifierNames ?? []) {
+        for (const group of product.modifierGroups) {
+          const opt = group.options.find((o) => o.name === name);
+          if (opt) chosen.push({ name: opt.name, priceDelta: opt.priceDelta });
+        }
+      }
+      const unitPrice = variant.price + sum(chosen.map((m) => m.priceDelta));
+      lines.push({
+        productId: product._id,
+        storeId: product.storeId,
+        title: product.title,
+        variantSku: variant.sku,
+        variantLabel: Object.values(variant.optionValues ?? {}).join(' / '),
+        qty: item.qty,
+        unitPrice,
+        modifiers: chosen,
+        lineTotal: unitPrice * item.qty,
+      });
+    }
+
+    const itemsTotal = sum(lines.map((l) => l.lineTotal));
+    const storeIds = [...new Set(lines.map((l) => String(l.storeId)))];
+
+    // Coupon (optional) → tax → delivery. grandTotal = (items − discount) + tax + delivery.
+    const settings = await getSettings();
+    let discount = 0;
+    let couponCode: string | undefined;
+    if (input.couponCode) {
+      const c = await computeDiscount(input.couponCode, itemsTotal);
+      discount = c.discount;
+      couponCode = c.code;
+    }
+    const taxable = itemsTotal - discount;
+    const tax = percentOf(taxable, settings.taxPercent ?? 5);
+    const delivery = itemsTotal >= (settings.freeDeliveryAbove ?? 50000) ? 0 : settings.deliveryFee ?? 4000;
+    const grandTotal = taxable + tax + delivery;
+
+    const order = await Order.create({
+      orderNumber: orderNumber(),
+      customerId,
+      items: lines,
+      storeIds,
+      couponCode,
+      amounts: { itemsTotal, discount, tax, delivery, grandTotal },
+      contact: input.contact,
+      shippingAddress: input.shippingAddress,
+      status: 'pending',
+    });
+    if (couponCode) await markCouponUsed(couponCode);
+
+    // Decrement stock per variant + bump salesCount for popularity (best-effort; real atomic reservation comes with inventory module).
+    for (const l of lines) {
+      await Product.updateOne(
+        { _id: l.productId, 'variants.sku': l.variantSku },
+        { $inc: { 'variants.$.stock': -l.qty, salesCount: l.qty } },
+      );
+    }
+
+    // Realtime: notify each vendor store + the admins.
+    const at = new Date().toISOString();
+    for (const storeId of storeIds) {
+      const count = lines.filter((l) => String(l.storeId) === storeId).length;
+      safeEmit(() =>
+        emitToStore(storeId, SOCKET_EVENTS.SUBORDER_NEW, {
+          subOrderId: String(order._id),
+          storeId,
+          orderNumber: order.orderNumber,
+          itemsCount: count,
+          at,
+        }),
+      );
+    }
+    safeEmit(() =>
+      emitToAdmin(SOCKET_EVENTS.NOTIFICATION_NEW, {
+        id: String(order._id),
+        title: 'New order',
+        body: `${order.orderNumber} · ₹${itemsTotal / 100}`,
+        at,
+      }),
+    );
+    // Low-stock alerts to the vendor.
+    for (const a of lowStockAlerts) {
+      safeEmit(() =>
+        emitToStore(a.storeId, SOCKET_EVENTS.INVENTORY_CHANGED, {
+          productId: a.productId, variantSku: a.variantSku, stock: a.stock, at,
+        }),
+      );
+    }
+    void notifyOrder(order, 'placed');
+
+    return order;
+  },
+
+  /** Update order status. Vendors may only touch orders that include their store. */
+  async updateStatus(
+    id: string,
+    status: OrderStatus,
+    actor: { role: string; storeId?: string },
+  ) {
+    const order = await Order.findById(id);
+    if (!order) throw AppError.notFound('Order not found');
+    const isStoreScoped = actor.role === 'vendor' || actor.role === 'vendor_staff';
+    if (isStoreScoped) {
+      const owns = (order.storeIds ?? []).some((s) => String(s) === actor.storeId);
+      if (!owns) throw AppError.forbidden('Not your order');
+    }
+    order.status = status;
+    await order.save();
+    pushOrderStatus(order); // live socket + bell notification
+    return order;
+  },
+
+  /** Manually re-emit the current status (socket + notification) — for when a push got missed
+   *  (server restart / socket hiccup). Does not change the order. */
+  async resendStatus(id: string, actor: { role: string; storeId?: string }) {
+    const order = await Order.findById(id);
+    if (!order) throw AppError.notFound('Order not found');
+    const isStoreScoped = actor.role === 'vendor' || actor.role === 'vendor_staff';
+    if (isStoreScoped) {
+      const owns = (order.storeIds ?? []).some((s) => String(s) === actor.storeId);
+      if (!owns) throw AppError.forbidden('Not your order');
+    }
+    pushOrderStatus(order, true);
+    return { resent: true, status: order.status };
+  },
+
+  /**
+   * Pay for an order (mock provider). Idempotent. Computes per-store commission,
+   * snapshots it, writes the ledger (vendor_payable + commission_income), marks paid.
+   * Swap the mock for Stripe Connect later via the payment provider adapter.
+   */
+  async pay(id: string, customerId: string) {
+    const order = await Order.findById(id);
+    if (!order) throw AppError.notFound('Order not found');
+    if (String(order.customerId) !== customerId) throw AppError.forbidden('Not your order');
+    if (order.status === 'paid' || order.status === 'fulfilled') return order; // idempotent
+
+    const settings = await getSettings();
+    const defaultRate = settings.commissionPercent;
+    const storeIds = [...new Set(order.items.map((i) => String(i.storeId)))];
+    const snapshots = [];
+    const entries = [];
+
+    for (const storeId of storeIds) {
+      const subtotal = sum(
+        order.items.filter((i) => String(i.storeId) === storeId).map((i) => i.lineTotal),
+      );
+      const store = await Store.findById(storeId).lean();
+      const rate =
+        store?.commissionOverride?.type === 'percent' ? store.commissionOverride.value! : defaultRate;
+      const commission = percentOf(subtotal, rate);
+      const payable = subtotal - commission;
+      snapshots.push({ storeId, subtotal, rate, amount: commission, payable });
+      entries.push(
+        { orderId: id, storeId, account: 'vendor_payable' as const, amount: payable, idempotencyKey: `${id}:${storeId}:payable` },
+        { orderId: id, storeId, account: 'commission_income' as const, amount: commission, idempotencyKey: `${id}:${storeId}:comm` },
+      );
+    }
+
+    await ledgerService.post(entries);
+    order.set({ status: 'paid', payment: { method: 'mock', paidAt: new Date() }, commissions: snapshots });
+    await order.save();
+
+    const at = new Date().toISOString();
+    safeEmit(() =>
+      emitToUser(customerId, SOCKET_EVENTS.ORDER_STATUS_UPDATED, { orderId: id, status: 'paid', at }),
+    );
+    for (const storeId of storeIds) {
+      safeEmit(() =>
+        emitToStore(storeId, SOCKET_EVENTS.NOTIFICATION_NEW, {
+          id, title: 'Payment received 💰', body: order.orderNumber, at,
+        }),
+      );
+    }
+    void notifyOrder(order, 'paid');
+    return order;
+  },
+
+  /** Customer cancels their own PENDING (unpaid) order → restock. */
+  async cancel(id: string, customerId: string) {
+    const order = await Order.findById(id);
+    if (!order) throw AppError.notFound('Order not found');
+    if (String(order.customerId) !== customerId) throw AppError.forbidden('Not your order');
+    if (order.status !== 'pending') throw AppError.badRequest('CANNOT_CANCEL', 'Only pending orders can be cancelled');
+    order.status = 'cancelled';
+    await order.save();
+    await restock(order.items);
+    safeEmit(() =>
+      emitToUser(customerId, SOCKET_EVENTS.ORDER_STATUS_UPDATED, { orderId: id, status: 'cancelled', at: new Date().toISOString() }),
+    );
+    void notifyOrder(order, 'cancelled');
+    return order;
+  },
+
+  /**
+   * Refund a PAID order (admin / vendor of the order). Reverses the ledger
+   * (negative vendor_payable + commission clawback), restocks, marks refunded.
+   */
+  async refund(id: string, actor: { role: string; storeId?: string }) {
+    const order = await Order.findById(id);
+    if (!order) throw AppError.notFound('Order not found');
+    const isStoreScoped = actor.role === 'vendor' || actor.role === 'vendor_staff';
+    if (isStoreScoped && !(order.storeIds ?? []).some((s) => String(s) === actor.storeId))
+      throw AppError.forbidden('Not your order');
+    if (order.status !== 'paid' && order.status !== 'fulfilled')
+      throw AppError.badRequest('CANNOT_REFUND', 'Only paid orders can be refunded');
+
+    for (const c of order.commissions ?? []) {
+      const sid = String(c.storeId);
+      await ledgerService.post([
+        { orderId: id, storeId: sid, account: 'vendor_payable', amount: -(c.payable ?? 0), idempotencyKey: `refund:${id}:${sid}:payable` },
+        { orderId: id, storeId: sid, account: 'commission_income', amount: -(c.amount ?? 0), idempotencyKey: `refund:${id}:${sid}:comm` },
+        { orderId: id, storeId: sid, account: 'refund', amount: (c.payable ?? 0) + (c.amount ?? 0), idempotencyKey: `refund:${id}:${sid}:refund` },
+      ]);
+    }
+    order.status = 'refunded';
+    await order.save();
+    await restock(order.items);
+    safeEmit(() =>
+      emitToUser(String(order.customerId), SOCKET_EVENTS.ORDER_STATUS_UPDATED, { orderId: id, status: 'refunded', at: new Date().toISOString() }),
+    );
+    void notifyOrder(order, 'refunded');
+    return order;
+  },
+
+  async listByCustomer(customerId: string) {
+    return Order.find({ customerId }).sort({ createdAt: -1 }).lean();
+  },
+
+  async listByStore(storeId: string) {
+    return Order.find({ storeIds: storeId }).sort({ createdAt: -1 }).lean();
+  },
+
+  async listAll() {
+    return Order.find().sort({ createdAt: -1 }).limit(200).lean();
+  },
+
+  async getById(id: string) {
+    const order = await Order.findById(id).lean();
+    if (!order) throw AppError.notFound('Order not found');
+    return order;
+  },
+};
+
+const STATUS_TITLES: Record<string, string> = {
+  pending: 'Order placed 🛍️',
+  paid: 'Payment received 💰',
+  fulfilled: 'Order fulfilled 📦',
+  cancelled: 'Order cancelled',
+  refunded: 'Refund processed ↩️',
+};
+
+/** Live status push to the customer: socket event (order screen updates instantly) + bell notification. */
+function pushOrderStatus(
+  order: { _id: unknown; customerId: unknown; status: string; orderNumber: string; amounts?: { grandTotal?: number | null } | null },
+  resent = false,
+): void {
+  const orderId = String(order._id);
+  const customerId = String(order.customerId);
+  safeEmit(() =>
+    emitToUser(customerId, SOCKET_EVENTS.ORDER_STATUS_UPDATED, {
+      orderId,
+      status: order.status as OrderStatusUpdated['status'],
+      at: new Date().toISOString(),
+    }),
+  );
+  const title = STATUS_TITLES[order.status] ?? 'Order update';
+  void notify(customerId, {
+    type: 'order',
+    title: resent ? `${title} (update)` : title,
+    body: `${order.orderNumber} · ₹${(order.amounts?.grandTotal ?? 0) / 100}`,
+    link: `/order/${orderId}`,
+  });
+}
+
+/** Notify the customer of an order change: transactional email + in-app (bell) notification. */
+interface NotifiableOrder {
+  _id?: unknown;
+  orderNumber: string;
+  customerId: unknown;
+  amounts?: { grandTotal?: number | null } | null;
+  contact?: { email?: string | null } | null;
+}
+async function notifyOrder(order: NotifiableOrder, event: 'placed' | 'paid' | 'refunded' | 'cancelled'): Promise<void> {
+  const total = (order.amounts?.grandTotal ?? 0) / 100;
+  const titles: Record<string, string> = {
+    placed: `Order placed 🛍️`,
+    paid: `Payment received 💰`,
+    refunded: `Refund processed ↩️`,
+    cancelled: `Order cancelled`,
+  };
+  // In-app notification (persisted + live push to the user's bell).
+  void notify(String(order.customerId), {
+    type: 'order',
+    title: titles[event] ?? 'Order update',
+    body: `${order.orderNumber} · ₹${total}`,
+    link: order._id ? `/order/${String(order._id)}` : '/account/orders',
+  });
+
+  try {
+    const user = await User.findById(order.customerId).select('email').lean();
+    const to = user?.email ?? order.contact?.email;
+    if (!to) return;
+    await emailProvider.send({
+      to,
+      subject: `${titles[event] ?? `Order ${order.orderNumber} update`} — ${order.orderNumber}`,
+      html: `<p>Your order <b>${order.orderNumber}</b> is now <b>${event}</b>.</p><p>Total: ₹${total}</p>`,
+    });
+  } catch {
+    /* email failure never breaks the order flow */
+  }
+}
+
+/** Return stock to variants (on cancel / refund). */
+async function restock(items: { productId: unknown; variantSku?: string | null; qty: number }[]): Promise<void> {
+  for (const l of items) {
+    await Product.updateOne(
+      { _id: l.productId, 'variants.sku': l.variantSku },
+      { $inc: { 'variants.$.stock': l.qty } },
+    );
+  }
+}

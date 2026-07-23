@@ -1,0 +1,24 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  mongo_data:

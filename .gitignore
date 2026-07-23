@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.angular/
+*.tsbuildinfo
+
+# env
+.env
+.env.*.local
+!.env.example
+
+# logs
+logs/
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# test
+coverage/
