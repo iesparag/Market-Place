@@ -51,15 +51,26 @@ mediaRoutes.post(
   upload.single('file'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw AppError.badRequest('NO_FILE', 'No image uploaded');
+    if (!req.file.buffer?.length) throw AppError.badRequest('EMPTY_FILE', 'Uploaded file is empty');
 
     if (cloudinaryOn) {
-      const url = await uploadToCloudinary(req.file.buffer);
-      return ok(res, { url, provider: 'cloudinary' });
+      try {
+        const url = await uploadToCloudinary(req.file.buffer);
+        return ok(res, { url, provider: 'cloudinary' });
+      } catch (err) {
+        // Surface the real reason (bad keys, quota, etc.) instead of an opaque 500.
+        throw AppError.badRequest('UPLOAD_FAILED', `Cloudinary upload failed: ${(err as Error)?.message ?? 'unknown error'}`);
+      }
     }
 
-    // Local fallback (dev): write to /uploads and serve via PUBLIC_URL.
-    const filename = `${randomUUID()}${extname(req.file.originalname).toLowerCase()}`;
-    writeFileSync(`${UPLOAD_DIR}/${filename}`, req.file.buffer);
-    return ok(res, { url: `${env.PUBLIC_URL}/${UPLOAD_DIR}/${filename}`, provider: 'local' });
+    // Local fallback: write to /uploads and serve via PUBLIC_URL.
+    // NOTE: on Railway/most hosts the disk is EPHEMERAL — files vanish on redeploy. Use Cloudinary in prod.
+    try {
+      const filename = `${randomUUID()}${extname(req.file.originalname).toLowerCase()}`;
+      writeFileSync(`${UPLOAD_DIR}/${filename}`, req.file.buffer);
+      return ok(res, { url: `${env.PUBLIC_URL}/${UPLOAD_DIR}/${filename}`, provider: 'local' });
+    } catch (err) {
+      throw AppError.badRequest('UPLOAD_FAILED', `Local save failed: ${(err as Error)?.message ?? 'unknown error'}`);
+    }
   }),
 );
