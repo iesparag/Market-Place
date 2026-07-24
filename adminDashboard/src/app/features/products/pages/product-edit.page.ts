@@ -102,14 +102,32 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
 
         <div class="card">
           <div class="row-head"><h3>Variants</h3><button type="button" class="btn btn-sm" (click)="addVariant()">+ variant</button></div>
-          <div class="vhead">
+
+          @if (cat.variantAxes.length) {
+            <div class="vgen">
+              <div class="genrow">
+                @for (ax of cat.variantAxes; track ax) {
+                  <div class="genfield">
+                    <label class="label">{{ ax }} <span class="muted small">(comma)</span></label>
+                    <input class="input" [value]="axisInput()[ax] ?? ''" (input)="setAxis(ax, pick($event))" [placeholder]="axPlaceholder(ax)" />
+                  </div>
+                }
+                <div class="genfield sm"><label class="label">Price ₹</label><input class="input" type="number" [value]="genPrice()" (input)="genPrice.set(+pick($event))" /></div>
+                <div class="genfield sm"><label class="label">Stock</label><input class="input" type="number" [value]="genStock()" (input)="genStock.set(+pick($event))" /></div>
+                <button type="button" class="btn btn-primary gen" (click)="generateVariants()">✨ Generate</button>
+              </div>
+              <p class="muted small">Har axis ki values comma se daalo (jaise <b>S, M, L</b> · <b>Blue, White</b>) → saare combinations rows ban jaayenge. Price/stock/SKU baad mein har row pe edit ho sakta hai.</p>
+            </div>
+          }
+
+          <div class="vhead" [style.grid-template-columns]="varCols()">
             @for (ax of cat.variantAxes; track ax) { <span>{{ ax }}</span> }
             <span>SKU</span><span>Price ₹</span><span>Stock</span><span></span>
           </div>
           <div formArrayName="variants">
             @for (v of variants.controls; track $index) {
-              <div class="vrow" [formGroupName]="$index">
-                <div formGroupName="opts">
+              <div class="vrow" [formGroupName]="$index" [style.grid-template-columns]="varCols()">
+                <div class="opts" formGroupName="opts">
                   @for (ax of cat.variantAxes; track ax) { <input class="input" [formControlName]="ax" [placeholder]="ax" /> }
                 </div>
                 <input class="input" formControlName="sku" placeholder="sku" />
@@ -119,7 +137,7 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
               </div>
             }
           </div>
-          @if (!variants.length) { <p class="muted">Add at least one variant.</p> }
+          @if (!variants.length) { <p class="muted">Add at least one variant (ya upar se Generate karo).</p> }
         </div>
 
         <div class="card">
@@ -169,10 +187,15 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
       .attrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
       .chk { display: inline-flex; align-items: center; gap: 6px; padding-top: 8px; }
       .row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-      .vhead, .vrow { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr 0.7fr auto; gap: 8px; align-items: center; }
+      .vhead, .vrow { display: grid; gap: 8px; align-items: center; }
       .vhead { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 6px; }
+      .vhead span { padding: 0 2px; }
       .vrow { margin-bottom: 8px; }
-      .vrow [formGroupName='opts'] { display: flex; gap: 6px; }
+      .vrow .opts { display: contents; }
+      .vgen { background: var(--surface-2, #f6f7fb); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px; }
+      .genrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+      .genfield { flex: 1; min-width: 130px; } .genfield.sm { flex: 0 0 90px; min-width: 0; } .genfield .label { margin-top: 0; }
+      .gen { height: 38px; white-space: nowrap; }
       .group { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px; }
       .grow { display: flex; gap: 8px; margin-bottom: 8px; } .sel { max-width: 120px; }
       .orow { display: grid; grid-template-columns: 1fr 120px auto; gap: 8px; margin-bottom: 6px; }
@@ -205,6 +228,11 @@ export class ProductEditPage implements OnInit {
   saving = signal(false);
   error = signal<string | null>(null);
 
+  // Variant matrix generator (comma-separated values per axis → all combinations).
+  axisInput = signal<Record<string, string>>({});
+  genPrice = signal(0);
+  genStock = signal(0);
+
   // Admin-on-behalf-of-vendor + hierarchical category picker.
   isAdmin = signal(false);
   stores = signal<{ _id: string; name: string }[]>([]);
@@ -236,6 +264,7 @@ export class ProductEditPage implements OnInit {
     this.form.controls.categoryId.setValue(deepest);
     this.selectedId.set(deepest);
     this.rebuildAttributes();
+    this.axisInput.set({}); // reset the comma-generator for the new category's axes
     if (deepest && !this.variants.length) this.addVariant();
   }
   /** Edit mode: rebuild the department→leaf path by walking the category's ancestors. */
@@ -320,6 +349,63 @@ export class ProductEditPage implements OnInit {
   }
   addVariant(): void { this.variants.push(this.newVariant()); }
   removeVariant(i: number): void { this.variants.removeAt(i); }
+
+  // ── Variant matrix generator ───────────────────────────────────────────────
+  /** Grid columns for the variant table: one per axis + SKU + Price + Stock + remove-btn. */
+  varCols(): string {
+    const n = this.selected()?.variantAxes.length ?? 0;
+    return `${'minmax(0,1fr) '.repeat(n)}1.4fr 0.9fr 0.7fr 34px`;
+  }
+  setAxis(ax: string, value: string): void {
+    this.axisInput.update((m) => ({ ...m, [ax]: value }));
+  }
+  axPlaceholder(ax: string): string {
+    if (ax === 'size') return 'S, M, L, XL';
+    if (ax === 'color') return 'Blue, White, Black';
+    if (ax === 'weight') return '500g, 1kg, 5kg';
+    if (ax === 'volume') return '1L, 5L';
+    return 'value1, value2';
+  }
+  /** Build every combination of the comma-separated axis values as variant rows. */
+  generateVariants(): void {
+    const axes = this.selected()?.variantAxes ?? [];
+    if (!axes.length) { this.addVariant(); return; }
+    const lists = axes.map((ax) => (this.axisInput()[ax] ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+    if (lists.some((l) => !l.length)) {
+      this.error.set('Har axis ke liye comma-separated values daalo (jaise S, M, L).');
+      return;
+    }
+    this.error.set(null);
+    // Drop the single blank auto-added row (from category select) before generating.
+    for (let i = this.variants.length - 1; i >= 0; i--) {
+      const row = this.variants.at(i);
+      const opts = row.get('opts')!.value as Record<string, string>;
+      if (Object.values(opts).every((v) => !v) && !row.get('sku')!.value) this.variants.removeAt(i);
+    }
+    const existing = new Set(
+      this.variants.controls.map((c) => this.comboKey(c.get('opts')!.value as Record<string, string>)),
+    );
+    const base = (this.form.controls.slug.value || 'sku').trim();
+    for (const combo of this.cartesian(lists)) {
+      const optionValues: Record<string, string> = {};
+      axes.forEach((ax, i) => (optionValues[ax] = combo[i]!));
+      const key = this.comboKey(optionValues);
+      if (existing.has(key)) continue;
+      const row = this.newVariant();
+      row.get('opts')!.patchValue(optionValues);
+      row.patchValue({
+        sku: `${base}-${combo.join('-')}`.toLowerCase().replace(/\s+/g, ''),
+        price: this.genPrice(),
+        stock: this.genStock(),
+      });
+      this.variants.push(row);
+      existing.add(key);
+    }
+  }
+  private comboKey(opts: Record<string, string>): string { return Object.values(opts).join('|'); }
+  private cartesian(lists: string[][]): string[][] {
+    return lists.reduce<string[][]>((acc, list) => acc.flatMap((combo) => list.map((v) => [...combo, v])), [[]]);
+  }
 
   newGroup() {
     return this.fb.nonNullable.group({
