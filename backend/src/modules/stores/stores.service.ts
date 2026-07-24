@@ -1,5 +1,8 @@
 import { AppError } from '../../common/AppError.js';
+import { env } from '../../config/env.js';
 import { Store } from './store.model.js';
+import { User } from '../auth/user.model.js';
+import { emailProvider } from '../../providers/email/index.js';
 
 function slugify(name: string): string {
   return name
@@ -78,6 +81,36 @@ export const storesService = {
   async setStatus(id: string, status: 'approved' | 'rejected' | 'suspended') {
     const store = await Store.findByIdAndUpdate(id, { status }, { new: true });
     if (!store) throw AppError.notFound('Store not found');
+    await this.notifyOwnerStatus(store.ownerId, store.name, status);
     return store;
+  },
+
+  /** Email the store owner when their store is approved / rejected / suspended (no-op if SMTP unset). */
+  async notifyOwnerStatus(ownerId: unknown, storeName: string, status: 'approved' | 'rejected' | 'suspended') {
+    const owner = await User.findById(ownerId).select('name email').lean();
+    if (!owner?.email) return;
+    const dash = `${env.ADMIN_ORIGIN}/login`;
+    const templates = {
+      approved: {
+        subject: `Your store is approved — ${storeName} ✅`,
+        html: `<h2>You're approved! ✅</h2>
+          <p>Hi ${owner.name ?? 'there'}, great news — <b>${storeName}</b> has been approved.</p>
+          <p>Sign in to the seller dashboard to complete your store profile (logo, banner, business details) and start adding products.</p>
+          <p><a href="${dash}">Go to seller dashboard →</a></p>`,
+      },
+      rejected: {
+        subject: `Update on your store application — ${storeName}`,
+        html: `<h2>Application update</h2>
+          <p>Hi ${owner.name ?? 'there'}, unfortunately <b>${storeName}</b> was not approved at this time.</p>
+          <p>Please reply to this email or contact support if you'd like more details.</p>`,
+      },
+      suspended: {
+        subject: `Your store has been suspended — ${storeName}`,
+        html: `<h2>Store suspended</h2>
+          <p>Hi ${owner.name ?? 'there'}, <b>${storeName}</b> has been temporarily suspended.</p>
+          <p>Please contact support to resolve this.</p>`,
+      },
+    } as const;
+    await emailProvider.send({ to: owner.email, ...templates[status] });
   },
 };

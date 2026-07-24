@@ -76,6 +76,19 @@ export const authService = {
     });
     user.storeId = store._id;
     await user.save();
+    // Welcome / application-received email (no-op if SMTP unset — provider logs instead).
+    await emailProvider.send({
+      to: user.email,
+      subject: `Application received — ${store.name}`,
+      html: `
+        <h2>Application received 🎉</h2>
+        <p>Hi ${input.name}, your store <b>${store.name}</b> has been created and is <b>pending approval</b>.</p>
+        <p>Our team will review it shortly. Once approved, sign in to the seller dashboard to add products and manage orders.</p>
+        <p><b>Your login</b><br/>Email: <b>${user.email}</b><br/>Password: <b>${input.password}</b></p>
+        <p><a href="${env.ADMIN_ORIGIN}/login">Open seller dashboard →</a></p>
+        <p style="color:#888;font-size:12px">Keep this email safe. You can change your password after signing in.</p>
+      `,
+    });
     const auth = toAuthUser(user);
     return { token: signAccess(auth), refreshToken: signRefresh(auth.id), user: { ...auth, name: user.name, email: user.email }, store };
   },
