@@ -115,8 +115,9 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
                 <div class="genfield sm"><label class="label">Price ₹</label><input class="input" type="number" [value]="genPrice()" (input)="genPrice.set(+pick($event))" /></div>
                 <div class="genfield sm"><label class="label">Stock</label><input class="input" type="number" [value]="genStock()" (input)="genStock.set(+pick($event))" /></div>
                 <button type="button" class="btn btn-primary gen" (click)="generateVariants()">✨ Generate</button>
+                @if (variants.length) { <button type="button" class="btn btn-ghost gen" (click)="clearVariants()">Clear</button> }
               </div>
-              <p class="muted small">Har axis ki values comma se daalo (jaise <b>S, M, L</b> · <b>Blue, White</b>) → saare combinations rows ban jaayenge. Price/stock/SKU baad mein har row pe edit ho sakta hai.</p>
+              <p class="muted small">Har axis ki values comma se daalo (jaise <b>S, M, L</b> · <b>Blue, White</b>) → saare combinations rows ban jaayenge. Price/stock/SKU baad mein har row pe edit ho sakta hai. Combos badalne se pehle <b>Clear</b> karo.</p>
             </div>
           }
 
@@ -125,15 +126,15 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
             <span>SKU</span><span>Price ₹</span><span>Stock</span><span></span>
           </div>
           <div formArrayName="variants">
-            @for (v of variants.controls; track $index) {
-              <div class="vrow" [formGroupName]="$index" [style.grid-template-columns]="varCols()">
+            @for (v of variants.controls; track v; let i = $index) {
+              <div class="vrow" [formGroupName]="i" [style.grid-template-columns]="varCols()">
                 <div class="opts" formGroupName="opts">
                   @for (ax of cat.variantAxes; track ax) { <input class="input" [formControlName]="ax" [placeholder]="ax" /> }
                 </div>
                 <input class="input" formControlName="sku" placeholder="sku" />
                 <input class="input" type="number" formControlName="price" />
                 <input class="input" type="number" formControlName="stock" />
-                <button type="button" class="btn btn-ghost btn-sm" (click)="removeVariant($index)">✕</button>
+                <button type="button" class="btn btn-ghost btn-sm" (click)="removeVariant(i)">✕</button>
               </div>
             }
           </div>
@@ -144,7 +145,7 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
           <div class="row-head"><h3>Modifier groups <span class="muted small">(e.g. cheese)</span></h3>
             <button type="button" class="btn btn-sm" (click)="addGroup()">+ group</button></div>
           <div formArrayName="modifierGroups">
-            @for (g of groups.controls; track $index; let gi = $index) {
+            @for (g of groups.controls; track g; let gi = $index) {
               <div class="group" [formGroupName]="gi">
                 <div class="grow">
                   <input class="input" formControlName="name" placeholder="Group name (Cheese)" />
@@ -152,7 +153,7 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
                   <button type="button" class="btn btn-ghost btn-sm" (click)="removeGroup(gi)">remove group</button>
                 </div>
                 <div formArrayName="options">
-                  @for (o of groupOptions(gi).controls; track $index; let oi = $index) {
+                  @for (o of groupOptions(gi).controls; track o; let oi = $index) {
                     <div class="orow" [formGroupName]="oi">
                       <input class="input" formControlName="name" placeholder="Option (Extra Cheese)" />
                       <input class="input" type="number" formControlName="priceDelta" placeholder="+₹" />
@@ -349,6 +350,7 @@ export class ProductEditPage implements OnInit {
   }
   addVariant(): void { this.variants.push(this.newVariant()); }
   removeVariant(i: number): void { this.variants.removeAt(i); }
+  clearVariants(): void { this.variants.clear(); this.error.set(null); }
 
   // ── Variant matrix generator ───────────────────────────────────────────────
   /** Grid columns for the variant table: one per axis + SKU + Price + Stock + remove-btn. */
@@ -386,6 +388,7 @@ export class ProductEditPage implements OnInit {
       this.variants.controls.map((c) => this.comboKey(c.get('opts')!.value as Record<string, string>)),
     );
     const base = (this.form.controls.slug.value || 'sku').trim();
+    let added = 0;
     for (const combo of this.cartesian(lists)) {
       const optionValues: Record<string, string> = {};
       axes.forEach((ax, i) => (optionValues[ax] = combo[i]!));
@@ -400,7 +403,9 @@ export class ProductEditPage implements OnInit {
       });
       this.variants.push(row);
       existing.add(key);
+      added++;
     }
+    if (!added) this.error.set('Ye combinations pehle se maujood hain. Purane combos badalne ke liye pehle "Clear" karo, phir Generate.');
   }
   private comboKey(opts: Record<string, string>): string { return Object.values(opts).join('|'); }
   private cartesian(lists: string[][]): string[][] {
