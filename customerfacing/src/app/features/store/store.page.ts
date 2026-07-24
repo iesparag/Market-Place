@@ -76,7 +76,7 @@ import { CategoryNavComponent } from '../../shared/category-nav.component';
   styles: [
     `
       .crumb { margin-bottom: 14px; font-size: 0.85rem; } .crumb a { color: var(--text-muted); }
-      .cover { position: relative; height: 240px; border-radius: var(--radius-lg); overflow: hidden; background: #e8eef2; }
+      .cover { position: relative; height: clamp(280px, 34vw, 400px); border-radius: var(--radius-lg); overflow: hidden; background: #e8eef2; }
       .cover.grad { background: var(--brand-gradient); }
       .cimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.6s ease; }
       .cimg.on { opacity: 1; }
