@@ -75,6 +75,15 @@ export class CatalogService {
   getHome() {
     return this.api.get<HomeSectionView[]>('/catalog/home');
   }
+  /** Typeahead: matching products + stores for the header search dropdown. */
+  suggest(q: string) {
+    return this.api.get<Suggestion>(`/search/suggest?q=${encodeURIComponent(q)}`);
+  }
+}
+
+export interface Suggestion {
+  products: { _id: string; title: string; slug: string; code?: string; image?: string; minPrice: number; storeName?: string }[];
+  stores: { _id: string; name: string; slug: string; logo?: string }[];
 }
 
 export interface HomeSectionView {

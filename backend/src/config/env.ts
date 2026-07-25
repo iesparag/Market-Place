@@ -29,6 +29,8 @@ const EnvSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(), // paste with literal \n for newlines
+  // Search engine: 'mongo' (default, works on any MongoDB, no setup) or 'atlas' (Atlas Search — better relevance/typo-tolerance).
+  SEARCH_ENGINE: z.enum(['mongo', 'atlas']).default('mongo'),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
