@@ -126,7 +126,7 @@ import { CategoryNavComponent } from '../shared/category-nav.component';
       .search { flex: 1; display: flex; min-width: 0; position: relative; }
       .search input { flex: 1; padding: 11px 16px; border: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); font: inherit; }
       .search input:focus { outline: none; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.4); }
-      .search button { padding: 0 18px; border: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--brand-gradient); color: #fff; cursor: pointer; font-size: 1rem; }
+      .search > button { padding: 0 18px; border: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--brand-gradient); color: #fff; cursor: pointer; font-size: 1rem; }
       /* Typeahead dropdown */
       .sdrop { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); z-index: 60; max-height: 70vh; overflow-y: auto; padding: 6px; }
       .sgroup { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 8px 10px 4px; }

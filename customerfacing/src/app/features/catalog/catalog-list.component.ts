@@ -95,7 +95,8 @@ interface PriceBand { label: string; min?: number; max?: number; }
     `
       .layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
       @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } .filters { position: static; } }
-      .filters { position: sticky; top: 130px; }
+      /* Cap to the viewport + own scroll so the sticky sidebar always pins cleanly (no jitter on fast scroll). */
+      .filters { position: sticky; top: 130px; align-self: start; max-height: calc(100vh - 150px); overflow-y: auto; overscroll-behavior: contain; }
       .fhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
       .fgroup { padding: 14px 0; border-top: 1px solid var(--border); }
       .ftitle { font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }

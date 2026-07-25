@@ -81,17 +81,22 @@ interface Draft {
         }
 
         @if (d.type === 'products' && d.source === 'curated') {
-          <label class="label">Add products</label>
-          <input class="input" [(ngModel)]="prodQuery" (ngModelChange)="searchProducts($event)" placeholder="Search by title or code (MP-…)" />
-          @if (prodResults().length) {
-            <div class="results">
-              @for (r of prodResults(); track r._id) { <button class="ritem" (click)="addProduct(r)">{{ r.code }} · {{ r.title }}</button> }
+          <label class="label">Pick products <span class="muted xs">· {{ picked().length }} selected</span></label>
+          <input class="input" [(ngModel)]="prodQuery" (ngModelChange)="searchProducts($event)" placeholder="Filter by title, code (MP-…) or brand — or just scroll" />
+          <div class="checklist">
+            @for (r of prodResults(); track r._id) {
+              <label class="citem" [class.on]="isPicked(r._id)">
+                <input type="checkbox" [checked]="isPicked(r._id)" (change)="togglePick(r)" />
+                <span class="rcode">{{ r.code }}</span><span class="rttl">{{ r.title }}</span>
+              </label>
+            } @empty { <div class="muted xs pad">{{ prodLoading() ? 'Loading…' : 'No products found' }}</div> }
+            @if (prodHasMore()) { <button type="button" class="loadmore" (click)="loadMoreProducts()">{{ prodLoading() ? 'Loading…' : 'Load more ↓' }}</button> }
+          </div>
+          @if (picked().length) {
+            <div class="chips">
+              @for (p of picked(); track p._id) { <span class="chip">{{ p.title }} <button (click)="removeProduct(p._id)">✕</button></span> }
             </div>
           }
-          <div class="chips">
-            @for (p of picked(); track p._id) { <span class="chip">{{ p.title }} <button (click)="removeProduct(p._id)">✕</button></span> }
-            @empty { <span class="muted xs">No products picked yet.</span> }
-          </div>
         }
 
         @if (d.type === 'vendors' && d.source === 'curated') {
@@ -132,9 +137,15 @@ interface Draft {
       .editor { padding: 16px; } .label { margin-top: 10px; }
       .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
       .chkwrap { display: flex; align-items: flex-end; } .chk { display: inline-flex; gap: 8px; align-items: center; }
-      .results { border: 1px solid var(--border); border-radius: 8px; margin-top: 6px; max-height: 180px; overflow-y: auto; }
-      .ritem { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: none; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.85rem; }
-      .ritem:hover { background: var(--surface-2); }
+      .checklist { border: 1px solid var(--border); border-radius: 8px; margin-top: 6px; max-height: 260px; overflow-y: auto; }
+      .citem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.85rem; }
+      .citem:hover { background: var(--surface-2); }
+      .citem.on { background: var(--brand-50, #eef2ff); }
+      .citem input { accent-color: var(--brand-600); }
+      .rcode { font-family: ui-monospace, monospace; font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
+      .rttl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .loadmore { width: 100%; text-align: center; padding: 9px; background: var(--surface-2); border: none; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--brand-700); }
+      .loadmore:hover { background: var(--border); }
       .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
       .chip { background: var(--brand-50, #eef2ff); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; }
       .chip button { background: none; border: none; cursor: pointer; color: var(--text-muted); }
@@ -165,6 +176,9 @@ export class HomeAdminPage implements OnInit {
   picked = signal<{ _id: string; title: string; code?: string }[]>([]);
   prodQuery = '';
   prodResults = signal<{ _id: string; title: string; code?: string }[]>([]);
+  prodLoading = signal(false);
+  prodHasMore = signal(false);
+  private prodPage = 1;
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** ngModel needs a stable object reference — proxy to the draft signal. */
@@ -178,6 +192,28 @@ export class HomeAdminPage implements OnInit {
     this.load();
     this.categoriesApi.list().subscribe({ next: (c) => this.flatCats.set(this.flatten(c)) });
     this.api.get<{ _id: string; name: string }[]>('/stores').subscribe({ next: (s) => this.stores.set(s) });
+    this.loadProducts(true); // browsable list ready for curated picking
+  }
+
+  /** Paginated, filterable product list for the curated multi-select. */
+  loadProducts(reset: boolean): void {
+    if (reset) this.prodPage = 1;
+    this.prodLoading.set(true);
+    this.productsApi.list({ q: this.prodQuery, page: this.prodPage, limit: 20 }).subscribe({
+      next: (r) => {
+        const rows = r.items.map((p) => ({ _id: p._id, title: p.title, code: p.code }));
+        this.prodResults.set(reset ? rows : [...this.prodResults(), ...rows]);
+        this.prodHasMore.set(r.page < r.pages);
+        this.prodLoading.set(false);
+      },
+      error: () => this.prodLoading.set(false),
+    });
+  }
+  loadMoreProducts(): void { this.prodPage += 1; this.loadProducts(false); }
+  isPicked(id: string): boolean { return this.picked().some((p) => p._id === id); }
+  togglePick(r: { _id: string; title: string; code?: string }): void {
+    if (this.isPicked(r._id)) this.removeProduct(r._id);
+    else this.picked.update((cur) => [...cur, r]);
   }
 
   load(): void { this.homeApi.list().subscribe({ next: (s) => this.sections.set(s) }); }
@@ -200,7 +236,7 @@ export class HomeAdminPage implements OnInit {
     return `${s.sort ?? 'popularity'}${s.category ? ' · ' + s.category : ''} · ${s.limit ?? 8} items`;
   }
 
-  newDraft(): void { this.draft.set(this.blank()); this.picked.set([]); this.prodResults.set([]); this.prodQuery = ''; }
+  newDraft(): void { this.draft.set(this.blank()); this.picked.set([]); this.prodQuery = ''; this.loadProducts(true); }
 
   edit(s: HomeSection): void {
     this.draft.set({
@@ -215,15 +251,9 @@ export class HomeAdminPage implements OnInit {
   }
 
   searchProducts(q: string): void {
+    this.prodQuery = q;
     clearTimeout(this.searchTimer);
-    if (!q.trim()) { this.prodResults.set([]); return; }
-    this.searchTimer = setTimeout(() => {
-      this.productsApi.list({ q, limit: 8 }).subscribe({ next: (r) => this.prodResults.set(r.items.map((p) => ({ _id: p._id, title: p.title, code: p.code }))) });
-    }, 300);
-  }
-  addProduct(p: { _id: string; title: string; code?: string }): void {
-    if (!this.picked().some((x) => x._id === p._id)) this.picked.update((cur) => [...cur, p]);
-    this.prodResults.set([]); this.prodQuery = '';
+    this.searchTimer = setTimeout(() => this.loadProducts(true), 300);
   }
   removeProduct(id: string): void { this.picked.update((cur) => cur.filter((p) => p._id !== id)); }
 
