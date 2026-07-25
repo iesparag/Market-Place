@@ -85,9 +85,15 @@ interface PriceBand { label: string; min?: number; max?: number; }
           @empty { @if (!loading()) { <div class="card empty muted">No products match these filters. <button class="btn btn-sm" (click)="clear()">Clear filters</button></div> } }
         </div>
 
+        <!-- Skeleton placeholders keep the page tall while the next page loads → footer never jumps up. -->
+        @if (loading() && products().length) {
+          <div class="grid skelgrid">
+            @for (i of skeletons; track i) { <div class="scard"><div class="simg"></div><div class="sline"></div><div class="sline short"></div></div> }
+          </div>
+        }
+
         <!-- Infinite scroll: this sentinel auto-loads the next page when it scrolls into view. -->
         <div #sentinel class="sentinel" aria-hidden="true"></div>
-        @if (loading() && products().length) { <p class="muted center">Loading more…</p> }
       </div>
     </div>
   `,
@@ -120,22 +126,31 @@ interface PriceBand { label: string; min?: number; max?: number; }
       .empty { grid-column: 1 / -1; text-align: center; padding: 40px; }
       .sentinel { height: 1px; }
       .center { text-align: center; margin-top: 22px; }
+      /* Loading skeletons (shown while the next page fetches) */
+      .skelgrid { margin-top: 18px; }
+      .scard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+      .simg { aspect-ratio: 1 / 1; border-radius: 8px; }
+      .sline { height: 12px; border-radius: 6px; margin-top: 10px; } .sline.short { width: 55%; }
+      .simg, .sline { background: linear-gradient(90deg, #ececec 25%, #f6f6f6 37%, #ececec 63%); background-size: 400% 100%; animation: shimmer 1.3s ease infinite; }
+      @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
     `,
   ],
 })
 export class CatalogListComponent implements OnInit {
   private readonly catalog = inject(CatalogService);
   private readonly route = inject(ActivatedRoute);
-  private readonly limit = 12;
+  private readonly limit = 24;
+  readonly skeletons = Array.from({ length: 8 }, (_, i) => i);
   @ViewChild('sentinel') sentinel?: ElementRef<HTMLElement>;
 
   constructor() {
-    // Infinite scroll (browser only — SSR-safe). Auto-loads the next page as the sentinel nears the viewport.
+    // Infinite scroll (browser only — SSR-safe). Loads the next page well before the bottom
+    // (large rootMargin) so content is ready before the footer can appear.
     afterNextRender(() => {
       if (!this.sentinel) return;
       const io = new IntersectionObserver(
         (entries) => { if (entries[0]?.isIntersecting && this.canLoadMore() && !this.loading()) this.loadMore(); },
-        { rootMargin: '500px' },
+        { rootMargin: '1200px' },
       );
       io.observe(this.sentinel.nativeElement);
     });
