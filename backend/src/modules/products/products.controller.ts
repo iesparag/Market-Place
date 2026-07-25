@@ -5,7 +5,13 @@ import { productsService } from './products.service.js';
 
 export const productsController = {
   async list(req: Request, res: Response) {
-    ok(res, await productsService.list(req.storeId));
+    const { page, limit, q, category } = req.query;
+    ok(res, await productsService.list(req.storeId, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      q: typeof q === 'string' ? q : undefined,
+      categoryId: typeof category === 'string' && category ? category : undefined,
+    }));
   },
   async create(req: Request, res: Response) {
     created(res, await productsService.create(req.storeId!, req.body));

@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from 'mongoose';
+import { nextSeq, formatProductCode } from './counter.model.js';
 
 const variantSchema = new Schema(
   {
@@ -34,6 +35,9 @@ const modifierGroupSchema = new Schema(
 
 const productSchema = new Schema(
   {
+    // Auto-generated, immutable, globally-unique product code (MP-000123). Shown to customers + admin.
+    // Never set by vendors — assigned by the pre-save hook / backfill.
+    code: { type: String, unique: true, sparse: true, index: true },
     storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
     categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
     title: { type: String, required: true },
@@ -63,6 +67,12 @@ productSchema.index({ title: 'text', description: 'text' });
 productSchema.pre('save', function (next) {
   const prices = (this.variants ?? []).map((v) => v.price).filter((p) => typeof p === 'number');
   this.minPrice = prices.length ? Math.min(...prices) : 0;
+  next();
+});
+
+// Assign a unique product code once, on first save (vendors never set this).
+productSchema.pre('save', async function (next) {
+  if (!this.code) this.code = formatProductCode(await nextSeq('product'));
   next();
 });
 

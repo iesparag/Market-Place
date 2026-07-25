@@ -41,6 +41,7 @@ import type { Variant, ModifierGroup } from '@app/shared';
         <div class="info">
           @if (p.store?.slug) { <a class="vendor" [routerLink]="['/store', p.store!.slug]">{{ p.store!.name }} ›</a> }
           <h1>{{ p.title }}</h1>
+          @if (p.code) { <div class="pcode">Product code: <b>{{ p.code }}</b></div> }
           <div class="rate">
             @if (foodType(); as ft) {
               <span class="vtag" [class.non]="ft !== 'veg'"><app-veg-mark [type]="ft" [size]="15" /> {{ ftLabel(ft) }}</span>
@@ -157,6 +158,7 @@ import type { Variant, ModifierGroup } from '@app/shared';
       .emoji { font-size: 9rem; }
       .vendor { font-size: 0.85rem; color: var(--brand-600); }
       h1 { margin: 6px 0; } .rate { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+      .pcode { font-size: 0.78rem; color: var(--text-muted); font-family: ui-monospace, monospace; margin-bottom: 6px; }
       .stars { color: #f5a623; } .pricebox { display: flex; align-items: baseline; gap: 10px; }
       .vtag { display: inline-flex; align-items: center; gap: 6px; background: #e7f8ee; color: #0a8f3c; border: 1px solid #86efac; font-weight: 700; font-size: 0.78rem; padding: 3px 9px; border-radius: 999px; }
       .vtag.non { background: #fdecec; color: #c0392b; border-color: #f2b8b1; }

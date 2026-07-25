@@ -14,7 +14,7 @@ export class ProductsEffects {
       ofType(ProductsActions.load),
       switchMap(() =>
         this.api.list().pipe(
-          map((products) => ProductsActions.loadSuccess({ products })),
+          map((page) => ProductsActions.loadSuccess({ products: page.items })),
           catchError((e) => of(ProductsActions.loadFailure({ error: e?.message ?? 'Failed' }))),
         ),
       ),

@@ -123,6 +123,7 @@ export const NAV_META: NavSectionMeta[] = [
   {
     section: 'Marketing',
     items: [
+      { perm: 'banner:manage', label: 'Home / Landing', route: '/home' },
       { perm: 'promo:manage', label: 'Coupons', route: '/coupons' },
       { perm: 'banner:manage', label: 'Carousel', route: '/carousel' },
       { perm: 'notification:manage', label: 'Push / Announce', route: '/announcements' },

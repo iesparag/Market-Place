@@ -1,8 +1,12 @@
 import type { Request, Response } from 'express';
 import { ok } from '../../common/apiResponse.js';
 import { catalogService } from './catalog.service.js';
+import { homeService } from '../home/home.module.js';
 
 export const catalogController = {
+  async home(_req: Request, res: Response) {
+    ok(res, await homeService.getHome());
+  },
   async listProducts(req: Request, res: Response) {
     ok(
       res,

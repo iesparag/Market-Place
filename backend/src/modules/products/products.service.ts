@@ -28,14 +28,33 @@ async function validateAttributes(categoryId: string, attributes: Record<string,
 }
 
 export const productsService = {
-  /** List a store's products (vendor) or all (admin) — with the owning vendor's name. */
-  async list(storeId: string | undefined) {
-    const filter = storeId ? { storeId } : {};
-    const products = await Product.find(filter).sort({ createdAt: -1 }).lean();
+  /**
+   * List a store's products (vendor) or all (admin) — paginated + searchable.
+   * Search matches title / product code / brand. Optional category filter.
+   */
+  async list(
+    storeId: string | undefined,
+    opts: { page?: number; limit?: number; q?: string; categoryId?: string } = {},
+  ) {
+    const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
+    const page = Math.max(opts.page ?? 1, 1);
+    const filter: Record<string, unknown> = storeId ? { storeId } : {};
+    if (opts.categoryId) filter.categoryId = opts.categoryId;
+    if (opts.q?.trim()) {
+      const rx = new RegExp(opts.q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ title: rx }, { code: rx }, { brand: rx }];
+    }
+    const total = await Product.countDocuments(filter);
+    const products = await Product.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
     const storeIds = [...new Set(products.map((p) => String(p.storeId)))];
     const stores = await Store.find({ _id: { $in: storeIds } }).select('name slug status').lean();
     const map = new Map(stores.map((s) => [String(s._id), s]));
-    return products.map((p) => ({ ...p, store: map.get(String(p.storeId)) ?? null }));
+    const items = products.map((p) => ({ ...p, store: map.get(String(p.storeId)) ?? null }));
+    return { items, total, page, pages: Math.max(1, Math.ceil(total / limit)), limit };
   },
 
   async create(storeId: string, input: ProductInput) {

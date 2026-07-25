@@ -19,6 +19,7 @@ import { auditRoutes } from '../modules/audit/audit.module.js';
 import { bannersRoutes } from '../modules/banners/banners.module.js';
 import { notificationsRoutes } from '../modules/notifications/notifications.module.js';
 import { faqRoutes } from '../modules/faq/faq.module.js';
+import { homeRoutes } from '../modules/home/home.module.js';
 
 /**
  * Mount every module router. As modules are built, register them here.
@@ -46,6 +47,7 @@ export function buildApiRouter(): Router {
   api.use('/banners', bannersRoutes);
   api.use('/notifications', notificationsRoutes);
   api.use('/faq', faqRoutes);
+  api.use('/home-sections', homeRoutes);
 
   return api;
 }

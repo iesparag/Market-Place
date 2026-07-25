@@ -1,14 +1,13 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { CatalogService, type CatalogProduct, type Banner, type CatNode } from '../core/services/catalog.service';
+import { CatalogService, type CatalogProduct, type Banner, type CatNode, type HomeSectionView, type Vendor } from '../core/services/catalog.service';
 import { ProductCardComponent } from '../shared/product-card.component';
 import { BannerCarouselComponent } from '../shared/banner-carousel.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, NgTemplateOutlet, ProductCardComponent, BannerCarouselComponent],
+  imports: [RouterLink, ProductCardComponent, BannerCarouselComponent],
   template: `
     <!-- Carousel shows ONLY when the admin has active banners; all off → nothing here. -->
     @if (banners().length) { <app-banner-carousel [banners]="banners()" /> }
@@ -36,8 +35,31 @@ import { BannerCarouselComponent } from '../shared/banner-carousel.component';
       </div>
     </section>
 
-    <ng-container *ngTemplateOutlet="row; context: { $implicit: topRated(), title: '⭐ Top rated', link: { sort: 'rating' } }" />
-    <ng-container *ngTemplateOutlet="row; context: { $implicit: newArrivals(), title: '🆕 New arrivals', link: {} }" />
+    <!-- Admin-composed sections (Home / Landing) -->
+    @for (s of sections(); track s._id) {
+      @if (s.type === 'products' && productsOf(s).length) {
+        <section class="prow">
+          <div class="rhead">
+            <div><h2>{{ s.title }}</h2>@if (s.subtitle) { <p class="rsub muted">{{ s.subtitle }}</p> }</div>
+            <a [routerLink]="['/catalog']" [queryParams]="viewAllParams(s)" class="viewall">View all →</a>
+          </div>
+          <div class="grid">@for (p of productsOf(s); track p._id) { <app-product-card [p]="p" /> }</div>
+        </section>
+      }
+      @if (s.type === 'vendors' && vendorsOf(s).length) {
+        <section class="prow">
+          <div class="rhead"><div><h2>{{ s.title }}</h2>@if (s.subtitle) { <p class="rsub muted">{{ s.subtitle }}</p> }</div><a routerLink="/stores" class="viewall">All shops →</a></div>
+          <div class="vgrid">
+            @for (v of vendorsOf(s); track v._id) {
+              <a class="vcard" [routerLink]="['/store', v.slug]">
+                <span class="vlogo">@if (v.logo) { <img [src]="v.logo" [alt]="v.name" /> } @else { {{ v.name.charAt(0) }} }</span>
+                <span class="vmeta"><span class="vname">{{ v.name }}</span><span class="muted xs">{{ v.productCount }} products · {{ v.vendorType }}</span></span>
+              </a>
+            }
+          </div>
+        </section>
+      }
+    }
 
     <!-- VENDOR CTA -->
     <section class="sell">
@@ -47,15 +69,6 @@ import { BannerCarouselComponent } from '../shared/banner-carousel.component';
       </div>
       <a routerLink="/become-vendor" class="btn btn-primary">Become a vendor</a>
     </section>
-
-    <ng-template #row let-items let-title="title" let-link="link">
-      @if (items.length) {
-        <section class="prow">
-          <div class="rhead"><h2>{{ title }}</h2><a [routerLink]="['/catalog']" [queryParams]="link" class="viewall">View all →</a></div>
-          <div class="grid">@for (p of items; track p._id) { <app-product-card [p]="p" /> }</div>
-        </section>
-      }
-    </ng-template>
   `,
   styles: [
     `
@@ -96,7 +109,18 @@ import { BannerCarouselComponent } from '../shared/banner-carousel.component';
 
       /* Product rows */
       .prow { margin-top: 42px; }
+      .rsub { font-size: 0.9rem; margin-top: 2px; }
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; }
+
+      /* Vendor cards */
+      .vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+      .vcard { display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; text-decoration: none; color: var(--text); transition: transform 0.15s, box-shadow 0.15s; }
+      .vcard:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+      .vlogo { width: 54px; height: 54px; border-radius: 14px; background: var(--brand-gradient); color: #fff; font-weight: 800; font-size: 1.4rem; display: grid; place-items: center; overflow: hidden; flex-shrink: 0; }
+      .vlogo img { width: 100%; height: 100%; object-fit: cover; }
+      .vmeta { display: flex; flex-direction: column; min-width: 0; }
+      .vname { font-weight: 700; }
+      .xs { font-size: 0.78rem; }
 
       /* Sell CTA */
       .sell { margin-top: 44px; background: var(--ink); color: #fff; border-radius: var(--radius-lg); padding: 34px 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
@@ -108,15 +132,23 @@ export class HomeComponent implements OnInit {
   private readonly catalog = inject(CatalogService);
   banners = signal<Banner[]>([]);
   departments = signal<CatNode[]>([]);
-  newArrivals = signal<CatalogProduct[]>([]);
-  topRated = signal<CatalogProduct[]>([]);
+  sections = signal<HomeSectionView[]>([]);
   tints = ['#fff1e6', '#e9f7ef', '#fdeef0', '#eef2ff', '#f3f0ff', '#fff7e6'];
 
   ngOnInit(): void {
     this.catalog.getBanners().subscribe({ next: (b) => this.banners.set(b) });
     this.catalog.getCategoryTree().subscribe({ next: (t) => this.departments.set(t) });
-    this.catalog.listProducts({ sort: 'rating', limit: 5 }).subscribe({ next: (l) => this.topRated.set(l) });
-    this.catalog.listProducts({ sort: 'newest', limit: 5 }).subscribe({ next: (l) => this.newArrivals.set(l) });
+    this.catalog.getHome().subscribe({ next: (s) => this.sections.set(s) });
+  }
+
+  productsOf(s: HomeSectionView): CatalogProduct[] { return s.items as CatalogProduct[]; }
+  vendorsOf(s: HomeSectionView): Vendor[] { return s.items as Vendor[]; }
+  /** "View all" → catalog pre-filtered to the same rule (category + sort). */
+  viewAllParams(s: HomeSectionView): Record<string, string> {
+    const p: Record<string, string> = {};
+    if (s.category) p['category'] = s.category;
+    if (s.sort) p['sort'] = s.sort;
+    return p;
   }
 
   emoji(slug: string): string {

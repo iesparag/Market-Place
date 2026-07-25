@@ -21,6 +21,7 @@ export interface Banner {
 
 export interface CatalogProduct extends Product {
   _id: string;
+  code?: string;
   storeId: string;
   store?: { name: string; slug: string } | null;
   variants: Variant[];
@@ -70,6 +71,20 @@ export class CatalogService {
   getStores() {
     return this.api.get<Vendor[]>('/catalog/stores');
   }
+  /** Admin-composed landing page: ordered sections, each already resolved to its items. */
+  getHome() {
+    return this.api.get<HomeSectionView[]>('/catalog/home');
+  }
+}
+
+export interface HomeSectionView {
+  _id: string;
+  title: string;
+  subtitle?: string;
+  type: 'products' | 'vendors';
+  sort?: string;
+  category?: string;
+  items: CatalogProduct[] | Vendor[];
 }
 
 export interface StoreProfile {

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, afterNextRender, ElementRef, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CatalogService, type CatalogProduct } from '../../core/services/catalog.service';
 import { ProductCardComponent } from '../../shared/product-card.component';
@@ -78,14 +78,16 @@ interface PriceBand { label: string; min?: number; max?: number; }
           </div>
         }
 
-        @if (loading()) { <p class="muted">Loading…</p> }
+        @if (loading() && !products().length) { <p class="muted">Loading…</p> }
 
         <div class="grid">
           @for (p of products(); track p._id) { <app-product-card [p]="p" /> }
           @empty { @if (!loading()) { <div class="card empty muted">No products match these filters. <button class="btn btn-sm" (click)="clear()">Clear filters</button></div> } }
         </div>
 
-        @if (canLoadMore()) { <div class="more"><button class="btn" [disabled]="loading()" (click)="loadMore()">Load more</button></div> }
+        <!-- Infinite scroll: this sentinel auto-loads the next page when it scrolls into view. -->
+        <div #sentinel class="sentinel" aria-hidden="true"></div>
+        @if (loading() && products().length) { <p class="muted center">Loading more…</p> }
       </div>
     </div>
   `,
@@ -115,7 +117,8 @@ interface PriceBand { label: string; min?: number; max?: number; }
       .chip.clear { background: none; color: var(--text-muted); }
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; }
       .empty { grid-column: 1 / -1; text-align: center; padding: 40px; }
-      .more { text-align: center; margin-top: 26px; }
+      .sentinel { height: 1px; }
+      .center { text-align: center; margin-top: 22px; }
     `,
   ],
 })
@@ -123,6 +126,19 @@ export class CatalogListComponent implements OnInit {
   private readonly catalog = inject(CatalogService);
   private readonly route = inject(ActivatedRoute);
   private readonly limit = 12;
+  @ViewChild('sentinel') sentinel?: ElementRef<HTMLElement>;
+
+  constructor() {
+    // Infinite scroll (browser only — SSR-safe). Auto-loads the next page as the sentinel nears the viewport.
+    afterNextRender(() => {
+      if (!this.sentinel) return;
+      const io = new IntersectionObserver(
+        (entries) => { if (entries[0]?.isIntersecting && this.canLoadMore() && !this.loading()) this.loadMore(); },
+        { rootMargin: '500px' },
+      );
+      io.observe(this.sentinel.nativeElement);
+    });
+  }
 
   bands: PriceBand[] = [
     { label: 'Under ₹200', max: 20000 },
@@ -146,8 +162,10 @@ export class CatalogListComponent implements OnInit {
 
   filteredCats = computed(() => {
     const term = this.catQuery().toLowerCase();
-    const list = this.categories();
-    return term ? list.filter((c) => c.name.toLowerCase().includes(term)) : list;
+    const sel = new Set(this.selectedCats());
+    const list = term ? this.categories().filter((c) => c.name.toLowerCase().includes(term)) : this.categories();
+    // Selected categories float to the top so they're always visible (no scrolling to find them).
+    return [...list].sort((a, b) => (sel.has(b.slug) ? 1 : 0) - (sel.has(a.slug) ? 1 : 0));
   });
 
   heading = () => {

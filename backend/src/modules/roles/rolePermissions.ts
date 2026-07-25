@@ -19,6 +19,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'review:moderate',
     'analytics:read',
     'notification:manage', // send push / announcements
+    'banner:manage', // manage carousel + landing-page sections
+    'promo:manage', // coupons
   ],
   [Role.VENDOR]: [
     'product:read',

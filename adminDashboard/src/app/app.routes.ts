@@ -85,6 +85,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/coupons/coupons.page').then((m) => m.CouponsPage),
       },
       {
+        path: 'home',
+        canMatch: [permissionGuard('banner:manage')],
+        loadComponent: () => import('./features/home/home.page').then((m) => m.HomeAdminPage),
+      },
+      {
         path: 'carousel',
         canMatch: [permissionGuard('banner:manage')],
         loadComponent: () => import('./features/carousel/carousel.page').then((m) => m.CarouselPage),
