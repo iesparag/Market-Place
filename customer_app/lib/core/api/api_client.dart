@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../config.dart';
 import '../auth/token_store.dart';
+import 'doh.dart';
 
 /// Thrown when the API envelope has `ok: false` or a transport error occurs.
 class ApiException implements Exception {
@@ -27,6 +28,7 @@ class ApiClient {
       receiveTimeout: const Duration(seconds: 20),
       headers: {'Content-Type': 'application/json'},
     ));
+    configureDoh(_dio); // resolve hosts via DoH so flaky device DNS can't break us
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final t = await tokens.access();
@@ -57,8 +59,10 @@ class ApiClient {
     final rt = await tokens.refresh();
     if (rt == null) return false;
     try {
-      final r = await Dio(BaseOptions(baseUrl: Config.apiBaseUrl))
-          .post('/auth/refresh', data: {'refreshToken': rt});
+      final refreshDio = Dio(BaseOptions(baseUrl: Config.apiBaseUrl));
+      configureDoh(refreshDio);
+      final r =
+          await refreshDio.post('/auth/refresh', data: {'refreshToken': rt});
       final data = r.data['data'] as Map<String, dynamic>;
       await tokens.save(data['token'] as String, data['refreshToken'] as String);
       return true;
