@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for release builds to reach the API (debug adds this automatically). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Voice search (speech_to_text) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
