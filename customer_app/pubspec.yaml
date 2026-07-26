@@ -17,6 +17,7 @@ dependencies:
   cached_network_image: ^3.3.1   # product images
   url_launcher: ^6.3.0           # open the update link (Play Store / APK)
   intl: ^0.19.0                  # ₹ formatting
+  speech_to_text: ^7.0.0         # voice search (mic → text)
 
 dev_dependencies:
   flutter_lints: ^4.0.0

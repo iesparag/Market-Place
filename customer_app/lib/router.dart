@@ -33,6 +33,7 @@ final appRouter = GoRouter(
       path: '/catalog',
       builder: (_, s) => CatalogScreen(
         category: s.uri.queryParameters['category'],
+        dept: s.uri.queryParameters['dept'],
         sort: s.uri.queryParameters['sort'],
         q: s.uri.queryParameters['q'],
         title: s.uri.queryParameters['title'],
@@ -42,7 +43,10 @@ final appRouter = GoRouter(
     GoRoute(path: '/department/:slug', builder: (_, s) => DepartmentScreen(slug: s.pathParameters['slug']!)),
     GoRoute(path: '/p/:slug', builder: (_, s) => ProductScreen(slug: s.pathParameters['slug']!)),
     GoRoute(path: '/store/:slug', builder: (_, s) => StoreScreen(slug: s.pathParameters['slug']!)),
-    GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
+    GoRoute(
+        path: '/search',
+        builder: (_, s) =>
+            SearchScreen(autoVoice: s.uri.queryParameters['voice'] == '1')),
     GoRoute(path: '/cart', builder: (_, __) => const CartScreen()),
     GoRoute(path: '/checkout', builder: (_, __) => const CheckoutScreen()),
     GoRoute(path: '/addresses', builder: (_, __) => const AddressesScreen()),

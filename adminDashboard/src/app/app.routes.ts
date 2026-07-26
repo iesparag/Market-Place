@@ -75,6 +75,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/settings/settings.page').then((m) => m.SettingsPage),
       },
       {
+        path: 'appearance',
+        canMatch: [permissionGuard('settings:manage')],
+        loadComponent: () => import('./features/appearance/appearance.page').then((m) => m.AppearancePage),
+      },
+      {
         path: 'commissions',
         canMatch: [permissionGuard('commission:manage')],
         loadComponent: () => import('./features/settings/settings.page').then((m) => m.SettingsPage),

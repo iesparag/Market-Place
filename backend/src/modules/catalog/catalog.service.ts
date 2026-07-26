@@ -88,7 +88,7 @@ export const catalogService = {
       visibility: 'public',
       storeId: { $in: approved },
     })
-      .select('title slug images variants ratingAvg')
+      .select('title slug images variants ratingAvg ratingCount minPrice storeId code')
       .limit(6)
       .lean();
     // Category attribute definitions → so the storefront can render labeled specs (veg, cuisine…).

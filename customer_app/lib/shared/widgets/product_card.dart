@@ -13,14 +13,16 @@ class ProductCard extends ConsumerWidget {
   final Product product;
   const ProductCard({super.key, required this.product});
 
-  Variant? get _cheapest =>
-      product.variants.isEmpty ? null : product.variants.reduce((a, b) => a.price <= b.price ? a : b);
+  Variant? get _cheapest => product.variants.isEmpty
+      ? null
+      : product.variants.reduce((a, b) => a.price <= b.price ? a : b);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ft = foodTypeOf(product.attributes, product.foodType);
     final v = _cheapest;
     final single = product.variants.length == 1;
+    final b = context.brand;
     ref.watch(cartProvider); // rebuild on cart changes
     final cart = ref.read(cartProvider.notifier);
     final qty = (single && v != null) ? cart.qtyOf(product.id, v.sku) : 0;
@@ -31,8 +33,12 @@ class ProductCard extends ConsumerWidget {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: BrandColors.border),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE8EEF3)),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 3))
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,18 +52,24 @@ class ProductCard extends ConsumerWidget {
                       ? CachedNetworkImage(
                           imageUrl: product.firstImage!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: const Color(0xFFF1F1F4)),
+                          placeholder: (_, __) =>
+                              Container(color: const Color(0xFFF1F1F4)),
                           errorWidget: (_, __, ___) => const _ImgFallback(),
                         )
                       : const _ImgFallback(),
-                  if (ft != null) Positioned(top: 8, left: 8, child: VegMark(type: ft, size: 18)),
-                  Positioned(top: 6, right: 6, child: _WishHeart(productId: product.id)),
+                  if (ft != null)
+                    Positioned(
+                        top: 6, left: 6, child: VegMark(type: ft, size: 16)),
+                  Positioned(
+                      top: 5,
+                      right: 5,
+                      child: _WishHeart(productId: product.id)),
                 ],
               ),
             ),
             // Body (fixed height, compact)
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,7 +78,10 @@ class ProductCard extends ConsumerWidget {
                     product.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, height: 1.2),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.2,
+                        height: 1.18),
                   ),
                   if (product.store != null)
                     Padding(
@@ -74,19 +89,33 @@ class ProductCard extends ConsumerWidget {
                       child: Text('by ${product.store!.name}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: BrandColors.textMuted, fontSize: 11)),
+                          style: const TextStyle(
+                              color: BrandColors.textMuted, fontSize: 10.5)),
                     ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
                       Text(rupees(product.minPrice),
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 14.5)),
                       const Spacer(),
-                      if (product.ratingCount > 0) ...[
-                        const Icon(Icons.star_rounded, size: 14, color: BrandColors.star),
-                        Text(product.ratingAvg.toStringAsFixed(1),
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
-                      ],
+                      if (product.ratingCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                              color: b.soft,
+                              borderRadius: BorderRadius.circular(6)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.star_rounded, size: 12, color: b.primary),
+                            const SizedBox(width: 2),
+                            Text(product.ratingAvg.toStringAsFixed(1),
+                                style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: b.primaryDark)),
+                          ]),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -96,23 +125,37 @@ class ProductCard extends ConsumerWidget {
                     child: qty > 0
                         ? _Stepper(
                             qty: qty,
-                            onDec: () => cart.setQty('${product.id}|${v!.sku}', qty - 1),
-                            onInc: () => cart.setQty('${product.id}|${v!.sku}', qty + 1),
+                            onDec: () =>
+                                cart.setQty('${product.id}|${v!.sku}', qty - 1),
+                            onInc: () =>
+                                cart.setQty('${product.id}|${v!.sku}', qty + 1),
                           )
                         : OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: BrandColors.brand600,
-                              side: const BorderSide(color: BrandColors.brand600),
+                              foregroundColor: b.primaryDark,
+                              backgroundColor: b.soft,
+                              side: BorderSide(
+                                  color: Color.lerp(b.soft, b.primary, 0.35)!,
+                                  width: 1),
                               padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-                              textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9)),
+                              textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 12.5,
+                                  letterSpacing: 0.5),
                             ),
                             onPressed: () {
                               if (single && v != null) {
                                 cart.add(CartLine(
-                                  productId: product.id, variantSku: v.sku, title: product.title,
-                                  image: product.firstImage, storeId: product.storeId,
-                                  storeName: product.store?.name, price: v.price, qty: 1,
+                                  productId: product.id,
+                                  variantSku: v.sku,
+                                  title: product.title,
+                                  image: product.firstImage,
+                                  storeId: product.storeId,
+                                  storeName: product.store?.name,
+                                  price: v.price,
+                                  qty: 1,
                                 ));
                               } else {
                                 context.push('/p/${product.slug}');
@@ -139,12 +182,18 @@ class _Stepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(color: BrandColors.brand600, borderRadius: BorderRadius.circular(9)),
+      decoration: BoxDecoration(
+          color: context.brand.primary,
+          borderRadius: BorderRadius.circular(9)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _btn(Icons.remove, onDec),
-          Text('$qty', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+          Text('$qty',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13)),
           _btn(Icons.add, onInc),
         ],
       ),
@@ -153,15 +202,19 @@ class _Stepper extends StatelessWidget {
 
   Widget _btn(IconData i, VoidCallback onTap) => InkWell(
         onTap: onTap,
-        child: SizedBox(width: 38, height: 32, child: Icon(i, color: Colors.white, size: 18)),
+        child: SizedBox(
+            width: 34,
+            height: 32,
+            child: Icon(i, color: Colors.white, size: 17)),
       );
 }
 
 class _ImgFallback extends StatelessWidget {
   const _ImgFallback();
   @override
-  Widget build(BuildContext context) =>
-      Container(color: const Color(0xFFF1F1F4), child: const Center(child: Text('🛍️', style: TextStyle(fontSize: 28))));
+  Widget build(BuildContext context) => Container(
+      color: const Color(0xFFF1F1F4),
+      child: const Center(child: Text('🛍️', style: TextStyle(fontSize: 28))));
 }
 
 class _WishHeart extends ConsumerWidget {
@@ -176,13 +229,17 @@ class _WishHeart extends ConsumerWidget {
         if (!ok && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: const Text('Sign in to save to wishlist'),
-            action: SnackBarAction(label: 'Sign in', onPressed: () => context.push('/login')),
+            action: SnackBarAction(
+                label: 'Sign in', onPressed: () => context.push('/login')),
           ));
         }
       },
       child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: const BoxDecoration(color: Color(0xE6FFFFFF), shape: BoxShape.circle),
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+            color: const Color(0xF7FFFFFF),
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFE8EEF3))),
         child: Icon(on ? Icons.favorite : Icons.favorite_border_rounded,
             size: 18, color: on ? BrandColors.danger : BrandColors.textMuted),
       ),

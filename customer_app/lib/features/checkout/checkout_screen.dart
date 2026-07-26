@@ -235,7 +235,7 @@ class _AddressCard extends StatelessWidget {
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF5EF) : Colors.white,
+          color: selected ? BrandColors.brandSoft : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: selected ? BrandColors.brand600 : BrandColors.border, width: selected ? 1.5 : 1),
         ),

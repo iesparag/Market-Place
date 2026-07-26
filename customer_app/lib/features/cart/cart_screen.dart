@@ -19,7 +19,7 @@ class CartScreen extends ConsumerWidget {
         title: const Text('Your cart'),
         actions: [
           if (lines.isNotEmpty)
-            TextButton(onPressed: cart.clear, child: const Text('Clear', style: TextStyle(color: Colors.white))),
+            TextButton(onPressed: cart.clear, child: const Text('Clear')),
         ],
       ),
       body: lines.isEmpty
@@ -32,15 +32,22 @@ class CartScreen extends ConsumerWidget {
                 final l = lines[i];
                 return Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: BrandColors.border)),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: BrandColors.border)),
                   child: Row(children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: SizedBox(
-                        width: 64, height: 64,
+                        width: 64,
+                        height: 64,
                         child: l.image != null
-                            ? CachedNetworkImage(imageUrl: l.image!, fit: BoxFit.cover)
-                            : Container(color: const Color(0xFFF1F1F4), child: const Icon(Icons.image_outlined)),
+                            ? CachedNetworkImage(
+                                imageUrl: l.image!, fit: BoxFit.cover)
+                            : Container(
+                                color: const Color(0xFFF1F1F4),
+                                child: const Icon(Icons.image_outlined)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -48,11 +55,20 @@ class CartScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                          Text(l.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13.5)),
                           if (l.storeName != null)
-                            Text(l.storeName!, style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
+                            Text(l.storeName!,
+                                style: const TextStyle(
+                                    color: BrandColors.textMuted,
+                                    fontSize: 12)),
                           const SizedBox(height: 6),
-                          Text(rupees(l.price), style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Text(rupees(l.price),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w800)),
                         ],
                       ),
                     ),
@@ -70,14 +86,20 @@ class CartScreen extends ConsumerWidget {
           : SafeArea(
               child: Container(
                 padding: const EdgeInsets.all(14),
-                decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: BrandColors.border))),
+                decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: BrandColors.border))),
                 child: Row(children: [
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Subtotal', style: TextStyle(color: BrandColors.textMuted, fontSize: 12)),
-                      Text(rupees(subtotal), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+                      const Text('Subtotal',
+                          style: TextStyle(
+                              color: BrandColors.textMuted, fontSize: 12)),
+                      Text(rupees(subtotal),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 18)),
                     ],
                   ),
                   const SizedBox(width: 16),
@@ -104,11 +126,21 @@ class _QtyBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: BrandColors.brand600), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+          border: Border.all(color: BrandColors.brand600),
+          borderRadius: BorderRadius.circular(10)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(icon: const Icon(Icons.remove, size: 18), color: BrandColors.brand600, onPressed: onDec, visualDensity: VisualDensity.compact),
+        IconButton(
+            icon: const Icon(Icons.remove, size: 18),
+            color: BrandColors.brand600,
+            onPressed: onDec,
+            visualDensity: VisualDensity.compact),
         Text('$qty', style: const TextStyle(fontWeight: FontWeight.w800)),
-        IconButton(icon: const Icon(Icons.add, size: 18), color: BrandColors.brand600, onPressed: onInc, visualDensity: VisualDensity.compact),
+        IconButton(
+            icon: const Icon(Icons.add, size: 18),
+            color: BrandColors.brand600,
+            onPressed: onInc,
+            visualDensity: VisualDensity.compact),
       ]),
     );
   }
@@ -125,11 +157,14 @@ class _EmptyCart extends StatelessWidget {
         children: [
           const Text('🛒', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 12),
-          const Text('Your cart is empty', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+          const Text('Your cart is empty',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
           const SizedBox(height: 6),
-          const Text('Add products to get started', style: TextStyle(color: BrandColors.textMuted)),
+          const Text('Add products to get started',
+              style: TextStyle(color: BrandColors.textMuted)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: onShop, child: const Text('Start shopping')),
+          ElevatedButton(
+              onPressed: onShop, child: const Text('Start shopping')),
         ],
       ),
     );

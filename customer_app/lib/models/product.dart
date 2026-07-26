@@ -39,6 +39,7 @@ class AttributeDef {
 class Product {
   final String id;
   final String? code;
+  final String categoryId;
   final String title;
   final String slug;
   final String description;
@@ -59,6 +60,7 @@ class Product {
   Product({
     required this.id,
     this.code,
+    required this.categoryId,
     required this.title,
     required this.slug,
     required this.description,
@@ -79,24 +81,37 @@ class Product {
 
   String? get firstImage => images.isNotEmpty ? images.first : null;
 
-  factory Product.fromJson(Map<String, dynamic> j) => Product(
-        id: (j['_id'] ?? j['id']).toString(),
-        code: j['code']?.toString(),
-        title: j['title']?.toString() ?? '',
-        slug: j['slug']?.toString() ?? '',
-        description: j['description']?.toString() ?? '',
-        brand: j['brand']?.toString(),
-        images: (j['images'] as List?)?.map((e) => e.toString()).toList() ?? [],
-        foodType: j['foodType']?.toString(),
-        attributes: (j['attributes'] as Map?)?.cast<String, dynamic>() ?? {},
-        variants: (j['variants'] as List?)?.map((e) => Variant.fromJson(e as Map<String, dynamic>)).toList() ?? [],
-        ratingAvg: _dbl(j['ratingAvg']),
-        ratingCount: _int(j['ratingCount']),
-        minPrice: _int(j['minPrice']),
-        storeId: (j['storeId'] ?? '').toString(),
-        store: j['store'] is Map ? ProductStore.fromJson(j['store'] as Map<String, dynamic>) : null,
-        categoryName: j['categoryName']?.toString(),
-        attributeDefs: (j['attributeDefs'] as List?)?.map((e) => AttributeDef.fromJson(e as Map<String, dynamic>)).toList() ?? [],
-        related: (j['related'] as List?)?.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList() ?? [],
-      );
+  factory Product.fromJson(Map<String, dynamic> j) {
+    final variants = (j['variants'] as List?)
+            ?.map((e) => Variant.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [];
+    // Prefer the denormalized minPrice; fall back to the cheapest variant so a
+    // card never shows ₹0 when the API omits minPrice (e.g. related products).
+    var minPrice = _int(j['minPrice']);
+    if (minPrice <= 0 && variants.isNotEmpty) {
+      minPrice = variants.map((v) => v.price).reduce((a, b) => a < b ? a : b);
+    }
+    return Product(
+      id: (j['_id'] ?? j['id']).toString(),
+      code: j['code']?.toString(),
+      categoryId: (j['categoryId'] ?? '').toString(),
+      title: j['title']?.toString() ?? '',
+      slug: j['slug']?.toString() ?? '',
+      description: j['description']?.toString() ?? '',
+      brand: j['brand']?.toString(),
+      images: (j['images'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      foodType: j['foodType']?.toString(),
+      attributes: (j['attributes'] as Map?)?.cast<String, dynamic>() ?? {},
+      variants: variants,
+      ratingAvg: _dbl(j['ratingAvg']),
+      ratingCount: _int(j['ratingCount']),
+      minPrice: minPrice,
+      storeId: (j['storeId'] ?? '').toString(),
+      store: j['store'] is Map ? ProductStore.fromJson(j['store'] as Map<String, dynamic>) : null,
+      categoryName: j['categoryName']?.toString(),
+      attributeDefs: (j['attributeDefs'] as List?)?.map((e) => AttributeDef.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+      related: (j['related'] as List?)?.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+    );
+  }
 }

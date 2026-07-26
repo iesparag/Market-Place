@@ -137,6 +137,7 @@ export const NAV_META: NavSectionMeta[] = [
     section: 'Settings',
     items: [
       { perm: 'settings:manage', label: 'Settings', route: '/settings' },
+      { perm: 'settings:manage', label: 'App appearance', route: '/appearance' },
       { perm: 'audit:read', label: 'Audit Log', route: '/audit' },
     ],
   },

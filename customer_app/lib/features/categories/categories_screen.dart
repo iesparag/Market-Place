@@ -43,13 +43,13 @@ class _Department extends StatelessWidget {
           ListTile(
             leading: Container(
               width: 44, height: 44,
-              decoration: BoxDecoration(color: const Color(0xFFFFF1E9), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: const Color(0xFFE7F6EC), borderRadius: BorderRadius.circular(12)),
               alignment: Alignment.center,
               child: Text(_emoji[node.slug] ?? '🛍️', style: const TextStyle(fontSize: 22)),
             ),
             title: Text(node.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => context.push('/department/${node.slug}'),
+            onTap: () => context.push('/catalog?dept=${node.slug}&title=${Uri.encodeComponent(node.name)}'),
           ),
           if (node.children.isNotEmpty)
             Padding(

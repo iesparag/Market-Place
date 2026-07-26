@@ -2,30 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
-import '../../features/cart/cart_controller.dart';
+import '../../features/wishlist/wishlist_controller.dart';
 
-/// Cart icon with a live item-count badge → opens /cart. Use in app bars / headers.
-class CartButton extends ConsumerWidget {
+/// Heart icon with a saved-count badge → opens /wishlist. Use next to the cart in app bars.
+class WishlistButton extends ConsumerWidget {
   final Color color;
   final bool filled;
-  const CartButton(
+  const WishlistButton(
       {super.key, this.color = BrandColors.ink, this.filled = false});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(cartProvider).fold<int>(0, (n, l) => n + l.qty);
+    final count = ref.watch(wishlistProvider).length;
     return Container(
       width: filled ? 40 : null,
       height: filled ? 40 : null,
       decoration: filled
           ? BoxDecoration(
-              color: context.brand.primary,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              boxShadow: const [
-                BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 4))
-              ],
+              border: Border.all(color: const Color(0xFFE6EDF4)),
             )
           : null,
       child: IconButton(
@@ -34,9 +29,9 @@ class CartButton extends ConsumerWidget {
         icon: Badge(
           isLabelVisible: count > 0,
           label: Text('$count'),
-          child: Icon(Icons.shopping_bag_outlined, color: color, size: 23),
+          child: Icon(Icons.favorite_border_rounded, color: color, size: 23),
         ),
-        onPressed: () => context.push('/cart'),
+        onPressed: () => context.push('/wishlist'),
       ),
     );
   }
