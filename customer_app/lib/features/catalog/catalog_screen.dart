@@ -10,38 +10,13 @@ import '../../shared/widgets/shimmer.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/search_bar_pill.dart';
+import '../../shared/category_emoji.dart';
 
 class PriceBand {
   final String label;
   final int? min, max;
   const PriceBand(this.label, {this.min, this.max});
 }
-
-const _railEmoji = {
-  'shirts': '👔',
-  'jeans': '👖',
-  't-shirts': '👕',
-  'kurtis': '🥻',
-  'sarees': '🥻',
-  'dresses': '👗',
-  'boys-clothing': '👦',
-  'girls-clothing': '👧',
-  'toys': '🧸',
-  'smartphones': '📱',
-  'laptops': '💻',
-  'audio': '🎧',
-  'wrist-watches': '⌚',
-  'medicines': '💊',
-  'wellness-otc': '🌿',
-  'pizza': '🍕',
-  'burgers-wraps': '🍔',
-  'biryani': '🍛',
-  'dals-pulses': '🫘',
-  'spices-masala': '🌶️',
-  'atta-flour': '🌾',
-  'edible-oil': '🛢️',
-  'rice-grains': '🍚',
-};
 
 const _bands = [
   PriceBand('Under ₹200', max: 20000),
@@ -261,13 +236,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     );
   }
 
-  // ── BigBasket-style left category rail (department mode) ─────────────────────
+  // ── BigBasket-style left category rail (department mode + Products tab) ──────
   Widget _leftRail() {
     return Container(
-      width: 76,
+      width: 84,
       color: const Color(0xFFF0F7F2),
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
         children: [
           _railTile('All', null, _railSlug == null),
           for (final r in _rail) _railTile(r.name, r.slug, _railSlug == r.slug),
@@ -279,6 +254,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   Widget _railTile(String name, String? slug, bool selected) {
     final b = context.brand;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         if (_railSlug != slug) {
           setState(() => _railSlug = slug);
@@ -286,35 +262,41 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           _load(reset: true);
         }
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
         decoration: BoxDecoration(
           color: selected ? Colors.white : Colors.transparent,
           border: Border(
               left: BorderSide(
                   color: selected ? b.primary : Colors.transparent, width: 3)),
         ),
-        padding: const EdgeInsets.fromLTRB(4, 8, 5, 8),
         child: Column(
           children: [
             Container(
-              width: 42,
-              height: 38,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                  color: selected ? b.soft : Colors.white,
-                  borderRadius: BorderRadius.circular(12)),
+                color: selected ? b.soft : Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: selected
+                        ? Color.lerp(b.soft, b.primary, 0.35)!
+                        : const Color(0xFFE4EFE8)),
+              ),
               alignment: Alignment.center,
-              child: Text(slug == null ? '🛍️' : (_railEmoji[slug] ?? '🛒'),
-                  style: const TextStyle(fontSize: 19)),
+              child: Text(categoryEmoji(slug),
+                  style: const TextStyle(fontSize: 21)),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(name,
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 10,
-                    height: 1.15,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: 10.5,
+                    height: 1.12,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                     color: selected ? b.primaryDark : BrandColors.ink)),
           ],
         ),

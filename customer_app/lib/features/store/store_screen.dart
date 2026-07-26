@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../../data/catalog_repository.dart';
 import '../../models/category.dart';
 import '../../models/product.dart';
+import '../../shared/category_emoji.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
@@ -174,39 +175,63 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
   Widget _rail(List<CatNode> leaves) {
     return Container(
-      width: 76,
+      width: 84,
       color: const Color(0xFFF0F7F2),
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
         children: [
-          _railTile('All', null, _catId == null),
-          for (final n in leaves) _railTile(n.name, n.id, _catId == n.id),
+          _railTile('All', null, null, _catId == null),
+          for (final n in leaves)
+            _railTile(n.name, n.slug, n.id, _catId == n.id),
         ],
       ),
     );
   }
 
-  Widget _railTile(String name, String? id, bool selected) {
+  Widget _railTile(String name, String? slug, String? id, bool selected) {
     final b = context.brand;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => _catId = id),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
         decoration: BoxDecoration(
           color: selected ? Colors.white : Colors.transparent,
           border: Border(
               left: BorderSide(
                   color: selected ? b.primary : Colors.transparent, width: 3)),
         ),
-        padding: const EdgeInsets.fromLTRB(5, 9, 5, 9),
-        child: Text(name,
-            maxLines: 3,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                fontSize: 10.5,
-                height: 1.15,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? b.primaryDark : BrandColors.ink)),
+        child: Column(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: selected ? b.soft : Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: selected
+                        ? Color.lerp(b.soft, b.primary, 0.35)!
+                        : const Color(0xFFE4EFE8)),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                  name == 'All' && slug == null ? '🛍️' : categoryEmoji(slug),
+                  style: const TextStyle(fontSize: 21)),
+            ),
+            const SizedBox(height: 6),
+            Text(name,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 10.5,
+                    height: 1.12,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    color: selected ? b.primaryDark : BrandColors.ink)),
+          ],
+        ),
       ),
     );
   }
