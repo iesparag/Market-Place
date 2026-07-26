@@ -2,7 +2,7 @@
     <!-- Voice search (speech_to_text) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
-        android:label="customer_app"
+        android:label="Marketplace"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
