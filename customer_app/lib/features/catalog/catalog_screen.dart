@@ -90,7 +90,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         _loadMore();
       }
     });
-    _load(reset: true);
+    // A department screen must wait for the category tree before loading, so the
+    // filter (_deptAll = this dept + all its sub-categories) is known. Loading
+    // early would fire an UNFILTERED query first and show products from every
+    // department (e.g. clothing under "Food"), and the `if (_loading) return`
+    // guard would then drop the correctly-filtered reload. Non-dept screens
+    // (Products tab, search) have no such dependency → load immediately.
+    if (!_deptMode) _load(reset: true);
     // Build the left rail from leaf categories. Department → its leaves; else → all leaves.
     ref.read(catalogRepoProvider).categoryTree().then((tree) {
       if (!mounted) return;
@@ -109,9 +115,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         }
       });
       if (_deptMode) {
-        _load(reset: true); // apply department filter once _deptAll is known
+        _load(reset: true); // now that _deptAll is set, load the filtered products
       }
-    }).catchError((Object _) {});
+    }).catchError((Object _) {
+      if (_deptMode && mounted) _load(reset: true); // fallback: don't get stuck
+    });
   }
 
   CatNode? _findNode(List<CatNode> nodes, String slug) {
@@ -209,7 +217,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   }
 
   Widget _body(int count) {
-    if (_loading && _items.isEmpty) {
+    // In dept mode we hold off the first load until the tree resolves; show a
+    // skeleton meanwhile instead of a flash of "No products here yet".
+    final bootstrapping = _deptMode && _deptAll.isEmpty;
+    if ((_loading || bootstrapping) && _items.isEmpty) {
       return GridView.builder(
         padding: const EdgeInsets.all(8),
         gridDelegate: _grid,
