@@ -97,8 +97,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     ? CachedNetworkImage(imageUrl: s.logo!, fit: BoxFit.cover)
                     : Container(
                         alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                            gradient: BrandColors.brandGradient),
+                        decoration: BoxDecoration(gradient: context.brand.gradient),
                         child: Text(s.name.isNotEmpty ? s.name[0] : '?',
                             style: const TextStyle(
                                 color: Colors.white,
@@ -275,7 +274,7 @@ class _CoverCarouselState extends State<_CoverCarousel> {
   Widget build(BuildContext context) {
     if (widget.images.isEmpty) {
       return Container(
-          decoration: const BoxDecoration(gradient: BrandColors.brandGradient));
+          decoration: BoxDecoration(gradient: context.brand.gradient));
     }
     return Stack(
       fit: StackFit.expand,

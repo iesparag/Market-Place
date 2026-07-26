@@ -268,7 +268,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 
   Color _bg(String? hex) {
-    if (hex == null || hex.isEmpty) return BrandColors.brand600;
+    if (hex == null || hex.isEmpty) return context.brand.primary;
     final h = hex.replaceAll('#', '');
     return Color(int.parse('FF$h', radix: 16));
   }
@@ -358,7 +358,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
                       height: 6,
                       decoration: BoxDecoration(
                           color: i == _page
-                              ? BrandColors.brand600
+                              ? context.brand.primary
                               : BrandColors.border,
                           borderRadius: BorderRadius.circular(3)),
                     )),
@@ -510,8 +510,8 @@ class _VendorCard extends StatelessWidget {
           Container(
             width: 48,
             height: 48,
-            decoration: const BoxDecoration(
-                gradient: BrandColors.brandGradient, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                gradient: context.brand.gradient, shape: BoxShape.circle),
             clipBehavior: Clip.antiAlias,
             alignment: Alignment.center,
             child: vendor.logo != null

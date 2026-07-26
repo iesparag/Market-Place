@@ -15,7 +15,7 @@ class AddressesScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Addresses')),
       floatingActionButton: user == null ? null : FloatingActionButton.extended(
         onPressed: () => _addSheet(context, ref),
-        backgroundColor: BrandColors.brand600,
+        backgroundColor: context.brand.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Add', style: TextStyle(color: Colors.white)),
       ),
@@ -42,7 +42,7 @@ class AddressesScreen extends ConsumerWidget {
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: BrandColors.border)),
                           child: Row(children: [
-                            const Icon(Icons.location_on_outlined, color: BrandColors.brand600),
+                            Icon(Icons.location_on_outlined, color: context.brand.primary),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(

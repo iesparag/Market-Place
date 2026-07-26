@@ -56,8 +56,8 @@ class _StoreRow extends StatelessWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
-                gradient: BrandColors.brandGradient, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                gradient: context.brand.gradient, shape: BoxShape.circle),
             clipBehavior: Clip.antiAlias,
             alignment: Alignment.center,
             child: vendor.logo != null

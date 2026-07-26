@@ -19,7 +19,7 @@ class AccountScreen extends ConsumerWidget {
             child: Row(children: [
               CircleAvatar(
                 radius: 28,
-                backgroundColor: BrandColors.brand600,
+                backgroundColor: context.brand.primary,
                 child: Text(
                     user != null && user.name.isNotEmpty
                         ? user.name[0].toUpperCase()

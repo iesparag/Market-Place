@@ -76,13 +76,13 @@ class DepartmentScreen extends ConsumerWidget {
                       GestureDetector(
                         onTap: () => context.push(
                             '/catalog?category=${Uri.encodeComponent(dept.allSlugs.join(","))}&title=${Uri.encodeComponent("All ${dept.name}")}'),
-                        child: const Row(children: [
+                        child: Row(children: [
                           Text('View all products',
                               style: TextStyle(
-                                  color: BrandColors.brand700,
+                                  color: context.brand.primaryDark,
                                   fontWeight: FontWeight.w700)),
                           Icon(Icons.arrow_forward_rounded,
-                              size: 16, color: BrandColors.brand700),
+                              size: 16, color: context.brand.primaryDark),
                         ]),
                       ),
                       const SizedBox(height: 12),

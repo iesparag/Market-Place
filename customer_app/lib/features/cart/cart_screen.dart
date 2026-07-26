@@ -125,20 +125,21 @@ class _QtyBox extends StatelessWidget {
   const _QtyBox({required this.qty, required this.onDec, required this.onInc});
   @override
   Widget build(BuildContext context) {
+    final b = context.brand;
     return Container(
       decoration: BoxDecoration(
-          border: Border.all(color: BrandColors.brand600),
+          border: Border.all(color: b.primary),
           borderRadius: BorderRadius.circular(10)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         IconButton(
             icon: const Icon(Icons.remove, size: 18),
-            color: BrandColors.brand600,
+            color: b.primary,
             onPressed: onDec,
             visualDensity: VisualDensity.compact),
         Text('$qty', style: const TextStyle(fontWeight: FontWeight.w800)),
         IconButton(
             icon: const Icon(Icons.add, size: 18),
-            color: BrandColors.brand600,
+            color: b.primary,
             onPressed: onInc,
             visualDensity: VisualDensity.compact),
       ]),

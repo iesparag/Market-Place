@@ -54,7 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Center(
             child: Container(
               width: 56, height: 56,
-              decoration: BoxDecoration(gradient: BrandColors.brandGradient, borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(gradient: context.brand.gradient, borderRadius: BorderRadius.circular(16)),
               alignment: Alignment.center,
               child: const Text('M', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
             ),

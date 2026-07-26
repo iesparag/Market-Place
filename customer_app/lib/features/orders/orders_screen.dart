@@ -10,9 +10,9 @@ import '../../models/order.dart';
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
 
-  Color _statusColor(String s) => switch (s) {
+  Color _statusColor(BuildContext context, String s) => switch (s) {
         'fulfilled' || 'delivered' => BrandColors.success,
-        'paid' => BrandColors.brand600,
+        'paid' => context.brand.primary,
         'cancelled' => BrandColors.danger,
         _ => BrandColors.textMuted,
       };
@@ -43,7 +43,7 @@ class OrdersScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(16),
                         itemCount: orders.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _OrderCard(order: orders[i], color: _statusColor(orders[i].status)),
+                        itemBuilder: (_, i) => _OrderCard(order: orders[i], color: _statusColor(context, orders[i].status)),
                       ),
                     ),
             ),

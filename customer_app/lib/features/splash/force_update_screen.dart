@@ -21,8 +21,8 @@ class ForceUpdateScreen extends StatelessWidget {
               children: [
                 Container(
                   width: 96, height: 96,
-                  decoration: const BoxDecoration(color: Color(0xFFE7F6EC), shape: BoxShape.circle),
-                  child: const Icon(Icons.system_update_rounded, size: 52, color: BrandColors.brand600),
+                  decoration: BoxDecoration(color: context.brand.soft, shape: BoxShape.circle),
+                  child: Icon(Icons.system_update_rounded, size: 52, color: context.brand.primary),
                 ),
                 const SizedBox(height: 22),
                 const Text('Update required', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),

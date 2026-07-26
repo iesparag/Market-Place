@@ -79,7 +79,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                       const EdgeInsets.symmetric(horizontal: 3),
                                   decoration: BoxDecoration(
                                       color: i == _image
-                                          ? BrandColors.brand600
+                                          ? context.brand.primary
                                           : BrandColors.border,
                                       borderRadius: BorderRadius.circular(3)),
                                 )),
@@ -102,8 +102,8 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                       GestureDetector(
                         onTap: () => context.push('/store/${p.store!.slug}'),
                         child: Text('${p.store!.name} ›',
-                            style: const TextStyle(
-                                color: BrandColors.brand700,
+                            style: TextStyle(
+                                color: context.brand.primaryDark,
                                 fontWeight: FontWeight.w600)),
                       ),
                     const SizedBox(height: 6),
@@ -243,7 +243,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                         const Spacer(),
                         Container(
                           decoration: BoxDecoration(
-                              color: BrandColors.brand600,
+                              color: context.brand.primary,
                               borderRadius: BorderRadius.circular(12)),
                           child: Row(children: [
                             IconButton(

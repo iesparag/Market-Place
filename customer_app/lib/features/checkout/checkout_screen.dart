@@ -229,18 +229,19 @@ class _AddressCard extends StatelessWidget {
   const _AddressCard({required this.address, required this.selected, required this.onTap});
   @override
   Widget build(BuildContext context) {
+    final b = context.brand;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? BrandColors.brandSoft : Colors.white,
+          color: selected ? b.soft : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? BrandColors.brand600 : BrandColors.border, width: selected ? 1.5 : 1),
+          border: Border.all(color: selected ? b.primary : BrandColors.border, width: selected ? 1.5 : 1),
         ),
         child: Row(children: [
-          Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: selected ? BrandColors.brand600 : BrandColors.textMuted),
+          Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: selected ? b.primary : BrandColors.textMuted),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
