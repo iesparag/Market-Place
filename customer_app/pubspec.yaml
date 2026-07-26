@@ -1,7 +1,7 @@
 name: customer_app
 description: Marketplace customer app — multi-vendor, BB/Blinkit-style.
 publish_to: 'none'
-version: 1.0.6+7
+version: 1.0.7+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -28,7 +28,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#0B8A45"
+  adaptive_icon_background: "#EA580C"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
   remove_alpha_ios: true
 

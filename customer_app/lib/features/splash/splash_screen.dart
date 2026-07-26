@@ -54,10 +54,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final b = context.brand;
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: BrandColors.brandGradient),
-        child: SafeArea(
+      body: SizedBox.expand( // fill the whole screen — no white strip on the sides
+        child: DecoratedBox(
+          decoration: BoxDecoration(gradient: b.gradient),
+          child: SafeArea(
           child: Column(
             children: [
               const Spacer(),
@@ -65,7 +67,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 width: 96, height: 96,
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(26)),
                 alignment: Alignment.center,
-                child: const Text('M', style: TextStyle(color: BrandColors.brand600, fontSize: 52, fontWeight: FontWeight.w900)),
+                child: Text('M', style: TextStyle(color: b.primary, fontSize: 52, fontWeight: FontWeight.w900)),
               ),
               const SizedBox(height: 18),
               const Text('Marketplace', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 0.3)),
@@ -83,6 +85,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white)),
               const SizedBox(height: 40),
             ],
+          ),
           ),
         ),
       ),
