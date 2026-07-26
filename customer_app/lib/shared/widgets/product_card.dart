@@ -6,6 +6,7 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../models/product.dart';
 import '../../features/cart/cart_controller.dart';
+import '../../features/wishlist/wishlist_controller.dart';
 import 'veg_mark.dart';
 
 class ProductCard extends ConsumerWidget {
@@ -27,6 +28,7 @@ class ProductCard extends ConsumerWidget {
     return GestureDetector(
       onTap: () => context.push('/p/${product.slug}'),
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -35,74 +37,74 @@ class ProductCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: product.firstImage != null
-                        ? CachedNetworkImage(
-                            imageUrl: product.firstImage!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(color: const Color(0xFFF1F1F4)),
-                            errorWidget: (_, __, ___) => const _ImgFallback(),
-                          )
-                        : const _ImgFallback(),
-                  ),
-                ),
-                if (ft != null)
-                  Positioned(top: 8, left: 8, child: VegMark(type: ft, size: 18)),
-              ],
+            // Image fills the remaining space → never overflows, whatever the card height.
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  product.firstImage != null
+                      ? CachedNetworkImage(
+                          imageUrl: product.firstImage!,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(color: const Color(0xFFF1F1F4)),
+                          errorWidget: (_, __, ___) => const _ImgFallback(),
+                        )
+                      : const _ImgFallback(),
+                  if (ft != null) Positioned(top: 8, left: 8, child: VegMark(type: ft, size: 18)),
+                  Positioned(top: 6, right: 6, child: _WishHeart(productId: product.id)),
+                ],
+              ),
             ),
-            // Body
+            // Body (fixed height, compact)
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     product.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5, height: 1.25),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, height: 1.2),
                   ),
-                  const SizedBox(height: 3),
                   if (product.store != null)
-                    Text('by ${product.store!.name}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: BrandColors.textMuted, fontSize: 11.5)),
-                  const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text('by ${product.store!.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: BrandColors.textMuted, fontSize: 11)),
+                    ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Text(rupees(product.minPrice),
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5)),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                       const Spacer(),
                       if (product.ratingCount > 0) ...[
-                        const Icon(Icons.star_rounded, size: 15, color: BrandColors.star),
+                        const Icon(Icons.star_rounded, size: 14, color: BrandColors.star),
                         Text(product.ratingAvg.toStringAsFixed(1),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  qty > 0
-                      ? _Stepper(
-                          qty: qty,
-                          onDec: () => cart.setQty('${product.id}|${v!.sku}', qty - 1),
-                          onInc: () => cart.setQty('${product.id}|${v!.sku}', qty + 1),
-                        )
-                      : SizedBox(
-                          width: double.infinity,
-                          height: 34,
-                          child: OutlinedButton(
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 32,
+                    child: qty > 0
+                        ? _Stepper(
+                            qty: qty,
+                            onDec: () => cart.setQty('${product.id}|${v!.sku}', qty - 1),
+                            onInc: () => cart.setQty('${product.id}|${v!.sku}', qty + 1),
+                          )
+                        : OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: BrandColors.brand600,
                               side: const BorderSide(color: BrandColors.brand600),
                               padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
                               textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                             ),
                             onPressed: () {
@@ -118,7 +120,7 @@ class ProductCard extends ConsumerWidget {
                             },
                             child: const Text('ADD'),
                           ),
-                        ),
+                  ),
                 ],
               ),
             ),
@@ -137,8 +139,7 @@ class _Stepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 34,
-      decoration: BoxDecoration(color: BrandColors.brand600, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: BrandColors.brand600, borderRadius: BorderRadius.circular(9)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -152,7 +153,7 @@ class _Stepper extends StatelessWidget {
 
   Widget _btn(IconData i, VoidCallback onTap) => InkWell(
         onTap: onTap,
-        child: SizedBox(width: 40, height: 34, child: Icon(i, color: Colors.white, size: 18)),
+        child: SizedBox(width: 38, height: 32, child: Icon(i, color: Colors.white, size: 18)),
       );
 }
 
@@ -161,4 +162,30 @@ class _ImgFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Container(color: const Color(0xFFF1F1F4), child: const Center(child: Text('🛍️', style: TextStyle(fontSize: 28))));
+}
+
+class _WishHeart extends ConsumerWidget {
+  final String productId;
+  const _WishHeart({required this.productId});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(wishlistProvider).contains(productId);
+    return GestureDetector(
+      onTap: () async {
+        final ok = await ref.read(wishlistProvider.notifier).toggle(productId);
+        if (!ok && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('Sign in to save to wishlist'),
+            action: SnackBarAction(label: 'Sign in', onPressed: () => context.push('/login')),
+          ));
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(color: Color(0xE6FFFFFF), shape: BoxShape.circle),
+        child: Icon(on ? Icons.favorite : Icons.favorite_border_rounded,
+            size: 18, color: on ? BrandColors.danger : BrandColors.textMuted),
+      ),
+    );
+  }
 }

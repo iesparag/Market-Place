@@ -23,9 +23,9 @@ class CatalogRepository {
     return data.map((e) => HomeSection.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<List<Banner>> banners() async {
+  Future<List<PromoBanner>> banners() async {
     final data = await api.get('/banners') as List;
-    return data.map((e) => Banner.fromJson(e as Map<String, dynamic>)).toList();
+    return data.map((e) => PromoBanner.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<List<CatNode>> categoryTree() async {

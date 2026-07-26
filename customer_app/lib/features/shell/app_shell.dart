@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/theme.dart';
-import '../cart/cart_controller.dart';
 import '../home/home_screen.dart';
-import '../categories/categories_screen.dart';
-import '../cart/cart_screen.dart';
+import '../stores/stores_list_screen.dart';
+import '../catalog/catalog_screen.dart';
 import '../account/account_screen.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -15,11 +14,11 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
-  static const _tabs = [HomeScreen(), CategoriesScreen(), CartScreen(), AccountScreen()];
+  // Home · Stores · Products · Account
+  static const _tabs = [HomeScreen(), StoresListScreen(), CatalogScreen(searchable: true), AccountScreen()];
 
   @override
   Widget build(BuildContext context) {
-    final count = ref.watch(cartProvider).fold<int>(0, (n, l) => n + l.qty);
     return Scaffold(
       body: IndexedStack(index: _index, children: _tabs),
       bottomNavigationBar: NavigationBar(
@@ -28,15 +27,11 @@ class _AppShellState extends ConsumerState<AppShell> {
         backgroundColor: Colors.white,
         indicatorColor: const Color(0x1FEA580C),
         height: 64,
-        destinations: [
-          const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded, color: BrandColors.brand600), label: 'Home'),
-          const NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view_rounded, color: BrandColors.brand600), label: 'Categories'),
-          NavigationDestination(
-            icon: Badge(isLabelVisible: count > 0, label: Text('$count'), child: const Icon(Icons.shopping_cart_outlined)),
-            selectedIcon: Badge(isLabelVisible: count > 0, label: Text('$count'), child: const Icon(Icons.shopping_cart_rounded, color: BrandColors.brand600)),
-            label: 'Cart',
-          ),
-          const NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded, color: BrandColors.brand600), label: 'Account'),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded, color: BrandColors.brand600), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront_rounded, color: BrandColors.brand600), label: 'Stores'),
+          NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view_rounded, color: BrandColors.brand600), label: 'Products'),
+          NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded, color: BrandColors.brand600), label: 'Account'),
         ],
       ),
     );

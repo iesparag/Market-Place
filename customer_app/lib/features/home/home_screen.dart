@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../models/store.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/shimmer.dart';
+import '../../shared/widgets/cart_button.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -41,7 +43,7 @@ class HomeScreen extends ConsumerWidget {
                       orElse: () => const SizedBox.shrink(),
                     ),
                     // Shop by department
-                    const SectionHeader(title: 'Shop by department'),
+                    SectionHeader(title: 'Shop by department', actionLabel: 'See all', onAction: () => context.push('/categories')),
                     tree.when(
                       loading: () => const SizedBox(height: 96, child: Center(child: CircularProgressIndicator())),
                       error: (e, _) => _err(context, ref, e.toString()),
@@ -105,7 +107,7 @@ class _Header extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.notifications_none_rounded, color: Colors.white),
+              const CartButton(),
             ],
           ),
           const SizedBox(height: 12),
@@ -129,40 +131,105 @@ class _Header extends StatelessWidget {
 }
 
 // ── Banners ─────────────────────────────────────────────────────────────────
-class _BannerCarousel extends StatelessWidget {
-  final List<Banner> banners;
+class _BannerCarousel extends StatefulWidget {
+  final List<PromoBanner> banners;
   const _BannerCarousel({required this.banners});
+  @override
+  State<_BannerCarousel> createState() => _BannerCarouselState();
+}
+
+class _BannerCarouselState extends State<_BannerCarousel> {
+  final _ctrl = PageController();
+  int _page = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.banners.length > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+        if (!_ctrl.hasClients) return;
+        final next = (_page + 1) % widget.banners.length;
+        _ctrl.animateToPage(next, duration: const Duration(milliseconds: 450), curve: Curves.easeInOut);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   Color _bg(String? hex) {
-    if (hex == null) return BrandColors.brand600;
+    if (hex == null || hex.isEmpty) return BrandColors.brand600;
     final h = hex.replaceAll('#', '');
     return Color(int.parse('FF$h', radix: 16));
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 150,
-      child: PageView.builder(
-        controller: PageController(viewportFraction: 0.92),
-        itemCount: banners.length,
-        itemBuilder: (_, i) {
-          final b = banners[i];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(color: _bg(b.bg), borderRadius: BorderRadius.circular(16)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(b.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(b.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              ],
-            ),
-          );
-        },
-      ),
+    final banners = widget.banners;
+    return Column(
+      children: [
+        SizedBox(
+          height: 172,
+          child: PageView.builder(
+            controller: _ctrl,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemCount: banners.length,
+            itemBuilder: (_, i) {
+              final b = banners[i];
+              final base = _bg(b.bg);
+              return GestureDetector(
+                onTap: () { if (b.link != null && b.link!.startsWith('/')) context.push(b.link!); },
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      colors: [base, Color.lerp(base, Colors.black, 0.22)!],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(b.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, height: 1.1)),
+                      const SizedBox(height: 6),
+                      Text(b.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 13)),
+                      if (b.ctaText != null && b.ctaText!.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
+                          child: Text(b.ctaText!, style: TextStyle(color: base, fontWeight: FontWeight.w800, fontSize: 12.5)),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (banners.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(banners.length, (i) => AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: i == _page ? 20 : 6,
+              height: 6,
+              decoration: BoxDecoration(color: i == _page ? BrandColors.brand600 : BrandColors.border, borderRadius: BorderRadius.circular(3)),
+            )),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -181,29 +248,33 @@ class _DepartmentStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (nodes.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 104,
+      height: 90,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: nodes.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (_, i) {
           final d = nodes[i];
           return GestureDetector(
-            onTap: () => context.push('/catalog?category=${Uri.encodeComponent(d.allSlugs.join(","))}&title=${Uri.encodeComponent(d.name)}'),
+            onTap: () => context.push('/department/${d.slug}'),
             child: SizedBox(
-              width: 72,
+              width: 62,
               child: Column(
                 children: [
                   Container(
-                    width: 64, height: 64,
-                    decoration: BoxDecoration(color: const Color(0xFFFFF1E9), borderRadius: BorderRadius.circular(18)),
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F3F5),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFE6E7EC)),
+                    ),
                     alignment: Alignment.center,
-                    child: Text(_emoji[d.slug] ?? '🛍️', style: const TextStyle(fontSize: 28)),
+                    child: Text(_emoji[d.slug] ?? '🛍️', style: const TextStyle(fontSize: 26)),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -244,13 +315,13 @@ class _Section extends StatelessWidget {
     return Column(children: [
       SectionHeader(title: section.title, subtitle: section.subtitle, actionLabel: 'View all', onAction: () => context.push(viewAll)),
       SizedBox(
-        height: 296,
+        height: 272,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           itemCount: section.products.length,
           separatorBuilder: (_, __) => const SizedBox(width: 12),
-          itemBuilder: (_, i) => SizedBox(width: 165, child: ProductCard(product: section.products[i])),
+          itemBuilder: (_, i) => SizedBox(width: 156, child: ProductCard(product: section.products[i])),
         ),
       ),
     ]);
@@ -303,13 +374,13 @@ class _RowSkeleton extends StatelessWidget {
     return Column(children: [
       const SectionHeader(title: 'Loading…'),
       SizedBox(
-        height: 296,
+        height: 272,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           itemCount: 4,
           separatorBuilder: (_, __) => const SizedBox(width: 12),
-          itemBuilder: (_, __) => const SizedBox(width: 165, child: ProductCardSkeleton()),
+          itemBuilder: (_, __) => const SizedBox(width: 156, child: ProductCardSkeleton()),
         ),
       ),
     ]);
@@ -324,13 +395,19 @@ class _SellCta extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 26, 16, 8),
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(color: BrandColors.ink, borderRadius: BorderRadius.circular(16)),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Sell on Marketplace', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-          SizedBox(height: 6),
-          Text('Reach thousands of customers. List your products, manage orders, get paid.',
+          const Text('Sell on Marketplace', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          const Text('Reach thousands of customers. List your products, manage orders, get paid.',
               style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const SizedBox(height: 14),
+          ElevatedButton(
+            onPressed: () => context.push('/become-vendor'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: BrandColors.ink, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+            child: const Text('Become a vendor'),
+          ),
         ],
       ),
     );

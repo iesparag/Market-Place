@@ -49,7 +49,7 @@ class _Department extends StatelessWidget {
             ),
             title: Text(node.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => context.push('/catalog?category=${Uri.encodeComponent(node.allSlugs.join(","))}&title=${Uri.encodeComponent(node.name)}'),
+            onTap: () => context.push('/department/${node.slug}'),
           ),
           if (node.children.isNotEmpty)
             Padding(

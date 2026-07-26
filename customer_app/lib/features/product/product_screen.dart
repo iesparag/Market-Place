@@ -149,13 +149,13 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
               if (p.related.isNotEmpty) ...[
                 const Padding(padding: EdgeInsets.fromLTRB(16, 8, 16, 8), child: Text('You may also like', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
                 SizedBox(
-                  height: 296,
+                  height: 272,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: p.related.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (_, i) => SizedBox(width: 165, child: ProductCard(product: p.related[i])),
+                    itemBuilder: (_, i) => SizedBox(width: 156, child: ProductCard(product: p.related[i])),
                   ),
                 ),
                 const SizedBox(height: 12),

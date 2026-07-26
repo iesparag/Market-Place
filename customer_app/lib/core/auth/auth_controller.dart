@@ -53,6 +53,30 @@ class AuthController extends StateNotifier<AuthUser?> {
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
   }
 
+  Future<void> registerVendor({
+    required String name,
+    required String email,
+    required String password,
+    String? phone,
+    required String storeName,
+    String? vendorType,
+    String? gstin,
+    String? pan,
+    String? city,
+  }) async {
+    final d = await ref.read(apiClientProvider).post('/auth/register-vendor', body: {
+      'name': name, 'email': email, 'password': password,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'storeName': storeName,
+      if (vendorType != null) 'vendorType': vendorType,
+      if (gstin != null && gstin.isNotEmpty) 'gstin': gstin,
+      if (pan != null && pan.isNotEmpty) 'pan': pan,
+      if (city != null && city.isNotEmpty) 'address': {'city': city},
+    }) as Map<String, dynamic>;
+    await ref.read(tokenStoreProvider).save(d['token'] as String, d['refreshToken'] as String);
+    state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
+  }
+
   Future<void> logout() async {
     await ref.read(tokenStoreProvider).clear();
     state = null;

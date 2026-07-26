@@ -1,15 +1,15 @@
 import 'product.dart';
 import 'store.dart';
 
-class Banner {
+class PromoBanner {
   final String title;
   final String subtitle;
   final String? ctaText;
   final String? link;
   final String? bg;
   final String? image;
-  Banner({required this.title, required this.subtitle, this.ctaText, this.link, this.bg, this.image});
-  factory Banner.fromJson(Map<String, dynamic> j) => Banner(
+  PromoBanner({required this.title, required this.subtitle, this.ctaText, this.link, this.bg, this.image});
+  factory PromoBanner.fromJson(Map<String, dynamic> j) => PromoBanner(
         title: j['title']?.toString() ?? '',
         subtitle: j['subtitle']?.toString() ?? '',
         ctaText: j['ctaText']?.toString(),

@@ -11,7 +11,7 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 22, 8, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -19,7 +19,7 @@ class SectionHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                Text(title, style: const TextStyle(fontSize: 17.5, fontWeight: FontWeight.w800)),
                 if (subtitle != null && subtitle!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),

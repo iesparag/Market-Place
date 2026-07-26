@@ -31,6 +31,11 @@ const EnvSchema = z.object({
   FIREBASE_PRIVATE_KEY: z.string().optional(), // paste with literal \n for newlines
   // Search engine: 'mongo' (default, works on any MongoDB, no setup) or 'atlas' (Atlas Search — better relevance/typo-tolerance).
   SEARCH_ENGINE: z.enum(['mongo', 'atlas']).default('mongo'),
+  // Mobile app (Flutter): minimum supported version + where to send users to update.
+  APP_MIN_VERSION: z.string().default('1.0.0'),
+  APP_LATEST_VERSION: z.string().default('1.0.0'),
+  APP_UPDATE_URL: z.string().default(''), // Play Store / APK / Drive link
+  APP_UPDATE_MESSAGE: z.string().default('A new version is available. Please update to continue.'),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

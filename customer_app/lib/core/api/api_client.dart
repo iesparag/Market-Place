@@ -102,6 +102,15 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> delete(String path) async {
+    try {
+      final r = await _dio.delete(path);
+      return _unwrap(r);
+    } on DioException catch (e) {
+      throw _fromDio(e);
+    }
+  }
+
   ApiException _fromDio(DioException e) {
     final data = e.response?.data;
     final msg = data is Map ? (data['error']?['message'] ?? e.message) : e.message;

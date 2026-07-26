@@ -5,6 +5,7 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../data/catalog_repository.dart';
 import '../../shared/widgets/product_card.dart';
+import '../../shared/widgets/cart_button.dart';
 
 class StoreScreen extends ConsumerWidget {
   final String slug;
@@ -30,6 +31,8 @@ class StoreScreen extends ConsumerWidget {
           expandedHeight: 180,
           pinned: true,
           backgroundColor: BrandColors.ink,
+          foregroundColor: Colors.white,
+          actions: const [CartButton()],
           flexibleSpace: FlexibleSpaceBar(
             background: cover != null
                 ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover)
@@ -93,7 +96,7 @@ class StoreScreen extends ConsumerWidget {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
           sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2, childAspectRatio: 0.58, crossAxisSpacing: 12, mainAxisSpacing: 12),

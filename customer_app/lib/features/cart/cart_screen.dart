@@ -25,7 +25,7 @@ class CartScreen extends ConsumerWidget {
       body: lines.isEmpty
           ? _EmptyCart(onShop: () => context.go('/'))
           : ListView.separated(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               itemCount: lines.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (_, i) {
@@ -73,20 +73,21 @@ class CartScreen extends ConsumerWidget {
                 decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: BrandColors.border))),
                 child: Row(children: [
                   Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Subtotal', style: TextStyle(color: BrandColors.textMuted, fontSize: 12)),
                       Text(rupees(subtotal), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
                     ],
                   ),
-                  const Spacer(),
-                  SizedBox(
-                    width: 180,
-                    child: ElevatedButton(
-                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Checkout coming in Phase 2 🚧')),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: () => context.push('/checkout'),
+                        child: const Text('Proceed to checkout'),
                       ),
-                      child: const Text('Proceed to checkout'),
                     ),
                   ),
                 ]),
