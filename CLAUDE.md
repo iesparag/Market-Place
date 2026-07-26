@@ -48,6 +48,7 @@ Three apps + one shared package (a monorepo):
 | Roles, permissions, sidebar, who-sees-what | `docs/04-RBAC.md` |
 | Payments, commission, payouts, refunds | `docs/05-PAYMENTS.md` |
 | What to build next / phase order | `docs/06-ROADMAP.md` |
+| Flutter customer app (mobile, BB/Blinkit-style) | `docs/09-FLUTTER-APP.md` |
 | Naming, git, testing, error format | `docs/07-CONVENTIONS.md` |
 | Folder structure, NgRx, sockets setup | `docs/08-STRUCTURE.md` + each app's `STRUCTURE.md` |
 | Backend build steps / full tree | `backend/PLAN.md` · `backend/STRUCTURE.md` |

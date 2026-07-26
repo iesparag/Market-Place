@@ -18,7 +18,13 @@ export function createApp(): Express {
   app.use(`/${UPLOAD_DIR}`, express.static(UPLOAD_DIR));
   app.use(
     cors({
-      origin: [env.WEB_ORIGIN, env.ADMIN_ORIGIN],
+      // Allow the configured web/admin origins + any localhost port (Flutter web / local dev).
+      // Native apps (Android/iOS) send no Origin header, so they're allowed too.
+      origin: (origin, cb) => {
+        const allowed = [env.WEB_ORIGIN, env.ADMIN_ORIGIN];
+        const isLocalhost = origin != null && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+        cb(null, origin == null || allowed.includes(origin) || isLocalhost);
+      },
       credentials: true,
     }),
   );
