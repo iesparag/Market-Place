@@ -34,13 +34,27 @@ class SuggestStore {
       );
 }
 
+class SuggestCategory {
+  final String id;
+  final String name;
+  final String slug;
+  SuggestCategory({required this.id, required this.name, required this.slug});
+  factory SuggestCategory.fromJson(Map<String, dynamic> j) => SuggestCategory(
+        id: (j['_id'] ?? '').toString(),
+        name: j['name']?.toString() ?? '',
+        slug: j['slug']?.toString() ?? '',
+      );
+}
+
 class Suggestion {
   final List<SuggestProduct> products;
   final List<SuggestStore> stores;
-  Suggestion({required this.products, required this.stores});
+  final List<SuggestCategory> categories;
+  Suggestion({required this.products, required this.stores, this.categories = const []});
   factory Suggestion.fromJson(Map<String, dynamic> j) => Suggestion(
         products: (j['products'] as List?)?.map((e) => SuggestProduct.fromJson(e as Map<String, dynamic>)).toList() ?? [],
         stores: (j['stores'] as List?)?.map((e) => SuggestStore.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+        categories: (j['categories'] as List?)?.map((e) => SuggestCategory.fromJson(e as Map<String, dynamic>)).toList() ?? [],
       );
-  bool get isEmpty => products.isEmpty && stores.isEmpty;
+  bool get isEmpty => products.isEmpty && stores.isEmpty && categories.isEmpty;
 }

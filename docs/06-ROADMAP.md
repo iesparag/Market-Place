@@ -108,6 +108,10 @@ Best started once orders exist (P3), since the bot's value is order-aware answer
 ```
 [x] S1 Backend spine        [ ] S4 Admin inbox        [ ] S7 Prod RAG + harden
 [x] S2a Tool-call + guards  [ ] S5 Auto opt-in
-[ ] S2b RAG/KB retrieval    [x] S6a Flutter app chat
+[x] S2b Product RAG+search  [x] S6a Flutter app chat
 [x] S3 Escalation (basic)   [ ] S6b Web chat widget
+
+S2b: product create/update/delete → embedding sync (rag.service), search_products bot tool,
+category search in /search/suggest, backfill:embeddings script. App: order picker + product/
+category search + tap-to-redirect (deep-link) in the support chat.
 ```

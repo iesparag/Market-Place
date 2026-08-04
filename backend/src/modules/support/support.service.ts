@@ -5,6 +5,7 @@ import { emitToUser, emitToAdmin, emitToStore, safeEmit } from '../../realtime/e
 import { aiProvider, type ChatTurn } from '../../providers/ai/index.js';
 import { writeAudit } from '../audit/audit.module.js';
 import { runTool, toolSpecs, type ToolContext } from './tools/registry.js';
+import { Order } from '../orders/order.model.js';
 import {
   SupportThread,
   SupportTicket,
@@ -121,8 +122,17 @@ type Outcome = { text: string; escalate: boolean; toolActions: ToolAction[] };
  * call goes through the guarded registry, so the bot can only ever exercise the customer's own
  * capabilities. Any tool that signals `escalate` (incl. escalate_to_support) hands off to a human.
  */
-async function orchestrate(ctx: ToolContext, stored: { role: string; text: string }[]): Promise<Outcome> {
+async function orchestrate(
+  ctx: ToolContext,
+  stored: { role: string; text: string }[],
+  contextPrefix = '',
+): Promise<Outcome> {
   const history: ChatTurn[] = toTurns(stored);
+  // Fold the selected order/product context into the latest user turn (bot sees it; the
+  // stored transcript stays clean for display).
+  if (contextPrefix && history.length && history[history.length - 1]!.role === 'user') {
+    history[history.length - 1]!.content = contextPrefix + history[history.length - 1]!.content;
+  }
   const tools = toolSpecs(ctx.config);
   const toolActions: ToolAction[] = [];
 
@@ -144,9 +154,26 @@ async function orchestrate(ctx: ToolContext, stored: { role: string; text: strin
 }
 
 /** A customer message → one bot turn. May resolve in-line (Tier 1) or open a ticket (Tier 2). */
-export async function postCustomerMessage(user: AuthUser, threadId: string, text: string) {
+export async function postCustomerMessage(
+  user: AuthUser,
+  threadId: string,
+  text: string,
+  context?: { orderId?: string; productTitle?: string },
+) {
   const config = await getSupportConfig();
   const thread = await getMyThread(user, threadId);
+
+  // Attach the customer's selected order/product context — ownership-checked, so a spoofed
+  // orderId is simply ignored. Sets thread.orderId so the escalated ticket carries it too.
+  let contextPrefix = '';
+  if (context?.orderId && /^[a-f0-9]{24}$/i.test(context.orderId)) {
+    const o = await Order.findOne({ _id: context.orderId, customerId: user.id }).select('orderNumber').lean();
+    if (o) {
+      thread.orderId = context.orderId as never;
+      contextPrefix += `[Regarding order ${o.orderNumber}] `;
+    }
+  }
+  if (context?.productTitle) contextPrefix += `[Regarding product "${context.productTitle.slice(0, 120)}"] `;
 
   thread.messages.push({ role: 'customer', text } as never);
   thread.lastMessageAt = new Date();
@@ -155,7 +182,7 @@ export async function postCustomerMessage(user: AuthUser, threadId: string, text
   const outcome: Outcome =
     config.botEnabled === false
       ? { text: '', escalate: true, toolActions: [] }
-      : await orchestrate({ user, config }, thread.messages as unknown as { role: string; text: string }[]);
+      : await orchestrate({ user, config }, thread.messages as unknown as { role: string; text: string }[], contextPrefix);
 
   // Audit every state-changing action the bot took on the customer's behalf.
   for (const a of outcome.toolActions) {

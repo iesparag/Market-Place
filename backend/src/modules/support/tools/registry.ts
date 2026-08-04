@@ -4,6 +4,7 @@ import type { AuthUser } from '../../../common/types.js';
 import type { ToolSpec } from '../../../providers/ai/types.js';
 import { Order } from '../../orders/order.model.js';
 import { ordersService } from '../../orders/orders.service.js';
+import { searchProducts } from '../rag.service.js';
 import type { SupportConfigDoc } from '../support.model.js';
 
 /**
@@ -216,6 +217,24 @@ const cancelOrder: SupportTool = {
   },
 };
 
+const ProductQueryArg = z.object({ query: z.string().min(1).max(200) });
+const searchProductsTool: SupportTool = {
+  spec: {
+    name: 'search_products',
+    description:
+      'Search the catalog for products by keywords/description to answer a product question. ' +
+      'Returns matching product titles + slugs (share the slug so the customer can open the product page).',
+    parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  },
+  schema: ProductQueryArg,
+  async run(_ctx, args) {
+    const { query } = ProductQueryArg.parse(args);
+    const hits = await searchProducts(query, { limit: 5 });
+    // Public catalog info only — title + slug, nothing customer-specific.
+    return { ok: true, data: hits.map((h) => ({ title: h.title, slug: h.slug })) };
+  },
+};
+
 const escalate: SupportTool = {
   spec: {
     name: 'escalate_to_support',
@@ -235,7 +254,7 @@ const escalate: SupportTool = {
   },
 };
 
-const ALL_TOOLS: SupportTool[] = [getMyOrders, getOrder, trackOrder, getInvoice, reorder, cancelOrder, escalate];
+const ALL_TOOLS: SupportTool[] = [getMyOrders, getOrder, trackOrder, getInvoice, reorder, cancelOrder, searchProductsTool, escalate];
 
 /** Tools currently enabled by the admin's feature flags — this is what the model is even shown. */
 export function toolSpecs(config: SupportConfigDoc): ToolSpec[] {

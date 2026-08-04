@@ -4,6 +4,7 @@ import { Category } from '../categories/category.model.js';
 import { Store } from '../stores/store.model.js';
 import { Product } from './product.model.js';
 import { buildAttributeValidator } from './attributeValidator.js';
+import { indexProduct, removeProductIndex } from '../support/rag.service.js';
 
 /** Vendor is scoped to their own store; admin (no storeId) may manage any product. */
 function scopeFilter(storeId: string | undefined, id: string): { _id: string; storeId?: string } {
@@ -60,7 +61,9 @@ export const productsService = {
   async create(storeId: string, input: ProductInput) {
     if (!storeId) throw AppError.forbidden('No store in scope');
     const attributes = await validateAttributes(input.categoryId, input.attributes ?? {});
-    return Product.create({ ...input, attributes, storeId });
+    const product = await Product.create({ ...input, attributes, storeId });
+    void indexProduct(product.toObject()); // keep the support RAG index in sync
+    return product;
   },
 
   async update(storeId: string | undefined, id: string, input: Partial<ProductInput>) {
@@ -71,6 +74,7 @@ export const productsService = {
     }
     product.set(input);
     await product.save();
+    void indexProduct(product.toObject()); // re-embed on edit
     return product;
   },
 
@@ -108,6 +112,7 @@ export const productsService = {
   async remove(storeId: string | undefined, id: string) {
     const res = await Product.deleteOne(scopeFilter(storeId, id));
     if (res.deletedCount === 0) throw AppError.notFound('Product not found');
+    void removeProductIndex(id); // drop it from the support RAG index
     return { deleted: true };
   },
 
@@ -117,6 +122,7 @@ export const productsService = {
     if (!product) throw AppError.notFound('Product not found');
     product.status = active ? 'active' : 'archived';
     await product.save();
+    void indexProduct(product.toObject()); // status change → update index visibility
     return product;
   },
 };

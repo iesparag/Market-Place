@@ -32,9 +32,14 @@ async function listMyThreads(req: Request, res: Response) {
   ok(res, await service.listMyThreads(req.user!));
 }
 
+const contextSchema = z
+  .object({ orderId: z.string().optional(), productTitle: z.string().max(200).optional() })
+  .optional();
+
 async function sendMessage(req: Request, res: Response) {
   const text = messageText.parse(req.body?.text);
-  ok(res, await service.postCustomerMessage(req.user!, req.params.id!, text));
+  const context = contextSchema.parse(req.body?.context);
+  ok(res, await service.postCustomerMessage(req.user!, req.params.id!, text, context));
 }
 
 // ── admin / vendor ───────────────────────────────────────────────────────────

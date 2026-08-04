@@ -4,6 +4,7 @@ import { ok } from '../../common/apiResponse.js';
 import { env } from '../../config/env.js';
 import { Product } from '../products/product.model.js';
 import { Store } from '../stores/store.model.js';
+import { Category } from '../categories/category.model.js';
 
 /**
  * Swappable search layer (same pattern as payment/email/push providers).
@@ -13,7 +14,8 @@ import { Store } from '../stores/store.model.js';
  */
 export interface SuggestProduct { _id: string; title: string; slug: string; code?: string; image?: string; minPrice: number; storeName?: string }
 export interface SuggestStore { _id: string; name: string; slug: string; logo?: string }
-export interface SuggestResult { products: SuggestProduct[]; stores: SuggestStore[] }
+export interface SuggestCategory { _id: string; name: string; slug: string }
+export interface SuggestResult { products: SuggestProduct[]; stores: SuggestStore[]; categories: SuggestCategory[] }
 export interface SearchProvider { suggest(q: string): Promise<SuggestResult> }
 
 async function approvedStoreIds() {
@@ -21,6 +23,13 @@ async function approvedStoreIds() {
   return s.map((x) => x._id);
 }
 const escapeRx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Category typeahead — shared by both engines (few rows, regex is plenty). */
+async function categoryMatches(term: string): Promise<SuggestCategory[]> {
+  const rx = new RegExp(escapeRx(term), 'i');
+  const cats = await Category.find({ name: rx }).select('name slug').limit(6).lean();
+  return cats.map((c) => ({ _id: String(c._id), name: c.name, slug: c.slug }));
+}
 
 type ProdLite = { _id: unknown; title: string; slug: string; code?: string; images?: string[]; minPrice?: number; storeId: unknown };
 async function attachStoreNames(products: ProdLite[]): Promise<SuggestProduct[]> {
@@ -37,7 +46,7 @@ async function attachStoreNames(products: ProdLite[]): Promise<SuggestProduct[]>
 const mongoSearch: SearchProvider = {
   async suggest(q) {
     const term = q.trim();
-    if (!term) return { products: [], stores: [] };
+    if (!term) return { products: [], stores: [], categories: [] };
     const rx = new RegExp(escapeRx(term), 'i');
     const approved = await approvedStoreIds();
     const [products, stores] = await Promise.all([
@@ -50,6 +59,7 @@ const mongoSearch: SearchProvider = {
     return {
       products: await attachStoreNames(products as unknown as ProdLite[]),
       stores: (stores as { _id: unknown; name: string; slug: string; logo?: string }[]).map((s) => ({ _id: String(s._id), name: s.name, slug: s.slug, logo: s.logo })),
+      categories: await categoryMatches(term),
     };
   },
 };
@@ -58,7 +68,7 @@ const mongoSearch: SearchProvider = {
 const atlasSearch: SearchProvider = {
   async suggest(q) {
     const term = q.trim();
-    if (!term) return { products: [], stores: [] };
+    if (!term) return { products: [], stores: [], categories: [] };
     const approved = await approvedStoreIds();
     const products = await Product.aggregate<ProdLite>([
       { $search: { index: 'default', compound: { should: [
@@ -78,6 +88,7 @@ const atlasSearch: SearchProvider = {
     return {
       products: await attachStoreNames(products),
       stores: stores.map((s) => ({ _id: String(s._id), name: s.name, slug: s.slug, logo: s.logo })),
+      categories: await categoryMatches(term),
     };
   },
 };

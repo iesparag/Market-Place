@@ -43,7 +43,7 @@ class SupportController extends StateNotifier<SupportState> {
     }
   }
 
-  Future<void> send(String text) async {
+  Future<void> send(String text, {String? orderId, String? productTitle}) async {
     final body = text.trim();
     final id = state.threadId;
     if (body.isEmpty || id == null || state.sending) return;
@@ -55,8 +55,15 @@ class SupportController extends StateNotifier<SupportState> {
       messages: [...state.messages, SupportMessage(role: 'customer', text: body, at: DateTime.now())],
     );
 
+    final context = <String, dynamic>{
+      if (orderId != null && orderId.isNotEmpty) 'orderId': orderId,
+      if (productTitle != null && productTitle.isNotEmpty) 'productTitle': productTitle,
+    };
+
     try {
-      final res = (await _api.post('/support/threads/$id/message', body: {'text': body}) as Map).cast<String, dynamic>();
+      final res = (await _api.post('/support/threads/$id/message',
+              body: {'text': body, if (context.isNotEmpty) 'context': context}) as Map)
+          .cast<String, dynamic>();
       final thread = (res['thread'] as Map?)?.cast<String, dynamic>();
       state = state.copyWith(
         sending: false,
