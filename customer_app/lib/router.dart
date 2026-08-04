@@ -13,6 +13,7 @@ import 'features/orders/orders_screen.dart';
 import 'features/orders/order_success_screen.dart';
 import 'features/wishlist/wishlist_screen.dart';
 import 'features/vendor/become_vendor_screen.dart';
+import 'features/support/support_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/splash/force_update_screen.dart';
 import 'features/auth/login_screen.dart';
@@ -54,6 +55,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/order-success', builder: (_, s) => OrderSuccessScreen(number: s.uri.queryParameters['number'] ?? '')),
     GoRoute(path: '/wishlist', builder: (_, __) => const WishlistScreen()),
     GoRoute(path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
+    GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
   ],
 );

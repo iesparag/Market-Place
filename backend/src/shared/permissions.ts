@@ -51,6 +51,12 @@ export const PERMISSIONS = [
   'audit:read',
   // Analytics
   'analytics:read',
+  // Support (AI customer support — see docs/10-SUPPORT-AI.md)
+  'support:read', // view tickets/threads
+  'support:reply', // send a reply to a customer
+  'support:assign', // assign / resolve / close tickets
+  'support:config', // toggle the bot + every support feature on/off
+  'kb:manage', // create/edit knowledge-base docs the bot answers from
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -139,6 +145,14 @@ export const NAV_META: NavSectionMeta[] = [
       { perm: 'settings:manage', label: 'Settings', route: '/settings' },
       { perm: 'settings:manage', label: 'App appearance', route: '/appearance' },
       { perm: 'audit:read', label: 'Audit Log', route: '/audit' },
+    ],
+  },
+  {
+    section: 'Support',
+    items: [
+      { perm: 'support:read', label: 'Support Inbox', route: '/support' },
+      { perm: 'kb:manage', label: 'Knowledge Base', route: '/support/kb' },
+      { perm: 'support:config', label: 'Support Settings', route: '/support/settings' },
     ],
   },
   {

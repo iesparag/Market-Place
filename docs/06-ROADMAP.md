@@ -99,3 +99,15 @@
 [ ] P2 Storefront & cart  [ ] P6 Permissions & integrations
 [ ] P3 Checkout & payments[ ] P7 Hardening & launch
 ```
+
+## Feature track — AI Customer Support (parallel to P4+)
+
+RAG support chatbot + admin assist across app/web/dashboard. Full design: `docs/10-SUPPORT-AI.md`.
+Best started once orders exist (P3), since the bot's value is order-aware answers.
+
+```
+[x] S1 Backend spine        [ ] S4 Admin inbox        [ ] S7 Prod RAG + harden
+[x] S2a Tool-call + guards  [ ] S5 Auto opt-in
+[ ] S2b RAG/KB retrieval    [x] S6a Flutter app chat
+[x] S3 Escalation (basic)   [ ] S6b Web chat widget
+```

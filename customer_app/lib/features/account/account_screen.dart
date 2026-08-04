@@ -58,7 +58,7 @@ class AccountScreen extends ConsumerWidget {
               () => context.push('/addresses')),
           _tile(Icons.storefront_outlined, 'Become a vendor',
               () => context.push('/become-vendor')),
-          _tile(Icons.help_outline_rounded, 'Help & support', () {}),
+          _tile(Icons.help_outline_rounded, 'Help & support', () => context.push('/support')),
           if (user != null) ...[
             const Divider(height: 24),
             _tile(Icons.logout_rounded, 'Log out',

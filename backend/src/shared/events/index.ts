@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { OrderStatusEnum, SubOrderStatusEnum } from '../enums/index.js';
+import {
+  OrderStatusEnum,
+  SubOrderStatusEnum,
+  SupportSenderEnum,
+  SupportIntentEnum,
+  SentimentEnum,
+  SupportTicketStatusEnum,
+} from '../enums/index.js';
 
 /**
  * Socket.IO event contracts — single source of truth for realtime.
@@ -14,6 +21,11 @@ export const SOCKET_EVENTS = {
   NOTIFICATION_NEW: 'notification:new',
   CHAT_MESSAGE: 'chat:message',
   PRESENCE: 'presence:update',
+  // AI customer support (docs/10-SUPPORT-AI.md)
+  SUPPORT_MESSAGE: 'support:message', // a new turn in a support thread
+  SUPPORT_TICKET_NEW: 'support:ticket_new', // escalation created → admin/store inbox
+  SUPPORT_TICKET_UPDATED: 'support:ticket_updated', // status / assignee / reply
+  SUPPORT_TYPING: 'support:typing', // bot/agent typing indicator
 } as const;
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
 
@@ -66,6 +78,40 @@ export const ChatMessageSchema = z.object({
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
+export const SupportMessageSchema = z.object({
+  threadId: z.string(),
+  role: SupportSenderEnum,
+  text: z.string(),
+  at: z.string(),
+});
+export type SupportMessage = z.infer<typeof SupportMessageSchema>;
+
+export const SupportTicketNewSchema = z.object({
+  ticketId: z.string(),
+  threadId: z.string(),
+  intent: SupportIntentEnum,
+  sentiment: SentimentEnum,
+  urgency: z.number().int().min(1).max(3),
+  summary: z.string(),
+  storeId: z.string().optional(),
+  at: z.string(),
+});
+export type SupportTicketNew = z.infer<typeof SupportTicketNewSchema>;
+
+export const SupportTicketUpdatedSchema = z.object({
+  ticketId: z.string(),
+  status: SupportTicketStatusEnum,
+  at: z.string(),
+});
+export type SupportTicketUpdated = z.infer<typeof SupportTicketUpdatedSchema>;
+
+export const SupportTypingSchema = z.object({
+  threadId: z.string(),
+  who: z.enum(['bot', 'agent']),
+  at: z.string(),
+});
+export type SupportTyping = z.infer<typeof SupportTypingSchema>;
+
 /** Payload type lookup by event name (compile-time safety for emit/listen). */
 export interface SocketEventPayloads {
   [SOCKET_EVENTS.ORDER_STATUS_UPDATED]: OrderStatusUpdated;
@@ -75,4 +121,8 @@ export interface SocketEventPayloads {
   [SOCKET_EVENTS.NOTIFICATION_NEW]: NotificationNew;
   [SOCKET_EVENTS.CHAT_MESSAGE]: ChatMessage;
   [SOCKET_EVENTS.PRESENCE]: { userId: string; online: boolean };
+  [SOCKET_EVENTS.SUPPORT_MESSAGE]: SupportMessage;
+  [SOCKET_EVENTS.SUPPORT_TICKET_NEW]: SupportTicketNew;
+  [SOCKET_EVENTS.SUPPORT_TICKET_UPDATED]: SupportTicketUpdated;
+  [SOCKET_EVENTS.SUPPORT_TYPING]: SupportTyping;
 }

@@ -74,3 +74,35 @@ export const AttributeTypeEnum = z.enum([
   'multi-enum',
 ]);
 export type AttributeType = z.infer<typeof AttributeTypeEnum>;
+
+// ── AI customer support (see docs/10-SUPPORT-AI.md) ──────────────────────────
+/** What the customer is trying to do — drives routing, SLAs and auto-reply gating. */
+export const SupportIntentEnum = z.enum([
+  'where_is_order',
+  'return_or_refund',
+  'cancel_order',
+  'order_issue',
+  'payment_issue',
+  'product_question',
+  'account',
+  'general',
+  'other',
+]);
+export type SupportIntent = z.infer<typeof SupportIntentEnum>;
+
+/** Emotional read of the message — surfaced to the admin, never used to auto-refund. */
+export const SentimentEnum = z.enum(['positive', 'neutral', 'negative', 'angry']);
+export type Sentiment = z.infer<typeof SentimentEnum>;
+
+/** bot = self-serve; pending_admin = escalated & waiting on a human. */
+export const SupportThreadStatusEnum = z.enum(['bot', 'open', 'pending_admin', 'resolved', 'closed']);
+export type SupportThreadStatus = z.infer<typeof SupportThreadStatusEnum>;
+
+export const SupportTicketStatusEnum = z.enum(['open', 'in_progress', 'resolved', 'closed']);
+export type SupportTicketStatus = z.infer<typeof SupportTicketStatusEnum>;
+
+export const SupportChannelEnum = z.enum(['app', 'web', 'admin']);
+export type SupportChannel = z.infer<typeof SupportChannelEnum>;
+
+export const SupportSenderEnum = z.enum(['customer', 'bot', 'agent', 'system']);
+export type SupportSender = z.infer<typeof SupportSenderEnum>;

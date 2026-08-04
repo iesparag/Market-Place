@@ -22,6 +22,7 @@ import { faqRoutes } from '../modules/faq/faq.module.js';
 import { homeRoutes } from '../modules/home/home.module.js';
 import { searchRoutes } from '../modules/search/search.module.js';
 import { appConfigRoutes } from '../modules/appconfig/appconfig.module.js';
+import { supportRoutes } from '../modules/support/support.routes.js';
 
 /**
  * Mount every module router. As modules are built, register them here.
@@ -52,6 +53,7 @@ export function buildApiRouter(): Router {
   api.use('/home-sections', homeRoutes);
   api.use('/search', searchRoutes);
   api.use('/app', appConfigRoutes);
+  api.use('/support', supportRoutes);
 
   return api;
 }

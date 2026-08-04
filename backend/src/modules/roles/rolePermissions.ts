@@ -21,6 +21,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'notification:manage', // send push / announcements
     'banner:manage', // manage carousel + landing-page sections
     'promo:manage', // coupons
+    'support:read', // AI support inbox
+    'support:reply',
+    'support:assign',
+    'support:config', // owns every support feature toggle
+    'kb:manage',
   ],
   [Role.VENDOR]: [
     'product:read',
@@ -34,8 +39,18 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'payout:read',
     'review:read',
     'store:update',
+    'support:read', // sees only their store's tickets (store-scoped)
+    'support:reply',
+    'kb:manage', // their store's KB docs
   ],
-  [Role.VENDOR_STAFF]: ['product:read', 'product:update', 'suborder:read', 'suborder:update'],
+  [Role.VENDOR_STAFF]: [
+    'product:read',
+    'product:update',
+    'suborder:read',
+    'suborder:update',
+    'support:read',
+    'support:reply',
+  ],
   [Role.CUSTOMER]: [],
 };
 

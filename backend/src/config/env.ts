@@ -31,6 +31,15 @@ const EnvSchema = z.object({
   FIREBASE_PRIVATE_KEY: z.string().optional(), // paste with literal \n for newlines
   // Search engine: 'mongo' (default, works on any MongoDB, no setup) or 'atlas' (Atlas Search — better relevance/typo-tolerance).
   SEARCH_ENGINE: z.enum(['mongo', 'atlas']).default('mongo'),
+  // AI customer support (docs/10-SUPPORT-AI.md). Optional — if OPENAI_API_KEY is unset the
+  // support bot runs on a deterministic stub, so everything boots keyless in dev.
+  OPENAI_API_KEY: z.string().optional(),
+  AI_CHAT_MODEL: z.string().default('gpt-4o-mini'),
+  AI_EMBED_MODEL: z.string().default('text-embedding-3-small'),
+  // Vector store for RAG retrieval: 'mongo' (in-app cosine, any MongoDB — dev default) or
+  // 'atlas' ($vectorSearch — needs an Atlas vector index on kb_chunks.embedding).
+  VECTOR_ENGINE: z.enum(['mongo', 'atlas']).default('mongo'),
+  SUPPORT_RATE_PER_MIN: z.coerce.number().default(20), // per-user support message rate limit
   // Mobile app (Flutter): minimum supported version + where to send users to update.
   APP_MIN_VERSION: z.string().default('1.0.0'),
   APP_LATEST_VERSION: z.string().default('1.0.0'),
