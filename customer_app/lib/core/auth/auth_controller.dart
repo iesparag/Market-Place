@@ -77,6 +77,22 @@ class AuthController extends StateNotifier<AuthUser?> {
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
   }
 
+  /// Step 1 of a password reset: emails a 6-digit code (valid 15 minutes).
+  /// The API always reports success so it never reveals whether the email exists.
+  Future<void> forgotPassword(String email) async {
+    await ref.read(apiClientProvider).post('/auth/forgot-password', body: {'email': email});
+  }
+
+  /// Step 2: the code is verified and the password replaced in one call — a code
+  /// that is wrong, used or older than 15 minutes throws.
+  Future<void> resetPassword(String email, String code, String newPassword) async {
+    await ref.read(apiClientProvider).post('/auth/reset-password', body: {
+      'email': email,
+      'code': code,
+      'newPassword': newPassword,
+    });
+  }
+
   Future<void> logout() async {
     await ref.read(tokenStoreProvider).clear();
     state = null;

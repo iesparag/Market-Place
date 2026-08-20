@@ -14,7 +14,7 @@ class Config {
   static const int pageSize = 20;
 
   /// Keep in sync with pubspec `version:`. Compared against the backend's minVersion for force-update.
-  static const String appVersion = '1.0.10';
+  static const String appVersion = '1.0.11';
 }
 
 /// true if [current] is older than [min] (simple semver compare).

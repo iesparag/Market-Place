@@ -13,7 +13,8 @@
     "seed:fashion": "tsx src/db/seeds/fashion-products.ts",
     "seed:demo": "tsx src/db/seeds/demo-data.ts",
     "backfill:codes": "tsx src/db/seeds/backfill-codes.ts",
-    "backfill:embeddings": "tsx src/db/seeds/backfill-embeddings.ts"
+    "backfill:embeddings": "tsx src/db/seeds/backfill-embeddings.ts",
+    "reset:password": "tsx src/db/seeds/reset-password.ts"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
