@@ -6,6 +6,7 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/order.dart';
+import '../checkout/payment_controller.dart';
 
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
@@ -51,12 +52,55 @@ class OrdersScreen extends ConsumerWidget {
   }
 }
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends ConsumerStatefulWidget {
   final OrderModel order;
   final Color color;
   const _OrderCard({required this.order, required this.color});
   @override
+  ConsumerState<_OrderCard> createState() => _OrderCardState();
+}
+
+class _OrderCardState extends ConsumerState<_OrderCard> {
+  bool _paying = false;
+
+  /// Owned here (not a provider): the native Razorpay listener must survive the
+  /// async gap while the sheet is open, then be torn down exactly once.
+  late final PaymentController _payment = PaymentController(ref.read(paymentRepoProvider));
+
+  @override
+  void dispose() {
+    _payment.dispose();
+    super.dispose();
+  }
+
+  /// Retry payment for an order that was placed but never paid.
+  Future<void> _pay() async {
+    setState(() => _paying = true);
+    final result = await _payment.pay(orderId: widget.order.id, method: 'razorpay');
+    if (!mounted) return;
+    setState(() => _paying = false);
+
+    final messenger = ScaffoldMessenger.of(context);
+    switch (result) {
+      case PayPaid():
+        messenger.showSnackBar(const SnackBar(content: Text('Payment successful 🎉')));
+        ref.invalidate(myOrdersProvider);
+      case PayCod():
+        ref.invalidate(myOrdersProvider);
+      case PayCancelled():
+        messenger.showSnackBar(const SnackBar(content: Text('Payment cancelled — your order is still saved.')));
+      case PayFailed(:final message):
+        messenger.showSnackBar(SnackBar(content: Text(message)));
+        // A UPI collect can still land after the sheet closes; the webhook settles
+        // it, so refresh once the server has had a chance to hear about it.
+        final settled = await _payment.waitForSettlement(widget.order.id);
+        if (settled != null && mounted) ref.invalidate(myOrdersProvider);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final order = widget.order;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: BrandColors.border)),
@@ -67,8 +111,8 @@ class _OrderCard extends StatelessWidget {
             Expanded(child: Text(order.number.isEmpty ? 'Order' : order.number, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'monospace'))),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-              child: Text(order.status, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+              decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+              child: Text(order.status, style: TextStyle(color: widget.color, fontWeight: FontWeight.w700, fontSize: 12)),
             ),
           ]),
           const SizedBox(height: 6),
@@ -76,6 +120,40 @@ class _OrderCard extends StatelessWidget {
               style: const TextStyle(color: BrandColors.textMuted, fontSize: 13)),
           if (order.createdAt != null)
             Text(timeAgo(order.createdAt), style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
+
+          if (order.refundedAmount > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text('↩️ ${rupees(order.refundedAmount)} refunded',
+                  style: const TextStyle(color: BrandColors.success, fontSize: 12.5, fontWeight: FontWeight.w600)),
+            ),
+
+          if (order.isCodPending)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(children: [
+                const Text('💵', style: TextStyle(fontSize: 15)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('Pay ${rupees(order.total)} in cash on delivery',
+                      style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+                ),
+              ]),
+            ),
+
+          if (order.needsPayment) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 42,
+              child: ElevatedButton(
+                onPressed: _paying ? null : _pay,
+                child: _paying
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(order.total > 0 ? 'Pay ${rupees(order.total)}' : 'Pay now'),
+              ),
+            ),
+          ],
         ],
       ),
     );

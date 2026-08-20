@@ -52,7 +52,14 @@ final appRouter = GoRouter(
     GoRoute(path: '/checkout', builder: (_, __) => const CheckoutScreen()),
     GoRoute(path: '/addresses', builder: (_, __) => const AddressesScreen()),
     GoRoute(path: '/orders', builder: (_, __) => const OrdersScreen()),
-    GoRoute(path: '/order-success', builder: (_, s) => OrderSuccessScreen(number: s.uri.queryParameters['number'] ?? '')),
+    GoRoute(
+      path: '/order-success',
+      builder: (_, s) => OrderSuccessScreen(
+        number: s.uri.queryParameters['number'] ?? '',
+        paid: s.uri.queryParameters['paid'] == '1',
+        cod: s.uri.queryParameters['cod'] == '1',
+      ),
+    ),
     GoRoute(path: '/wishlist', builder: (_, __) => const WishlistScreen()),
     GoRoute(path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
     GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),

@@ -73,6 +73,19 @@ import { NotificationService } from '../../core/services/notification.service';
         </div>
       </div>
 
+      <div class="card" formGroupName="bankAccount">
+        <h3>Payout account <span class="muted small">(where settlements are sent)</span></h3>
+        <div class="two">
+          <div><label class="label">Account holder name</label><input class="input" formControlName="accountName" /></div>
+          <div><label class="label">UPI ID</label><input class="input" formControlName="upiId" placeholder="name@upi" /></div>
+        </div>
+        <div class="two">
+          <div><label class="label">Bank account number</label><input class="input" formControlName="accountNumber" /></div>
+          <div><label class="label">IFSC</label><input class="input" formControlName="ifsc" placeholder="HDFC0001234" /></div>
+        </div>
+        <p class="muted small">A UPI ID alone is enough for small settlements; add the bank account for larger ones.</p>
+      </div>
+
       <div class="card" formGroupName="address">
         <h3>Registered address</h3>
         <label class="label">Address line</label><input class="input" formControlName="line1" />
@@ -131,6 +144,7 @@ export class StoreEditPage implements OnInit {
   form = this.fb.nonNullable.group({
     name: [''], vendorType: ['generic'], establishedYear: [null as number | null], description: [''],
     logo: [''], legalName: [''], gstin: [''], pan: [''], website: [''], contactEmail: [''], contactPhone: [''],
+    bankAccount: this.fb.group({ accountName: [''], accountNumber: [''], ifsc: [''], upiId: [''] }),
     address: this.fb.group({ line1: [''], city: [''], state: [''], pincode: [''] }),
     social: this.fb.group({ instagram: [''], facebook: [''], twitter: [''] }),
   });
@@ -160,6 +174,7 @@ export class StoreEditPage implements OnInit {
       logo: (s['logo'] as string) ?? '', legalName: (s['legalName'] as string) ?? '',
       gstin: (s['gstin'] as string) ?? '', pan: (s['pan'] as string) ?? '', website: (s['website'] as string) ?? '',
       contactEmail: (s['contactEmail'] as string) ?? '', contactPhone: (s['contactPhone'] as string) ?? '',
+      bankAccount: (s['bankAccount'] as never) ?? {},
       address: (s['address'] as never) ?? {}, social: (s['social'] as never) ?? {},
     });
   }

@@ -2,10 +2,11 @@ import { SOCKET_EVENTS, type OrderStatusUpdated } from '@app/shared';
 import { AppError } from '../../common/AppError.js';
 import { sum, percentOf } from '../../common/money.js';
 import { Product } from '../products/product.model.js';
-import { Store } from '../stores/store.model.js';
 import { Order } from './order.model.js';
 import { getSettings } from '../settings/settings.model.js';
-import { ledgerService } from '../ledger/ledger.service.js';
+import { paymentProvider } from '../../providers/payment/index.js';
+import { paymentsService } from '../payments/payments.service.js';
+import { settlementService } from '../payments/settlement.service.js';
 import { computeDiscount, markCouponUsed } from '../coupons/coupons.module.js';
 import { User } from '../auth/user.model.js';
 import { emailProvider } from '../../providers/email/index.js';
@@ -159,8 +160,23 @@ export const ordersService = {
       const owns = (order.storeIds ?? []).some((s) => String(s) === actor.storeId);
       if (!owns) throw AppError.forbidden('Not your order');
     }
+    // Guard the money-bearing transition: an unpaid prepaid order must never be
+    // walked forward to `paid` by hand — only the settlement service does that.
+    if (status === 'paid' && order.payment?.status !== 'paid')
+      throw AppError.badRequest(
+        'NOT_PAID',
+        'This order has not been paid. Collect payment before marking it paid.',
+      );
+
     order.status = status;
     await order.save();
+
+    // Cash on delivery: the money exists only once the order is handed over, so this
+    // is where COD commission hits the ledger.
+    if (status === 'fulfilled' && order.payment?.method === 'cod' && order.payment?.status !== 'paid') {
+      await settlementService.settleCodCollected(id);
+    }
+
     pushOrderStatus(order); // live socket + bell notification
     return order;
   },
@@ -180,55 +196,25 @@ export const ordersService = {
   },
 
   /**
-   * Pay for an order (mock provider). Idempotent. Computes per-store commission,
-   * snapshots it, writes the ledger (vendor_payable + commission_income), marks paid.
-   * Swap the mock for Stripe Connect later via the payment provider adapter.
+   * Legacy one-shot pay endpoint.
+   *
+   * This used to mark an order paid with no money attached — which is free checkout
+   * the moment a real gateway exists. It is now a **dev-only** convenience that works
+   * exclusively on the keyless mock gateway. With Razorpay configured, clients must go
+   * through `POST /payments/checkout` → gateway sheet → `POST /payments/confirm`.
    */
   async pay(id: string, customerId: string) {
-    const order = await Order.findById(id);
-    if (!order) throw AppError.notFound('Order not found');
-    if (String(order.customerId) !== customerId) throw AppError.forbidden('Not your order');
-    if (order.status === 'paid' || order.status === 'fulfilled') return order; // idempotent
-
-    const settings = await getSettings();
-    const defaultRate = settings.commissionPercent;
-    const storeIds = [...new Set(order.items.map((i) => String(i.storeId)))];
-    const snapshots = [];
-    const entries = [];
-
-    for (const storeId of storeIds) {
-      const subtotal = sum(
-        order.items.filter((i) => String(i.storeId) === storeId).map((i) => i.lineTotal),
+    if (paymentProvider.live)
+      throw AppError.badRequest(
+        'USE_PAYMENT_FLOW',
+        'Direct pay is disabled. Start a payment with POST /payments/checkout.',
       );
-      const store = await Store.findById(storeId).lean();
-      const rate =
-        store?.commissionOverride?.type === 'percent' ? store.commissionOverride.value! : defaultRate;
-      const commission = percentOf(subtotal, rate);
-      const payable = subtotal - commission;
-      snapshots.push({ storeId, subtotal, rate, amount: commission, payable });
-      entries.push(
-        { orderId: id, storeId, account: 'vendor_payable' as const, amount: payable, idempotencyKey: `${id}:${storeId}:payable` },
-        { orderId: id, storeId, account: 'commission_income' as const, amount: commission, idempotencyKey: `${id}:${storeId}:comm` },
-      );
-    }
 
-    await ledgerService.post(entries);
-    order.set({ status: 'paid', payment: { method: 'mock', paidAt: new Date() }, commissions: snapshots });
-    await order.save();
-
-    const at = new Date().toISOString();
-    safeEmit(() =>
-      emitToUser(customerId, SOCKET_EVENTS.ORDER_STATUS_UPDATED, { orderId: id, status: 'paid', at }),
-    );
-    for (const storeId of storeIds) {
-      safeEmit(() =>
-        emitToStore(storeId, SOCKET_EVENTS.NOTIFICATION_NEW, {
-          id, title: 'Payment received 💰', body: order.orderNumber, at,
-        }),
-      );
-    }
-    void notifyOrder(order, 'paid');
-    return order;
+    const session = await paymentsService.createCheckout(id, customerId, 'mock');
+    if (!session.providerOrderId) throw AppError.badRequest('NO_SESSION', 'Could not start a mock payment');
+    const handshake = await paymentsService.mockPay(customerId, session.providerOrderId);
+    await paymentsService.confirmFromClient(customerId, handshake);
+    return this.getById(id);
   },
 
   /** Customer cancels their own PENDING (unpaid) order → restock. */
@@ -248,34 +234,22 @@ export const ordersService = {
   },
 
   /**
-   * Refund a PAID order (admin / vendor of the order). Reverses the ledger
-   * (negative vendor_payable + commission clawback), restocks, marks refunded.
+   * Refund a PAID order (admin, or the vendor whose store is on it).
+   * The money movement + ledger reversal live in the payments service; this only
+   * enforces scope and puts the stock back.
    */
-  async refund(id: string, actor: { role: string; storeId?: string }) {
+  async refund(id: string, actor: { role: string; storeId?: string; id?: string }) {
     const order = await Order.findById(id);
     if (!order) throw AppError.notFound('Order not found');
     const isStoreScoped = actor.role === 'vendor' || actor.role === 'vendor_staff';
     if (isStoreScoped && !(order.storeIds ?? []).some((s) => String(s) === actor.storeId))
       throw AppError.forbidden('Not your order');
-    if (order.status !== 'paid' && order.status !== 'fulfilled')
-      throw AppError.badRequest('CANNOT_REFUND', 'Only paid orders can be refunded');
 
-    for (const c of order.commissions ?? []) {
-      const sid = String(c.storeId);
-      await ledgerService.post([
-        { orderId: id, storeId: sid, account: 'vendor_payable', amount: -(c.payable ?? 0), idempotencyKey: `refund:${id}:${sid}:payable` },
-        { orderId: id, storeId: sid, account: 'commission_income', amount: -(c.amount ?? 0), idempotencyKey: `refund:${id}:${sid}:comm` },
-        { orderId: id, storeId: sid, account: 'refund', amount: (c.payable ?? 0) + (c.amount ?? 0), idempotencyKey: `refund:${id}:${sid}:refund` },
-      ]);
-    }
-    order.status = 'refunded';
-    await order.save();
+    await paymentsService.refund(id, { reason: 'Refunded from order screen', actorId: actor.id });
     await restock(order.items);
-    safeEmit(() =>
-      emitToUser(String(order.customerId), SOCKET_EVENTS.ORDER_STATUS_UPDATED, { orderId: id, status: 'refunded', at: new Date().toISOString() }),
-    );
-    void notifyOrder(order, 'refunded');
-    return order;
+    const updated = await Order.findById(id);
+    if (updated) void notifyOrder(updated, 'refunded');
+    return updated;
   },
 
   async listByCustomer(customerId: string) {

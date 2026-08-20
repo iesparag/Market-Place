@@ -8,6 +8,7 @@ import { storesRoutes } from '../modules/stores/stores.routes.js';
 import { catalogRoutes } from '../modules/catalog/catalog.routes.js';
 import { ordersRoutes } from '../modules/orders/orders.routes.js';
 import { payoutsRoutes } from '../modules/payouts/payouts.routes.js';
+import { paymentsRoutes } from '../modules/payments/payments.routes.js';
 import { settingsRoutes } from '../modules/settings/settings.routes.js';
 import { analyticsRoutes } from '../modules/analytics/analytics.module.js';
 import { reviewsRoutes } from '../modules/reviews/reviews.module.js';
@@ -38,6 +39,7 @@ export function buildApiRouter(): Router {
   api.use('/products', productsRoutes);
   api.use('/catalog', catalogRoutes); // public storefront reads
   api.use('/orders', ordersRoutes);
+  api.use('/payments', paymentsRoutes);
   api.use('/payouts', payoutsRoutes);
   api.use('/settings', settingsRoutes);
   api.use('/analytics', analyticsRoutes);

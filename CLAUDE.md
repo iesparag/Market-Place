@@ -63,9 +63,11 @@ Three apps + one shared package (a monorepo):
   "capacity" = an attribute. One model, every vendor type. → `docs/03-DATA-MODEL.md`.
 - **RBAC** = granular `resource:action` permissions bundled into roles; super_admin grants
   them; the **sidebar is generated from the user's permissions** via `GET /me/navigation`.
-- **Payments** = marketplace split settlement via a swappable `PaymentProvider` adapter
-  (reference impl: **Stripe Connect**; can swap for Razorpay Route / Selcom). Platform
-  collects, ledger records commission + vendor payable, payout job settles vendors.
+- **Payments** = **Razorpay** (India: UPI/cards/netbanking/wallets) behind a swappable
+  `PaymentProvider` adapter, plus **cash on delivery**. Platform collects, the ledger records
+  commission + vendor payable (with a payout hold window), an admin settles vendors and
+  records the UTR. Webhooks are the source of truth and every handler is triple-guarded
+  against duplicates. With no keys set, a **keyless mock gateway** runs the whole flow in dev.
 - **Multi-vendor cart** = split into per-vendor **sub-orders** (same idea as duka suborders).
 - **Jobs/email/webhooks** run through a queue (BullMQ + Redis), never inline in a request.
 - **Frontend state** = **NgRx** (Store/Effects/Entity) for domain state, component `signals`

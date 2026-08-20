@@ -60,6 +60,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/finance/finance.page').then((m) => m.FinancePage),
       },
       {
+        path: 'payments',
+        canMatch: [permissionGuard('payment:read')],
+        loadComponent: () => import('./features/payments/payments.page').then((m) => m.PaymentsPage),
+      },
+      {
         path: 'payouts',
         canMatch: [permissionGuard('payout:read')],
         loadComponent: () => import('./features/finance/finance.page').then((m) => m.FinancePage),

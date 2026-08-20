@@ -1,29 +1,46 @@
+import { env } from '../../config/env.js';
+import { logger } from '../../config/logger.js';
+import { MockPaymentProvider } from './mock.provider.js';
+import { RazorpayProvider } from './razorpay.provider.js';
+import type { PaymentProvider } from './types.js';
+
+export * from './types.js';
+export { MockPaymentProvider } from './mock.provider.js';
+export { RazorpayProvider } from './razorpay.provider.js';
+
 /**
- * Payment provider abstraction (marketplace split settlement).
- * Reference impl target: Stripe Connect. Swap for Razorpay Route / Selcom.
- * See docs/05-PAYMENTS.md.
+ * Resolve the gateway once at boot.
+ *  - PAYMENT_PROVIDER=auto (default) → Razorpay when both keys are set, else the dev mock.
+ *  - PAYMENT_PROVIDER=razorpay       → Razorpay, and the app refuses to boot without keys.
+ *  - PAYMENT_PROVIDER=mock           → always the keyless dev gateway.
  */
-export interface PaymentIntentResult {
-  intentId: string;
-  clientSecret: string;
-}
-export interface PaymentProvider {
-  createPaymentIntent(input: { amount: number; currency: string; orderId: string }): Promise<PaymentIntentResult>;
-  refund(chargeId: string, amount: number): Promise<{ refundId: string }>;
-  verifyWebhook(rawBody: string, signature: string): { id: string; type: string; data: unknown };
+function resolveProvider(): PaymentProvider {
+  const hasKeys = Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
+  const want = env.PAYMENT_PROVIDER === 'auto' ? (hasKeys ? 'razorpay' : 'mock') : env.PAYMENT_PROVIDER;
+
+  if (want === 'razorpay') {
+    if (!hasKeys) {
+      logger.error('PAYMENT_PROVIDER=razorpay but RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are missing');
+      process.exit(1);
+    }
+    if (!env.RAZORPAY_WEBHOOK_SECRET) {
+      // Not fatal: checkout still works via the signed client handshake, but the
+      // webhook (the source of truth for async methods like UPI collect) is deaf.
+      logger.warn('RAZORPAY_WEBHOOK_SECRET is not set — webhooks will be rejected. Set it before going live.');
+    }
+    logger.info('Payments: Razorpay (live gateway)');
+    return new RazorpayProvider(
+      env.RAZORPAY_KEY_ID!,
+      env.RAZORPAY_KEY_SECRET!,
+      env.RAZORPAY_WEBHOOK_SECRET ?? '',
+    );
+  }
+
+  logger.warn('Payments: MOCK gateway (no Razorpay keys) — real money is never moved');
+  return new MockPaymentProvider();
 }
 
-/** Placeholder impl so the app compiles; real Stripe wiring comes in Phase 3. */
-export const stubPaymentProvider: PaymentProvider = {
-  async createPaymentIntent(input) {
-    return { intentId: `pi_stub_${input.orderId}`, clientSecret: 'stub_secret' };
-  },
-  async refund(chargeId) {
-    return { refundId: `re_stub_${chargeId}` };
-  },
-  verifyWebhook(_rawBody, _signature) {
-    throw new Error('Payment webhook verification not implemented (Phase 3)');
-  },
-};
+export const paymentProvider: PaymentProvider = resolveProvider();
 
-export const paymentProvider: PaymentProvider = stubPaymentProvider;
+/** True when a real gateway is wired — used to gate dev-only endpoints. */
+export const isLiveGateway = paymentProvider.live;

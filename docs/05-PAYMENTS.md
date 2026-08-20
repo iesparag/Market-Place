@@ -24,21 +24,75 @@ Customer pays ₹1000 (cart from Vendor A ₹600 + Vendor B ₹400)
    payout job (T+n days / on delivery) → transfer 510 to A, 320 to B
 ```
 
-## Provider abstraction (swap Stripe ↔ Razorpay ↔ Selcom)
+## Provider abstraction — **Razorpay** (built)
 
-All money operations go through the `PaymentProvider` interface (see
-[02-ARCHITECTURE.md](02-ARCHITECTURE.md)). **Reference implementation = Stripe Connect**;
-the adapter means we can later swap to **Razorpay Route**, **PayPal Marketplace**, or
-**Selcom's own gateway** without touching order/ledger logic.
+All money operations go through the `PaymentProvider` interface in
+`backend/src/providers/payment/types.ts`, so the gateway can be swapped without touching
+orders, ledger or payouts.
 
-Two Stripe Connect strategies (pick per go-live region):
-- **Destination charges + `application_fee_amount`** — one charge, Stripe auto-splits the fee
-  to the platform and the rest to the connected account. Simplest for single-vendor carts.
-- **Separate charges & transfers** — platform charges the customer, then issues **transfers**
-  to each vendor's connected account. Needed for **multi-vendor carts** (our default), because
-  one payment funds several vendors.
+**Live implementation = Razorpay** (`razorpay.provider.ts`), chosen for India:
+UPI (GPay/PhonePe/Paytm/any app), cards, netbanking and wallets in one sheet; no monthly
+fee; ~2% on cards and materially cheaper on UPI; official Flutter SDK and web Checkout.js;
+HMAC-signed webhooks. It talks to the REST API with `fetch` + `node:crypto` — no SDK
+dependency to keep current.
 
-We default to **separate charges & transfers** since carts are multi-vendor.
+**Dev implementation = `mock.provider.ts`**, a keyless gateway with the *same* contract.
+With no `RAZORPAY_KEY_ID` set, the whole flow — checkout, signature verification, ledger,
+refunds, webhooks — runs locally with no account. It is not a free pass: signatures are
+still HMAC-verified and an unknown payment id is rejected, so a client cannot mark an
+order paid by inventing ids. Its state lives in Mongo, so it survives a restart.
+
+Selection is automatic (`PAYMENT_PROVIDER=auto`): Razorpay when keys are present,
+mock otherwise. Force either with `PAYMENT_PROVIDER=razorpay|mock`.
+
+### Settlement model
+
+We use **platform-collect + ledger + manual payout**, not Razorpay Route:
+the platform account collects the whole cart, the ledger records each vendor's payable and
+our commission, and an admin settles vendors from the Finance screen (recording the bank
+UTR). This needs no per-vendor KYC onboarding to start earning, and Route can be swapped in
+later behind the same interface without any ledger change.
+
+## Payment methods
+
+| Method | How it settles | Notes |
+|---|---|---|
+| **Online** (UPI / card / netbanking / wallet) | Money reaches the platform at capture; vendor payable accrues immediately, released after the hold window | Razorpay sheet on web + app |
+| **Cash on delivery** | The *vendor* collects the cash, so on delivery we credit `commission_income` and post a **negative** `vendor_payable` — the vendor owes us our cut, netted off their next payout | Admin-toggleable, with a per-order cap (`codMaxOrderValue`) |
+
+Both are switched on/off and capped from **Admin → Settings**.
+
+## The three idempotency guards (verified)
+
+A payment can be reported to us twice — a client callback *and* a webhook, or a webhook
+retried. Three independent layers make double-settlement impossible; a payment must pass
+all three to move money:
+
+1. **Event dedupe** — `paymentEvents` has a unique index on `(provider, eventId)`.
+   A repeat delivery is recognised and acked as a no-op.
+2. **Payment claim** — flipping a payment to `paid` is a single conditional
+   `findOneAndUpdate`. Whoever loses the race gets `null` and writes nothing. This catches
+   duplicates that bypass layer 1 entirely (e.g. two *different* event ids for one payment).
+3. **Ledger key** — every entry carries a deterministic `idempotencyKey` with a unique
+   index, so even a replayed settle cannot double-post.
+
+Verified end to end: 5 concurrent signed confirmations + 4 webhook replays (3 with fresh
+event ids) against one order produced **exactly 3 ledger rows**.
+
+## Payout holds
+
+`vendor_payable` credits carry an `availableAt` = paid time + `payoutHoldDays`. A wallet
+reports `available` (releasable now) separately from `pending` (still on hold), and a payout
+can never draw more than `available`. Entries written before this field existed are treated
+as available.
+
+## Abandoned orders
+
+Placing an order decrements stock. Now that payment can fail or be abandoned, a sweeper
+(`jobs/schedulers/payment-expiry.ts`, every 5 min) cancels unpaid **online** orders older
+than `paymentExpiryMinutes` (default 30) and returns their stock. COD orders are never
+touched — they are legitimately unpaid until delivery. The cancel is an atomic claim, so a
+payment landing at that instant always wins.
 
 ## Commission engine
 
@@ -64,36 +118,53 @@ number you can accidentally corrupt.
 
 ```
 ledgerEntries = {
-  _id, at, orderId?, subOrderId?, storeId?, payoutId?,
-  account: "customer_receivable" | "platform_cash" | "platform_commission_income"
-         | "vendor_payable" | "vendor_paid" | "refunds" | "fees",
-  direction: "debit" | "credit",
-  amount: number,           // minor units, always positive
-  currency,
-  refType, refId,           // for traceability
+  _id, at, orderId?, storeId?,
+  account: "platform_cash" | "commission_income" | "vendor_payable" | "vendor_paid" | "refund",
+  amount: number,           // minor units; NEGATIVE = reversal / clawback
+  availableAt?: Date,       // when a vendor_payable credit leaves the payout hold
+  currency, refType, refId, note,
   idempotencyKey (unique) } // stops double-writes
 ```
 
-Example — payment success for sub-order A (subtotal 600, commission 90, payable 510):
+Signed amounts (rather than a separate `direction` field) keep reversals trivial: a refund
+posts the same account with a negative amount, and every balance is a plain `$sum`.
+
+Example — a ₹1000 cart paid online, vendor A ₹600 @ 15%, vendor B ₹400 @ 20%:
 ```
-credit platform_cash            600
-debit  customer_receivable      600
-credit platform_commission_inc   90
-debit  vendor_payable            90   ← reduce what we owe by our cut
-(net vendor_payable owed = 510)
+platform_cash        +1000        we collected the whole cart
+vendor_payable  (A)   +510        owed to A, availableAt = paid + holdDays
+commission_income(A)   +90
+vendor_payable  (B)   +320
+commission_income(B)   +80
 ```
-Balances (materialized view / aggregation, cached in `walletBalances`):
-`vendor available = Σ(vendor_payable credits) − Σ(vendor_paid) − holds`.
+Refunding ₹200 of it reverses proportionally:
+```
+refund               +200
+platform_cash        −200
+vendor_payable  (A)  −102   commission_income (A)  −18
+```
+Balances are derived, never stored:
+`available = Σ(vendor_payable where availableAt ≤ now) − Σ(vendor_paid)`,
+`pending = Σ(vendor_payable where availableAt > now)`.
+
+A full refund nets `vendor_payable`, `commission_income` and `platform_cash` back to
+**exactly zero** — verified with two successive partial refunds, no rounding drift.
 
 ## Order → money lifecycle
 
-1. **Checkout** (`order:create`): server recomputes every line price from DB
-   (`variant.price + Σ modifier deltas`), builds **sub-orders per store**, computes tax/
-   delivery/discount, snapshots commission per sub-order. Never trust client prices.
-2. **Create payment intent** via provider for `grandTotal`. Return client secret.
-3. **Customer pays.** Provider sends a **webhook**.
-4. **Webhook handler** (idempotent — see below): mark `order.paid`, write ledger entries,
-   accrue `vendor_payable`, notify vendors, enqueue fulfillment.
+1. **Place order** (`POST /orders`): the server recomputes every line price from the DB
+   (`variant.price + Σ modifier deltas`), applies coupon/tax/delivery. Never trust client
+   prices. The order is created **unpaid** and survives a failed payment, so an abandoned
+   sheet never costs the customer their cart.
+2. **Start payment** (`POST /payments/checkout`): creates a gateway order for `grandTotal`.
+   Calling it again for the same order **resumes** the same gateway order rather than
+   creating a second one.
+3. **Customer pays** in the Razorpay sheet (web Checkout.js / Flutter SDK).
+4. **Two paths converge**: the signed client handshake (`POST /payments/confirm`, fast) and
+   the **webhook** (`payment.captured`, authoritative). Both call the same
+   `applyGatewayPayment` → `settlePrepaid`, which is atomically claimed — so whichever
+   arrives second is a no-op. Settlement marks the order paid, snapshots commission, writes
+   the ledger and notifies the customer + each vendor.
 5. **Fulfillment** per sub-order (vendor accepts → prepares → ships/delivers, or integration
    `purchase()`), status timeline updated.
 6. **Settlement window** (e.g. T+2 after delivery, configurable) makes payable **releasable**.
@@ -109,20 +180,21 @@ payouts = { _id, storeId, amount, currency, status:"pending"|"paid"|"failed",
 walletBalances = { storeId, available, pending, lifetimeEarned, lifetimePaid, updatedAt } // cache of ledger
 ```
 
-## Idempotency (the duka lesson — enforce hard)
+## Idempotency (the duka lesson — enforced)
 
 We previously hit **duplicate callbacks → duplicate sub-orders → double actions** in duka.
-Never again. Rules:
+The three guards above are the answer; see `payments.service.ts` (`applyGatewayPayment`),
+`settlement.service.ts` (`settlePrepaid`) and `webhooks.controller.ts`.
 
-- Every provider webhook has a unique `event.id`. Persist it in `paymentEvents` with a
-  **unique index**; on duplicate, **ack and no-op**. Process inside a transaction/atomic claim.
-- Every ledger write carries an `idempotencyKey` (unique index) derived from
-  `{eventId, account, refId}` so a retry cannot double-post.
-- Outbound provider calls (createIntent, payout, refund) pass an **idempotency key** so
-  network retries don't double-charge/double-pay.
-- Webhook processing runs on the **queue** with at-least-once delivery + idempotent workers.
-- **Reconciliation job** (daily): compare provider balance/transactions vs our ledger; alert
-  on drift.
+Also enforced:
+- Outbound gateway calls (create order, refund) send `X-Razorpay-Idempotency-Key`, so a
+  network retry cannot create a second gateway order or send a refund twice.
+- Webhooks are verified over the **raw request body** (mounted before `express.json`) and
+  are exempt from the API rate limiter — a 429 would make the gateway retry a payment we
+  already have.
+- A webhook that throws returns **500 on purpose** so the gateway retries; the event row
+  stays un-`processed` so the retry re-runs it. `GET /payments/reconcile` lists any that
+  are stuck, and `POST /payments/events/:id/replay` re-runs one by hand.
 
 ## Taxes, fees, currency
 
@@ -139,8 +211,34 @@ Never again. Rules:
   `payoutsEnabled = true`.
 - All payout/refund/commission actions are permission-gated + written to `auditLog`.
 
-## What to build in what order
+## API surface
 
-Payments is Phase 3–5 in the [roadmap](06-ROADMAP.md): first single-vendor happy path
-(intent → webhook → ledger), then multi-vendor split + sub-orders, then commission engine,
-then payouts + reconciliation, then refunds/edge cases.
+| Endpoint | Who | What |
+|---|---|---|
+| `GET /payments/methods` | public | which methods to show at checkout |
+| `POST /payments/checkout` | customer | start/resume payment for an order |
+| `POST /payments/confirm` | customer | verify the SDK handshake (fast path) |
+| `POST /payments/mock-pay` | customer | dev gateway only; 403 when live keys are set |
+| `GET /payments/order/:id` | customer/staff | payment state (polled while UPI settles) |
+| `POST /api/v1/webhooks/razorpay` | gateway | signed, raw-body, idempotent (source of truth) |
+| `GET /payments` | `payment:read` | admin/vendor payment list + filters |
+| `GET /payments/reconcile` | `payment:read` | does the money add up + stuck webhooks |
+| `POST /payments/order/:id/refund` | `order:refund` | full or partial refund |
+| `POST /payments/events/:id/replay` | `payment:refund` | re-run a failed webhook |
+| `GET /payouts/statement` | `wallet:read` | vendor's own ledger lines |
+| `GET /payouts/balances` | `ledger:read` | every vendor's available vs held |
+| `POST /payouts/release` | `payout:release` | record a settlement + its UTR |
+
+## Going live
+
+1. Razorpay dashboard → **Settings → API Keys** → generate **live** keys → set
+   `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`.
+2. **Settings → Webhooks** → add `https://<api-host>/api/v1/webhooks/razorpay` with a
+   secret; put the same value in `RAZORPAY_WEBHOOK_SECRET`. Subscribe to
+   `payment.captured`, `payment.failed`, `payment.authorized`, `order.paid`,
+   `refund.created`, `refund.processed`, `refund.failed`.
+3. Restart. The log line must read `Payments: Razorpay (live gateway)` — if it says
+   `MOCK gateway`, the keys are not reaching the process.
+4. `POST /orders/:id/pay` (the old demo endpoint) refuses to run once live keys are set.
+5. Add each vendor's payout account (**Store → Payout account**) and verify it before
+   settling.

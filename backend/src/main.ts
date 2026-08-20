@@ -3,6 +3,7 @@ import { logger } from './config/logger.js';
 import { connectDb } from './config/db.js';
 import { createApp } from './app.js';
 import { createHttpServer } from './server.js';
+import { startPaymentExpirySweeper } from './jobs/schedulers/payment-expiry.js';
 
 async function bootstrap(): Promise<void> {
   // Connect DB but don't hard-crash in dev if Mongo isn't up yet — /health will report it.
@@ -18,6 +19,9 @@ async function bootstrap(): Promise<void> {
   server.listen(env.PORT, () => {
     logger.info(`API listening on http://localhost:${env.PORT}${env.API_PREFIX}`);
   });
+
+  // Give back stock held by orders whose payment was never completed.
+  startPaymentExpirySweeper();
 
   const shutdown = (signal: string) => {
     logger.info(`${signal} received, shutting down`);

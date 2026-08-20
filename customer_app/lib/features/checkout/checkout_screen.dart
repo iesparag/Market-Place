@@ -6,7 +6,9 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/address.dart';
+import '../../data/payment_repository.dart';
 import '../cart/cart_controller.dart';
+import 'payment_controller.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -17,6 +19,18 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _selectedId;
   bool _placing = false;
+  String _method = 'razorpay';
+  String _stage = 'idle'; // idle | placing | paying
+
+  /// Owned by this screen: it holds a native Razorpay listener that must outlive the
+  /// async gap while the sheet is open, and must be torn down exactly once.
+  late final PaymentController _payment = PaymentController(ref.read(paymentRepoProvider));
+
+  @override
+  void dispose() {
+    _payment.dispose();
+    super.dispose();
+  }
 
   Address? _pick(List<Address> list) {
     if (list.isEmpty) return null;
@@ -28,24 +42,95 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return def.isNotEmpty ? def.first : list.first;
   }
 
+  /// Place the order, then take payment for it.
+  ///
+  /// The order is created first and deliberately survives a failed or abandoned
+  /// payment — the customer keeps the order and can retry from the orders screen,
+  /// instead of losing their cart to a flaky UPI app.
   Future<void> _place(List<CartLine> lines, Address? addr) async {
     if (addr == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add a delivery address first')));
       return;
     }
-    setState(() => _placing = true);
+    setState(() {
+      _placing = true;
+      _stage = 'placing';
+    });
+
+    String orderId;
+    String orderNumber;
     try {
-      final repo = ref.read(checkoutRepoProvider);
-      final order = await repo.placeOrder(lines: lines, address: addr);
-      await repo.payOrder(order.id); // demo payment — marks the order paid
+      final order = await ref.read(checkoutRepoProvider).placeOrder(lines: lines, address: addr);
+      orderId = order.id;
+      orderNumber = order.number;
       ref.read(cartProvider.notifier).clear();
-      if (mounted) context.go('/order-success?number=${Uri.encodeComponent(order.number)}');
     } catch (e) {
-      if (mounted) {
-        setState(() => _placing = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Order failed: $e')));
-      }
+      if (!mounted) return;
+      setState(() {
+        _placing = false;
+        _stage = 'idle';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Order failed: $e')));
+      return;
     }
+
+    if (mounted) setState(() => _stage = 'paying');
+    final result = await _payment.pay(orderId: orderId, method: _method);
+    if (!mounted) return;
+
+    setState(() {
+      _placing = false;
+      _stage = 'idle';
+    });
+
+    switch (result) {
+      case PayPaid():
+        context.go('/order-success?number=${Uri.encodeComponent(orderNumber)}&paid=1');
+      case PayCod():
+        context.go('/order-success?number=${Uri.encodeComponent(orderNumber)}&cod=1');
+      case PayCancelled():
+        _showUnpaid(orderNumber, 'Payment cancelled — your order is saved. You can pay from My Orders.');
+      case PayFailed(:final message):
+        _showUnpaid(orderNumber, message);
+    }
+  }
+
+  /// The order exists but isn't paid: say so plainly and send them to My Orders,
+  /// where the retry button lives.
+  void _showUnpaid(String orderNumber, String message) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Order saved — not paid yet'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(message),
+          const SizedBox(height: 12),
+          Text('Order $orderNumber', style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700)),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.go('/');
+            },
+            child: const Text('Keep shopping'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.go('/orders');
+            },
+            child: const Text('Pay now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _payLabel(int total) {
+    if (_stage == 'placing') return 'Placing your order…';
+    if (_stage == 'paying') return 'Waiting for payment…';
+    return _method == 'cod' ? 'Place order · ${rupees(total)}' : 'Pay ${rupees(total)}';
   }
 
   @override
@@ -69,6 +154,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final lines = ref.watch(cartProvider);
     final subtotal = lines.fold<int>(0, (n, l) => n + l.lineTotal);
     final addressesAsync = ref.watch(addressesProvider);
+
+    // Show exactly what the server will charge — tax and delivery included.
+    final pricing = ref.watch(pricingSettingsProvider).valueOrNull;
+    final quote = pricing?.quote(subtotal) ??
+        CheckoutQuote(itemsTotal: subtotal, tax: 0, delivery: 0, grandTotal: subtotal);
+
+    final methods = (ref.watch(paymentConfigProvider).valueOrNull?.methods ?? const <PaymentMethodOption>[])
+        .where((m) => m.enabled)
+        .toList();
+    // Never leave a disabled method selected (e.g. a COD cart that grew past the cap).
+    final selected = methods.where((m) => m.id == _method);
+    if (methods.isNotEmpty && (selected.isEmpty || !selected.first.availableFor(quote.grandTotal))) {
+      final fallback = methods.where((m) => m.availableFor(quote.grandTotal));
+      if (fallback.isNotEmpty && fallback.first.id != _method) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _method = fallback.first.id);
+        });
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
@@ -110,10 +214,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ]),
               )),
           const Divider(height: 24),
-          _row('Subtotal', rupees(subtotal)),
-          _row('Delivery', 'FREE', valueColor: BrandColors.success),
+          _row('Subtotal', rupees(quote.itemsTotal)),
+          _row('Tax', rupees(quote.tax)),
+          _row('Delivery', quote.delivery == 0 ? 'FREE' : rupees(quote.delivery),
+              valueColor: quote.delivery == 0 ? BrandColors.success : null),
           const SizedBox(height: 6),
-          _row('Total', rupees(subtotal), bold: true),
+          _row('Total', rupees(quote.grandTotal), bold: true),
+
+          const SizedBox(height: 22),
+          const Text('Payment method', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 8),
+          ...methods.map((m) {
+            final available = m.availableFor(quote.grandTotal);
+            final reason = m.unavailableReason(quote.grandTotal);
+            return _MethodCard(
+              method: m,
+              selected: _method == m.id,
+              enabled: available,
+              subtitle: reason ?? m.description,
+              onTap: available ? () => setState(() => _method = m.id) : null,
+            );
+          }),
         ],
       ),
       bottomNavigationBar: lines.isEmpty
@@ -126,8 +247,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   child: ElevatedButton(
                     onPressed: _placing ? null : () => _place(lines, _pick(addressesAsync.valueOrNull ?? [])),
                     child: _placing
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('Place order · ${rupees(subtotal)}', style: const TextStyle(fontSize: 16)),
+                        ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                            const SizedBox(width: 12),
+                            Text(_payLabel(quote.grandTotal), style: const TextStyle(fontSize: 15)),
+                          ])
+                        : Text(_payLabel(quote.grandTotal), style: const TextStyle(fontSize: 16)),
                   ),
                 ),
               ),
@@ -262,6 +387,61 @@ class _AddressCard extends StatelessWidget {
             ),
           ),
         ]),
+      ),
+    );
+  }
+}
+
+/// A selectable payment method row (UPI/card/netbanking, or cash on delivery).
+class _MethodCard extends StatelessWidget {
+  final PaymentMethodOption method;
+  final bool selected;
+  final bool enabled;
+  final String subtitle;
+  final VoidCallback? onTap;
+  const _MethodCard({
+    required this.method,
+    required this.selected,
+    required this.enabled,
+    required this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final b = context.brand;
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected && enabled ? b.soft : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected && enabled ? b.primary : BrandColors.border,
+              width: selected && enabled ? 1.5 : 1,
+            ),
+          ),
+          child: Row(children: [
+            Icon(
+              selected && enabled ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: selected && enabled ? b.primary : BrandColors.textMuted,
+            ),
+            const SizedBox(width: 12),
+            Text(method.id == 'cod' ? '💵' : '📱', style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(method.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+              ]),
+            ),
+          ]),
+        ),
       ),
     );
   }

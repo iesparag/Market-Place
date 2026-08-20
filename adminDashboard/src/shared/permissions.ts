@@ -27,6 +27,8 @@ export const PERMISSIONS = [
   // Finance
   'commission:manage',
   'ledger:read',
+  'payment:read',
+  'payment:refund',
   'payout:read',
   'payout:release',
   'wallet:read',
@@ -100,6 +102,7 @@ export const NAV_META: NavSectionMeta[] = [
     section: 'Finance',
     items: [
       { perm: 'wallet:read', label: 'Wallet', route: '/wallet' },
+      { perm: 'payment:read', label: 'Payments', route: '/payments' },
       { perm: 'payout:read', label: 'Payouts', route: '/payouts' },
       { perm: 'commission:manage', label: 'Commissions', route: '/commissions' },
     ],

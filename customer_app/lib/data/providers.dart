@@ -7,6 +7,7 @@ import '../models/address.dart';
 import '../models/order.dart';
 import 'catalog_repository.dart';
 import 'checkout_repository.dart';
+import 'payment_repository.dart';
 
 // ── core ──────────────────────────────────────────────────────────────────
 /// Loaded in main() and injected via ProviderScope override — lets us read the
@@ -18,6 +19,17 @@ final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore());
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient(ref.read(tokenStoreProvider)));
 final catalogRepoProvider = Provider<CatalogRepository>((ref) => CatalogRepository(ref.read(apiClientProvider)));
 final checkoutRepoProvider = Provider<CheckoutRepository>((ref) => CheckoutRepository(ref.read(apiClientProvider)));
+final paymentRepoProvider = Provider<PaymentRepository>((ref) => PaymentRepository(ref.read(apiClientProvider)));
+
+
+/// Which payment methods to offer (admin-configurable, so read it fresh).
+final paymentConfigProvider = FutureProvider<PaymentConfig>((ref) => ref.read(paymentRepoProvider).config());
+
+/// Tax + delivery rules, so checkout shows the SAME total the server will charge.
+final pricingSettingsProvider = FutureProvider<PricingSettings>((ref) async {
+  final data = await ref.read(apiClientProvider).get('/settings');
+  return PricingSettings.fromJson((data as Map).cast<String, dynamic>());
+});
 
 // ── authenticated data ─────────────────────────────────────────────────────
 final addressesProvider = FutureProvider.autoDispose<List<Address>>((ref) => ref.read(checkoutRepoProvider).addresses());

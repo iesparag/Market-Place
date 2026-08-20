@@ -9,6 +9,10 @@ const UpdateSchema = z.object({
   deliveryFee: z.number().int().min(0).optional(),
   freeDeliveryAbove: z.number().int().min(0).optional(),
   payoutHoldDays: z.number().int().min(0).optional(),
+  codEnabled: z.boolean().optional(),
+  codMaxOrderValue: z.number().int().min(0).optional(),
+  onlinePaymentEnabled: z.boolean().optional(),
+  paymentExpiryMinutes: z.number().int().min(0).max(1440).optional(),
 });
 
 export const settingsController = {

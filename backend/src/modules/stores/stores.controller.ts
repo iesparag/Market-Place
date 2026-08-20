@@ -11,6 +11,34 @@ const CreateStoreSchema = z.object({
   description: z.string().optional(),
 });
 
+/**
+ * Where payouts are sent. Validated at the edge because a typo here means real
+ * money lands in the wrong account. `verified` is deliberately absent — only an
+ * admin can set it, via the dedicated endpoint.
+ */
+const BankAccountSchema = z.object({
+  accountName: z.string().max(120).optional(),
+  accountNumber: z
+    .string()
+    .regex(/^[0-9]{6,20}$/, 'Account number must be 6–20 digits')
+    .optional()
+    .or(z.literal('')),
+  ifsc: z
+    .string()
+    .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'IFSC looks wrong (e.g. HDFC0001234)')
+    .optional()
+    .or(z.literal('')),
+  upiId: z
+    .string()
+    .regex(/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/, 'UPI ID looks wrong (e.g. name@upi)')
+    .optional()
+    .or(z.literal('')),
+});
+
+const UpdateStoreSchema = z
+  .object({ bankAccount: BankAccountSchema.optional() })
+  .passthrough(); // other profile fields are allow-listed in the service
+
 export const storesController = {
   async list(req: Request, res: Response) {
     const status = req.query.status as string | undefined;
@@ -25,7 +53,20 @@ export const storesController = {
   },
   async updateProfile(req: Request, res: Response) {
     if (!req.user) throw AppError.unauthenticated();
-    ok(res, await storesService.updateProfile({ id: req.user.id, role: req.user.role }, req.params.id!, req.body));
+    const fields = UpdateStoreSchema.parse(req.body);
+    ok(res, await storesService.updateProfile({ id: req.user.id, role: req.user.role }, req.params.id!, fields));
+  },
+
+  /** Admin confirms the payout account matches the KYC documents. */
+  async verifyBank(req: Request, res: Response) {
+    const verified = z.boolean().parse(req.body.verified);
+    const store = await storesService.setBankVerified(req.params.id!, verified);
+    writeAudit(req.user?.id, 'store:bank_verify', {
+      targetType: 'store',
+      targetId: req.params.id,
+      meta: { verified },
+    });
+    ok(res, store);
   },
   async create(req: Request, res: Response) {
     if (!req.user) throw AppError.unauthenticated();

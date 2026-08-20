@@ -36,7 +36,28 @@ const orderSchema = new Schema(
       default: 'pending',
       index: true,
     },
-    payment: { method: String, paidAt: Date },
+    /**
+     * Payment state lives here; `status` above tracks the *fulfillment* lifecycle.
+     * An order is only ever moved to `paid` by the settlement service (atomic claim),
+     * never directly by a controller. See docs/05-PAYMENTS.md.
+     */
+    payment: {
+      method: { type: String, enum: ['razorpay', 'cod', 'mock'] },
+      provider: String,
+      status: {
+        type: String,
+        enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded', 'partially_refunded'],
+        default: 'unpaid',
+        index: true,
+      },
+      paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
+      providerOrderId: String,
+      providerPaymentId: String,
+      paidAt: Date,
+      /** COD only: set when the rider/vendor collected the cash. */
+      collectedAt: Date,
+      refundedAmount: { type: Number, default: 0 },
+    },
     // Per-store commission snapshot (frozen at pay time — later rate changes don't rewrite history).
     commissions: [
       {

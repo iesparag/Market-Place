@@ -74,7 +74,32 @@ export const storesService = {
       'website', 'address', 'social',
     ] as const;
     for (const k of editable) if (k in fields) store.set(k, (fields as Record<string, unknown>)[k]);
+
+    // Payout details are handled apart from the rest: changing where money goes
+    // always drops the verified flag, so an admin has to look at it again.
+    if ('bankAccount' in fields) {
+      const next = (fields.bankAccount ?? {}) as Record<string, unknown>;
+      const current = (store.bankAccount ?? {}) as Record<string, unknown>;
+      const changed = (['accountName', 'accountNumber', 'ifsc', 'upiId'] as const).some(
+        (k) => (next[k] ?? '') !== (current[k] ?? ''),
+      );
+      store.set('bankAccount', {
+        accountName: next.accountName ?? '',
+        accountNumber: next.accountNumber ?? '',
+        ifsc: next.ifsc ?? '',
+        upiId: next.upiId ?? '',
+        verified: changed ? false : ((current.verified as boolean | undefined) ?? false),
+      });
+    }
+
     await store.save();
+    return store;
+  },
+
+  /** Admin-only: mark the payout account checked against the KYC docs. */
+  async setBankVerified(id: string, verified: boolean) {
+    const store = await Store.findByIdAndUpdate(id, { 'bankAccount.verified': verified }, { new: true });
+    if (!store) throw AppError.notFound('Store not found');
     return store;
   },
 

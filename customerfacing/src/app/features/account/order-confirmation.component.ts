@@ -1,12 +1,14 @@
 import { Component, effect, inject, Input, OnDestroy, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
+import { PaymentService, type PaymentMethodOption, type PaymentStatus } from '../../core/services/payment.service';
 
 interface OrderItem { title: string; variantLabel?: string; qty: number; lineTotal: number; modifiers?: { name: string }[]; }
 interface Amounts { itemsTotal?: number; discount?: number; tax?: number; delivery?: number; grandTotal: number; }
-interface Order { _id: string; orderNumber: string; status: string; couponCode?: string; amounts: Amounts; items: OrderItem[]; }
+interface OrderPayment { method?: string; status?: string; paidAt?: string; refundedAmount?: number; }
+interface Order { _id: string; orderNumber: string; status: string; couponCode?: string; amounts: Amounts; items: OrderItem[]; payment?: OrderPayment; }
 
 const STEPS = ['pending', 'paid', 'fulfilled'];
 const TERMINAL = ['fulfilled', 'cancelled', 'refunded'];
@@ -31,14 +33,29 @@ const TERMINAL = ['fulfilled', 'cancelled', 'refunded'];
           }
         </div>
 
-        @if (o.status === 'pending') {
+        @if (banner(); as b) { <div class="pbanner" [class.warn]="b.tone === 'warn'">{{ b.text }}</div> }
+
+        @if (isCod()) {
+          <div class="codnote">💵 Pay <b>₹{{ o.amounts.grandTotal / 100 }}</b> in cash when your order arrives.</div>
+        }
+
+        @if (needsPayment()) {
           <div class="pending-actions">
-            <button class="btn btn-primary pay" [disabled]="paying()" (click)="pay(o)">
-              {{ paying() ? 'Processing…' : 'Pay ₹' + o.amounts.grandTotal / 100 }}
-            </button>
-            <button class="btn btn-ghost" (click)="cancel(o)">Cancel order</button>
+            @for (m of methods(); track m.id) {
+              @if (m.enabled) {
+                <button class="btn pay" [class.btn-primary]="m.id === 'razorpay'" [class.btn-ghost]="m.id !== 'razorpay'"
+                        [disabled]="paying()" (click)="payWith(o, m.id)">
+                  {{ paying() ? 'Processing…' : (m.id === 'cod' ? 'Pay on delivery' : 'Pay ₹' + o.amounts.grandTotal / 100) }}
+                </button>
+              }
+            }
+            <button class="btn btn-ghost" [disabled]="paying()" (click)="cancel(o)">Cancel order</button>
           </div>
-          <p class="muted small">(mock payment — wires to Stripe Connect later)</p>
+          @if (settling()) { <p class="muted small">Confirming your payment with the bank…</p> }
+        }
+
+        @if (o.payment?.refundedAmount) {
+          <div class="pbanner">↩️ ₹{{ (o.payment?.refundedAmount ?? 0) / 100 }} has been refunded — it reaches your account in 3–5 working days.</div>
         }
       </div>
 
@@ -70,7 +87,10 @@ const TERMINAL = ['fulfilled', 'cancelled', 'refunded'];
                    background: var(--surface-2); border: 1px solid var(--border); font-weight: 700; }
       .step.on { color: var(--brand-700); }
       .step.on .dot { background: var(--brand-gradient); color: #fff; border-color: transparent; }
-      .pending-actions { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+      .pending-actions { display: flex; gap: 10px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+      .pbanner { margin: 14px 0 4px; padding: 10px 14px; border-radius: 8px; background: var(--surface-2); font-size: 0.9rem; }
+      .pbanner.warn { background: var(--danger-bg); color: var(--danger); }
+      .codnote { margin: 14px 0 4px; padding: 10px 14px; border-radius: 8px; background: var(--surface-2); font-size: 0.9rem; }
       .pay { margin-top: 0; } .small { font-size: 0.75rem; margin-top: 6px; }
       .row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); }
       .row.sub { color: var(--text-muted); font-size: 0.9rem; border-top: none; padding: 3px 0; }
@@ -83,10 +103,15 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
   @Input() id = '';
   private readonly api = inject(ApiService);
   private readonly socket = inject(SocketService);
+  private readonly payments = inject(PaymentService);
+  private readonly route = inject(ActivatedRoute);
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   order = signal<Order | null>(null);
   paying = signal(false);
+  settling = signal(false);
+  methods = signal<PaymentMethodOption[]>([]);
+  banner = signal<{ text: string; tone: 'info' | 'warn' } | null>(null);
   steps = STEPS;
 
   constructor() {
@@ -104,6 +129,29 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.api.get<Order>(`/orders/${this.id}`).subscribe({ next: (o) => { this.order.set(o); this.maybePoll(); } });
     this.socket.connect();
+    void this.payments.loadMethods().then((r) => this.methods.set(r.methods));
+
+    // Checkout hands us the outcome so the customer immediately knows where they stand.
+    const q = this.route.snapshot.queryParamMap;
+    const outcome = q.get('payment');
+    if (outcome === 'failed')
+      this.banner.set({ text: q.get('reason') ?? 'Your payment did not go through. You can try again below.', tone: 'warn' });
+    else if (outcome === 'cancelled')
+      this.banner.set({ text: 'Payment cancelled — your order is saved. Pay whenever you are ready.', tone: 'warn' });
+    else if (outcome === 'cod')
+      this.banner.set({ text: 'Order confirmed. Please keep the cash ready for delivery.', tone: 'info' });
+    else if (outcome === 'paid') this.banner.set({ text: 'Payment successful — thank you! 🎉', tone: 'info' });
+  }
+
+  /** Unpaid and still payable → show the pay buttons. */
+  needsPayment(): boolean {
+    const o = this.order();
+    if (!o) return false;
+    const paid = o.payment?.status === 'paid';
+    return o.status === 'pending' && !paid && o.payment?.method !== 'cod';
+  }
+  isCod(): boolean {
+    return this.order()?.payment?.method === 'cod' && this.order()?.payment?.status !== 'paid';
   }
 
   ngOnDestroy(): void { this.stopPoll(); }
@@ -128,12 +176,50 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
     return (it.modifiers ?? []).map((m) => m.name).join(', ');
   }
 
-  pay(o: Order): void {
+  /** Retry (or first-time) payment from the order page. */
+  async payWith(o: Order, method: 'razorpay' | 'cod'): Promise<void> {
     this.paying.set(true);
-    this.api.post<Order>(`/orders/${o._id}/pay`, {}).subscribe({
-      next: (updated) => { this.order.set(updated); this.paying.set(false); this.maybePoll(); },
-      error: () => this.paying.set(false),
+    this.banner.set(null);
+    const result = await this.payments.pay(o._id, method);
+    this.paying.set(false);
+
+    if (result.outcome === 'cancelled') {
+      this.banner.set({ text: 'Payment cancelled — your order is still saved.', tone: 'warn' });
+      return;
+    }
+    if (result.outcome === 'failed') {
+      this.banner.set({ text: result.message, tone: 'warn' });
+      // A UPI collect request can still land after the sheet closes; the webhook
+      // settles it, so keep watching for a short while before giving up.
+      void this.watchForLateSettlement(o._id);
+      return;
+    }
+    this.applyStatus(result.status);
+    this.banner.set({
+      text: result.outcome === 'cod' ? 'Order confirmed — pay in cash on delivery.' : 'Payment successful — thank you! 🎉',
+      tone: 'info',
     });
+  }
+
+  private async watchForLateSettlement(orderId: string): Promise<void> {
+    this.settling.set(true);
+    const status = await this.payments.waitForSettlement(orderId, 45_000);
+    this.settling.set(false);
+    if (status?.paymentStatus === 'paid') {
+      this.applyStatus(status);
+      this.banner.set({ text: 'Payment confirmed — thank you! 🎉', tone: 'info' });
+    }
+  }
+
+  private applyStatus(status: PaymentStatus): void {
+    const o = this.order();
+    if (!o) return;
+    this.order.set({
+      ...o,
+      status: status.orderStatus,
+      payment: { ...o.payment, status: status.paymentStatus, method: status.method ?? undefined },
+    });
+    this.maybePoll();
   }
 
   cancel(o: Order): void {

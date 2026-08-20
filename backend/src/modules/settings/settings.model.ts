@@ -11,6 +11,15 @@ const settingsSchema = new Schema(
     freeDeliveryAbove: { type: Number, default: 50000 }, // ₹500
     currency: { type: String, default: DEFAULTS.CURRENCY },
     payoutHoldDays: { type: Number, default: DEFAULTS.PAYOUT_HOLD_DAYS },
+    // ── Payments (docs/05-PAYMENTS.md) ───────────────────────────────────────
+    /** Show "Cash on delivery" at checkout. */
+    codEnabled: { type: Boolean, default: true },
+    /** Max order value payable by COD, minor units. 0 = no cap. */
+    codMaxOrderValue: { type: Number, default: 500000 }, // ₹5,000
+    /** Show online payment (UPI/card/netbanking) at checkout. */
+    onlinePaymentEnabled: { type: Boolean, default: true },
+    /** Cancel + restock an unpaid online order after this long. 0 disables the sweep. */
+    paymentExpiryMinutes: { type: Number, default: 30 },
   },
   { timestamps: true },
 );
@@ -25,6 +34,10 @@ const SETTINGS_DEFAULTS = {
   freeDeliveryAbove: 50000,
   currency: DEFAULTS.CURRENCY,
   payoutHoldDays: DEFAULTS.PAYOUT_HOLD_DAYS,
+  codEnabled: true,
+  codMaxOrderValue: 500000,
+  onlinePaymentEnabled: true,
+  paymentExpiryMinutes: 30,
 };
 
 export async function getSettings() {

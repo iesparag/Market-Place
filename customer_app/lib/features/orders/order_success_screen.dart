@@ -4,7 +4,11 @@ import '../../core/theme/theme.dart';
 
 class OrderSuccessScreen extends StatelessWidget {
   final String number;
-  const OrderSuccessScreen({super.key, required this.number});
+  /// True when the money is already collected; false for cash on delivery.
+  final bool paid;
+  final bool cod;
+  const OrderSuccessScreen({super.key, required this.number, this.paid = false, this.cod = false});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,13 +21,24 @@ class OrderSuccessScreen extends StatelessWidget {
               Container(
                 width: 96, height: 96,
                 decoration: const BoxDecoration(color: Color(0xFFE7F8EE), shape: BoxShape.circle),
-                child: const Icon(Icons.check_rounded, color: BrandColors.success, size: 56),
+                child: Icon(cod ? Icons.local_shipping_rounded : Icons.check_rounded,
+                    color: BrandColors.success, size: 56),
               ),
               const SizedBox(height: 20),
-              const Text('Order placed! 🎉', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              Text(
+                cod ? 'Order confirmed! 🎉' : paid ? 'Payment successful! 🎉' : 'Order placed! 🎉',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+              ),
               const SizedBox(height: 8),
-              const Text('Thank you — your order is confirmed and paid.',
-                  textAlign: TextAlign.center, style: TextStyle(color: BrandColors.textMuted)),
+              Text(
+                cod
+                    ? 'Keep the cash ready — you will pay the delivery agent when it arrives.'
+                    : paid
+                        ? 'Thank you — your order is confirmed and paid.'
+                        : 'Thank you — we are confirming your payment.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: BrandColors.textMuted),
+              ),
               if (number.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(

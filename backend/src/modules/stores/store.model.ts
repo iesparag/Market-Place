@@ -39,6 +39,15 @@ const storeSchema = new Schema(
       facebook: String,
       twitter: String,
     },
+    /** Where payouts are sent. Held on the store, editable by the vendor + admin. */
+    bankAccount: {
+      accountName: String,
+      accountNumber: String,
+      ifsc: String,
+      upiId: String,
+      /** Set by an admin once the details are checked against the KYC docs. */
+      verified: { type: Boolean, default: false },
+    },
     commissionOverride: {
       type: { type: String, enum: ['percent', 'flat'] },
       value: Number,

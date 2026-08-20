@@ -8,6 +8,7 @@ export const payoutsRoutes = Router();
 
 // Vendor wallet + history
 payoutsRoutes.get('/wallet', authenticate, authorize('wallet:read'), asyncHandler(payoutsController.wallet));
+payoutsRoutes.get('/statement', authenticate, authorize('wallet:read'), asyncHandler(payoutsController.statement));
 payoutsRoutes.get('/', authenticate, authorize('payout:read'), asyncHandler(payoutsController.history));
 
 // Admin finance

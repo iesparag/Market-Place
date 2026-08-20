@@ -8,6 +8,7 @@ import { apiLimiter } from './middleware/rateLimit.js';
 import { errorHandler } from './middleware/error.js';
 import { notFound } from './middleware/notFound.js';
 import { buildApiRouter, healthRoutes } from './loaders/routes.loader.js';
+import { webhooksRoutes } from './modules/webhooks/webhooks.routes.js';
 import { UPLOAD_DIR } from './modules/media/media.module.js';
 
 export function createApp(): Express {
@@ -33,6 +34,10 @@ export function createApp(): Express {
       credentials: true,
     }),
   );
+  // Gateway webhooks FIRST: they need the raw body for signature verification and
+  // must not be rate-limited (a 429 makes the gateway retry a payment we already have).
+  app.use(`${env.API_PREFIX}/webhooks`, webhooksRoutes);
+
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(pinoHttp({ logger }));

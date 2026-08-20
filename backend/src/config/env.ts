@@ -29,6 +29,18 @@ const EnvSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(), // paste with literal \n for newlines
+  // ── Payments (India: Razorpay — UPI / cards / netbanking / wallets) ─────────
+  // Leave the keys blank in dev: the provider auto-falls back to a keyless mock
+  // gateway so checkout still works end-to-end locally. See docs/05-PAYMENTS.md.
+  PAYMENT_PROVIDER: z.enum(['auto', 'razorpay', 'mock']).default('auto'),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  PAYMENT_CURRENCY: z.enum(['INR']).default('INR'),
+  /** Company/brand name shown on the Razorpay checkout sheet. */
+  PAYMENT_BRAND_NAME: z.string().default('Marketplace'),
+  /** Logo shown on the checkout sheet (absolute https URL, optional). */
+  PAYMENT_BRAND_LOGO: z.string().default(''),
   // Search engine: 'mongo' (default, works on any MongoDB, no setup) or 'atlas' (Atlas Search — better relevance/typo-tolerance).
   SEARCH_ENGINE: z.enum(['mongo', 'atlas']).default('mongo'),
   // AI customer support (docs/10-SUPPORT-AI.md). Optional — if OPENAI_API_KEY is unset the

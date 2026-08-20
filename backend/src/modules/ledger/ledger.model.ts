@@ -15,7 +15,13 @@ const ledgerSchema = new Schema(
       enum: ['vendor_payable', 'vendor_paid', 'commission_income', 'platform_cash', 'refund'],
       required: true,
     },
-    amount: { type: Number, required: true }, // minor units, positive
+    amount: { type: Number, required: true }, // minor units (negative = reversal / clawback)
+    /**
+     * When this credit becomes releasable to the vendor (paidAt + settings.payoutHoldDays).
+     * Entries with no date are treated as immediately available (pre-hold-window rows).
+     */
+    availableAt: { type: Date, index: true },
+    note: String,
     currency: { type: String, default: 'INR' },
     idempotencyKey: { type: String, unique: true, sparse: true },
     refType: String,

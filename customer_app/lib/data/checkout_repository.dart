@@ -3,7 +3,8 @@ import '../models/address.dart';
 import '../models/order.dart';
 import '../features/cart/cart_controller.dart';
 
-/// Authenticated: addresses + placing/paying/listing orders.
+/// Authenticated: addresses + placing/listing orders.
+/// Paying is handled by `PaymentRepository` + `PaymentController`.
 class CheckoutRepository {
   final ApiClient api;
   CheckoutRepository(this.api);
@@ -42,8 +43,6 @@ class CheckoutRepository {
     }) as Map<String, dynamic>;
     return OrderModel.fromJson(data);
   }
-
-  Future<void> payOrder(String id) => api.post('/orders/$id/pay', body: {});
 
   Future<List<OrderModel>> myOrders() async {
     final data = await api.get('/orders') as List;

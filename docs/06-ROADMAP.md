@@ -45,15 +45,23 @@
 - **Exit:** customer browses, picks a variant + modifiers, sees correct price, fills a cart
   spanning two vendors.
 
-## Phase 3 — Checkout & payments (happy path)
+## Phase 3 — Checkout & payments ✅ DONE
 
-- Order + sub-order creation (split by store), server-side repricing, address/contact.
-- `PaymentProvider` adapter + Stripe Connect (test mode): create intent, hosted payment,
-  **webhook** → mark paid → **ledger** entries (idempotent).
-- Vendor connected-account onboarding.
-- Admin/vendor: order + sub-order views, status timeline.
-- **Exit:** end-to-end paid order across two vendors; ledger balances correct; no double-post
-  on webhook retry.
+- Order creation (split by store), server-side repricing, address/contact. ✅
+- `PaymentProvider` adapter + **Razorpay** (UPI/cards/netbanking/wallets) + a keyless
+  **mock gateway** for dev: create gateway order → signed sheet → **webhook** → mark paid →
+  **ledger** entries (idempotent). ✅
+- **Cash on delivery**, admin-toggleable with a per-order cap; settles on delivery. ✅
+- Refunds (full + repeatable partial) with proportional commission clawback. ✅
+- Payout holds, vendor statements, admin settlement with UTR, reconciliation. ✅
+- All three clients: web Checkout.js, Flutter native SDK, admin Payments console. ✅
+- **Exit met:** end-to-end paid order; ledger balances correct; 5 concurrent confirmations +
+  4 webhook replays → exactly 3 ledger rows; full refund nets to zero. See
+  [05-PAYMENTS.md](05-PAYMENTS.md).
+
+Not done in this phase (deliberately deferred): per-vendor Razorpay Route sub-accounts
+(the platform collects and settles manually instead — no vendor KYC needed to start), and
+automated bank transfers via RazorpayX.
 
 ## Phase 4 — Fulfillment & notifications
 
@@ -97,7 +105,7 @@
 [ ] P0 Foundations        [ ] P4 Fulfillment & notifications
 [ ] P1 Vendors & catalog  [ ] P5 Finance: commission/wallet/payouts
 [ ] P2 Storefront & cart  [ ] P6 Permissions & integrations
-[ ] P3 Checkout & payments[ ] P7 Hardening & launch
+[x] P3 Checkout & payments[ ] P7 Hardening & launch
 ```
 
 ## Feature track — AI Customer Support (parallel to P4+)

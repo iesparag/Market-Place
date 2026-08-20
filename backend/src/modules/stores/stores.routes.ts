@@ -22,6 +22,13 @@ storesRoutes.patch(
   authorize('store:approve'),
   asyncHandler(storesController.approve),
 );
+// Admin: confirm the payout account against the KYC docs.
+storesRoutes.patch(
+  '/:id/bank-verify',
+  authenticate,
+  authorize('payout:release'),
+  asyncHandler(storesController.verifyBank),
+);
 storesRoutes.patch(
   '/:id/status',
   authenticate,

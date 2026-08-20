@@ -6,6 +6,7 @@ import { CartFacade } from '../../store/cart/cart.facade';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { LocationPickerComponent, type PickedLocation } from '../../shared/location-picker.component';
+import { PaymentService, type PaymentMethodOption } from '../../core/services/payment.service';
 import { selectCartLines } from '../../store/cart/cart.selectors';
 import { Store } from '@ngrx/store';
 
@@ -55,9 +56,31 @@ interface Address { _id: string; label: string; line1: string; city: string; pin
               @if (form.controls.city.touched && form.controls.city.invalid) { <div class="fe">City is required</div> }</div>
             <div><label class="label">Pincode</label><input class="input" formControlName="pincode" /></div>
           </div>
+          @if (payMethods().length) {
+            <label class="label paylabel">Payment method</label>
+            <div class="methods">
+              @for (m of payMethods(); track m.id) {
+                <button type="button" class="method" [class.sel]="selectedMethod() === m.id"
+                        [disabled]="!isAvailable(m)" (click)="selectedMethod.set(m.id)">
+                  <span class="micon">{{ m.id === 'cod' ? '💵' : '📱' }}</span>
+                  <span class="mbody">
+                    <b>{{ m.label }}</b>
+                    <span class="muted small">{{ unavailableReason(m) || m.description }}</span>
+                  </span>
+                  <span class="mdot">{{ selectedMethod() === m.id ? '●' : '○' }}</span>
+                </button>
+              }
+            </div>
+          }
+
           <button class="btn btn-primary" [disabled]="placing() || itemsTotal() === 0">
-            {{ placing() ? 'Placing…' : 'Place order' }}
+            {{ payButtonLabel() }}
           </button>
+          @if (selectedMethod() === 'cod') {
+            <p class="muted small">You'll pay the delivery agent in cash when your order arrives.</p>
+          } @else {
+            <p class="muted small">Secure payment via UPI, card, netbanking or wallet. You'll be redirected back here.</p>
+          }
         </form>
 
         <aside class="card summary">
@@ -91,6 +114,16 @@ interface Address { _id: string; label: string; line1: string; city: string; pin
       .addrcard.sel { border-color: var(--brand-600); background: var(--brand-50, #fff5ef); }
       .addrcard.new { display: grid; place-items: center; color: var(--brand-700); font-weight: 700; }
       .small { font-size: 0.8rem; margin-top: 2px; }
+      .paylabel { margin-top: 18px; }
+      .methods { display: grid; gap: 10px; margin-top: 6px; }
+      .method { display: flex; align-items: center; gap: 12px; text-align: left; padding: 14px;
+                border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; }
+      .method:hover:not(:disabled) { border-color: var(--brand-400, #fb923c); }
+      .method.sel { border-color: var(--brand-600); background: var(--brand-50, #fff5ef); }
+      .method:disabled { opacity: 0.5; cursor: not-allowed; }
+      .micon { font-size: 1.3rem; }
+      .mbody { display: grid; flex: 1; }
+      .mdot { color: var(--brand-600); font-size: 1.1rem; }
       .coupon { display: flex; gap: 8px; margin-bottom: 8px; }
       .cmsg { font-size: 0.85rem; color: var(--danger); margin-bottom: 8px; } .cmsg.ok { color: var(--success); }
       .row { display: flex; justify-content: space-between; padding: 5px 0; }
@@ -108,9 +141,14 @@ export class CheckoutComponent implements OnInit {
   private readonly router = inject(Router);
   readonly cart = inject(CartFacade);
   readonly auth = inject(AuthService);
+  private readonly payments = inject(PaymentService);
 
   placing = signal(false);
   error = signal<string | null>(null);
+  payMethods = signal<PaymentMethodOption[]>([]);
+  selectedMethod = signal<'razorpay' | 'cod'>('razorpay');
+  /** What the pay button says while the gateway sheet is open. */
+  payStage = signal<'idle' | 'placing' | 'paying'>('idle');
   itemsTotal = signal(0);
   addresses = signal<Address[]>([]);
   selectedId = signal<string>('');
@@ -132,6 +170,12 @@ export class CheckoutComponent implements OnInit {
   ngOnInit(): void {
     this.cart.total$.subscribe((t) => this.itemsTotal.set(t));
     this.api.get<Settings>('/settings').subscribe({ next: (s) => this.settings.set(s) });
+    void this.payments.loadMethods().then((r) => {
+      const usable = r.methods.filter((m) => m.enabled);
+      this.payMethods.set(usable);
+      const first = usable.find((m) => this.isAvailable(m));
+      if (first) this.selectedMethod.set(first.id);
+    });
     // Prefill name from profile; auto-select the default saved address (editable).
     this.form.controls.name.setValue(this.auth.user()?.name ?? '');
     this.api.get<Address[]>('/addresses').subscribe({
@@ -167,13 +211,43 @@ export class CheckoutComponent implements OnInit {
     });
   }
 
+  /** COD is capped by the admin; the option stays visible but explains why it's off. */
+  isAvailable(m: PaymentMethodOption): boolean {
+    if (!m.enabled) return false;
+    if (m.id === 'cod' && m.maxOrderValue && this.grandTotal() > m.maxOrderValue) return false;
+    return true;
+  }
+  unavailableReason(m: PaymentMethodOption): string | null {
+    if (m.id === 'cod' && m.maxOrderValue && this.grandTotal() > m.maxOrderValue)
+      return `Not available above ₹${m.maxOrderValue / 100}`;
+    return null;
+  }
+
+  payButtonLabel(): string {
+    if (this.payStage() === 'placing') return 'Placing your order…';
+    if (this.payStage() === 'paying') return 'Waiting for payment…';
+    const total = `₹${this.grandTotal() / 100}`;
+    return this.selectedMethod() === 'cod' ? `Place order · ${total}` : `Pay ${total}`;
+  }
+
+  /**
+   * Place the order, then take payment for it.
+   *
+   * The order is created first and deliberately survives a failed or abandoned
+   * payment — the customer lands on the order page and can retry there, instead of
+   * losing the cart. The cart is only cleared once the order exists.
+   */
   async place(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     this.placing.set(true);
+    this.payStage.set('placing');
     this.error.set(null);
+
     const lines = await firstValueFrom(this.store.select(selectCartLines));
     const f = this.form.getRawValue();
+    let orderId: string;
+
     try {
       const order = await firstValueFrom(
         this.api.post<{ _id: string; orderNumber: string }>('/orders', {
@@ -183,11 +257,28 @@ export class CheckoutComponent implements OnInit {
           shippingAddress: { line1: f.line1, city: f.city, pincode: f.pincode },
         }),
       );
+      orderId = order._id;
       this.cart.clear();
-      void this.router.navigate(['/order', order._id]);
     } catch (e: unknown) {
       this.error.set((e as { message?: string })?.message ?? 'Could not place order');
       this.placing.set(false);
+      this.payStage.set('idle');
+      return;
     }
+
+    this.payStage.set('paying');
+    const result = await this.payments.pay(orderId, this.selectedMethod());
+
+    // Whatever happened, the order exists — the order page shows its real state and
+    // offers a retry. Nothing is silently swallowed.
+    if (result.outcome === 'failed') {
+      void this.router.navigate(['/order', orderId], { queryParams: { payment: 'failed', reason: result.message } });
+      return;
+    }
+    if (result.outcome === 'cancelled') {
+      void this.router.navigate(['/order', orderId], { queryParams: { payment: 'cancelled' } });
+      return;
+    }
+    void this.router.navigate(['/order', orderId], { queryParams: { payment: result.outcome } });
   }
 }

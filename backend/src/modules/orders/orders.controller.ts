@@ -67,7 +67,7 @@ export const ordersController = {
 
   async refund(req: Request, res: Response) {
     const user = req.user!;
-    const order = await ordersService.refund(req.params.id!, { role: user.role, storeId: user.storeId });
+    const order = await ordersService.refund(req.params.id!, { role: user.role, storeId: user.storeId, id: user.id });
     writeAudit(user.id, 'order:refund', { targetType: 'order', targetId: req.params.id });
     ok(res, order);
   },
