@@ -1,3 +1,5 @@
+import 'package:package_info_plus/package_info_plus.dart';
+
 /// App-wide config. Point these at your backend.
 /// Dev: use your machine's LAN IP (not localhost — that's the phone, not your PC).
 class Config {
@@ -13,8 +15,22 @@ class Config {
 
   static const int pageSize = 20;
 
-  /// Keep in sync with pubspec `version:`. Compared against the backend's minVersion for force-update.
-  static const String appVersion = '1.0.11';
+  /// The running build's version, read from the APK itself — never a constant.
+  /// A hand-maintained copy here silently drifts from pubspec `version:` and pins
+  /// every new build to the old number, which traps the app on the force-update
+  /// screen forever. Null until [loadAppVersion] has run.
+  static String? _appVersion;
+  static String? get appVersion => _appVersion;
+
+  /// Reads the installed versionName. On failure it stays null and the caller
+  /// skips the version gate — never trap a user behind an unanswerable check.
+  static Future<String?> loadAppVersion() async {
+    if (_appVersion != null) return _appVersion;
+    try {
+      _appVersion = (await PackageInfo.fromPlatform()).version;
+    } catch (_) {/* leave null */}
+    return _appVersion;
+  }
 }
 
 /// true if [current] is older than [min] (simple semver compare).

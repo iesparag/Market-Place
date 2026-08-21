@@ -24,6 +24,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _boot() async {
     final start = DateTime.now();
+    final currentVersion = await Config.loadAppVersion();
     Map<String, dynamic>? config;
     try {
       final c = await ref.read(appConfigProvider.future);
@@ -42,9 +43,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (elapsed < 1800) await Future.delayed(Duration(milliseconds: 1800 - elapsed));
     if (!mounted) return;
 
-    if (config != null) {
+    // No version → we could not read our own build; let the user in rather than
+    // gate them on a comparison we cannot make.
+    if (config != null && currentVersion != null) {
       final min = config['minVersion']?.toString() ?? '1.0.0';
-      if (isVersionBelow(Config.appVersion, min)) {
+      if (isVersionBelow(currentVersion, min)) {
         context.go('/force-update?url=${Uri.encodeComponent(config['updateUrl']?.toString() ?? '')}&msg=${Uri.encodeComponent(config['updateMessage']?.toString() ?? '')}');
         return;
       }
