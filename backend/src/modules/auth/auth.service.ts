@@ -145,7 +145,8 @@ export const authService = {
     user.otpCode = code;
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
-    await emailProvider.send({
+    // Fire-and-forget: the client must not wait on the mail gateway (see providers/email).
+    void emailProvider.send({
       to: user.email,
       subject: 'Verify your email',
       html: `<p>Your verification code is <b>${code}</b> (valid 10 minutes).</p>`,
@@ -161,7 +162,7 @@ export const authService = {
       user.resetCode = code;
       user.resetExpires = new Date(Date.now() + 15 * 60 * 1000);
       await user.save();
-      await emailProvider.send({
+      void emailProvider.send({
         to: user.email,
         subject: 'Reset your password',
         html: `<p>Your password reset code is <b>${code}</b> (valid 15 minutes). Ignore if you didn't request this.</p>`,

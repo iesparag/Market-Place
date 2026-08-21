@@ -112,7 +112,11 @@ class PaymentController {
         },
         'notes': {'orderId': orderId},
         'theme': {'color': '#EA580C'},
-        'retry': {'enabled': true, 'max_count': 1},
+        // Retry OFF on purpose: with it on, Razorpay swallows a failure behind its own
+        // generic "Something went wrong / RETRY" dialog instead of firing
+        // EVENT_PAYMENT_ERROR, so we never learn the real code. Our checkout screen
+        // already offers a retry, and `createCheckout` resumes the same gateway order.
+        'retry': {'enabled': false},
       });
     } catch (e) {
       _finish(PayFailed('Could not open the payment screen: $e'));

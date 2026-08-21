@@ -19,7 +19,9 @@ const EnvSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
-  // Email (SMTP — e.g. Gmail). Optional — if unset, emails are logged to console.
+  // Email. Preferred: RESEND_API_KEY (plain HTTPS — works on hosts like Railway that
+  // block outbound SMTP ports 25/465/587). Falls back to SMTP, then to console logging.
+  RESEND_API_KEY: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
