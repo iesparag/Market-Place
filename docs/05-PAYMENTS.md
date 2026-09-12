@@ -208,6 +208,12 @@ Also enforced:
 - A webhook that throws returns **500 on purpose** so the gateway retries; the event row
   stays un-`processed` so the retry re-runs it. `GET /payments/reconcile` lists any that
   are stuck, and `POST /payments/events/:id/replay` re-runs one by hand.
+- Exception: `payment.authorized`'s defensive capture (all orders use `payment_capture: 1`,
+  so this event is normally redundant with `payment.captured`) catches a "already captured"
+  rejection from Razorpay and treats it as a no-op instead of throwing — that failure is
+  expected on essentially every successful payment, not a real processing error, and
+  letting it 500-retry forever was flooding the logs and burning Razorpay's retry budget
+  for no reason (settlement had already happened via `payment.captured`).
 
 ## Taxes, fees, currency
 

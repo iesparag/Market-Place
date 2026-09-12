@@ -117,12 +117,26 @@ async function processEvent(
     }
 
     case 'payment.authorized': {
-      // Orders are created with auto-capture, so this is normally just the precursor
-      // to `payment.captured`. Capture defensively if the gateway left it authorized.
-      if (!payment || payment.captured) return false;
-      const captured = await paymentProvider.capture(payment.id, payment.amount, payment.currency);
-      await paymentsService.applyGatewayPayment(captured, 'webhook');
-      return true;
+      // Orders are created with auto-capture (`payment_capture: 1`), so by the time this
+      // event is handled the payment is almost always already captured on Razorpay's side.
+      // Note `payment.captured` on THIS payload can't tell us that — it's a snapshot from
+      // the moment authorization happened, which for an "authorized" event is always
+      // false by definition. Capture is attempted defensively for the rare case
+      // auto-capture didn't fire; if Razorpay rejects it as already-captured, that is
+      // expected (the `payment.captured` event — this delivery or an earlier one — is
+      // what actually settles the order), not a processing failure worth 500-retrying.
+      if (!payment) return false;
+      try {
+        const captured = await paymentProvider.capture(payment.id, payment.amount, payment.currency);
+        await paymentsService.applyGatewayPayment(captured, 'webhook');
+        return true;
+      } catch (err) {
+        logger.info(
+          { err: String(err), paymentId: payment.id },
+          'webhook: payment.authorized capture skipped (already captured)',
+        );
+        return false;
+      }
     }
 
     case 'payment.failed': {
