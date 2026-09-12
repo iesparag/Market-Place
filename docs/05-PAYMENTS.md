@@ -92,7 +92,10 @@ Placing an order decrements stock. Now that payment can fail or be abandoned, a 
 (`jobs/schedulers/payment-expiry.ts`, every 5 min) cancels unpaid **online** orders older
 than `paymentExpiryMinutes` (default 30) and returns their stock. COD orders are never
 touched — they are legitimately unpaid until delivery. The cancel is an atomic claim, so a
-payment landing at that instant always wins.
+payment landing at that instant always wins. The customer gets both a bell notification and
+a `payment_expired` email (`order-email.ts`) so an abandoned/"keep shopping" checkout doesn't
+go silent — they're told the order was cancelled and stock was released, not left thinking
+their earlier "order placed" email meant it went through.
 
 ## Commission engine
 
@@ -164,7 +167,9 @@ A full refund nets `vendor_payable`, `commission_income` and `platform_cash` bac
    the **webhook** (`payment.captured`, authoritative). Both call the same
    `applyGatewayPayment` → `settlePrepaid`, which is atomically claimed — so whichever
    arrives second is a no-op. Settlement marks the order paid, snapshots commission, writes
-   the ledger and notifies the customer + each vendor.
+   the ledger and notifies the customer (bell + `paid` email) + each vendor. This is
+   deliberately separate from the `placed` email sent at step 1 — placing an order and
+   paying for it are different events, each gets its own email.
 5. **Fulfillment** per sub-order (vendor accepts → prepares → ships/delivers, or integration
    `purchase()`), status timeline updated.
 6. **Settlement window** (e.g. T+2 after delivery, configurable) makes payable **releasable**.

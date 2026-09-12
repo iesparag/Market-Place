@@ -8,10 +8,9 @@ import { paymentProvider } from '../../providers/payment/index.js';
 import { paymentsService } from '../payments/payments.service.js';
 import { settlementService } from '../payments/settlement.service.js';
 import { computeDiscount, markCouponUsed } from '../coupons/coupons.module.js';
-import { User } from '../auth/user.model.js';
-import { emailProvider } from '../../providers/email/index.js';
 import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
+import { sendOrderEmail, type NotifiableOrder } from './order-email.js';
 
 const NEXT_STATUS = ['pending', 'paid', 'fulfilled', 'cancelled'] as const;
 export type OrderStatus = (typeof NEXT_STATUS)[number];
@@ -303,13 +302,6 @@ function pushOrderStatus(
 }
 
 /** Notify the customer of an order change: transactional email + in-app (bell) notification. */
-interface NotifiableOrder {
-  _id?: unknown;
-  orderNumber: string;
-  customerId: unknown;
-  amounts?: { grandTotal?: number | null } | null;
-  contact?: { email?: string | null } | null;
-}
 async function notifyOrder(order: NotifiableOrder, event: 'placed' | 'paid' | 'refunded' | 'cancelled'): Promise<void> {
   const total = (order.amounts?.grandTotal ?? 0) / 100;
   const titles: Record<string, string> = {
@@ -326,18 +318,7 @@ async function notifyOrder(order: NotifiableOrder, event: 'placed' | 'paid' | 'r
     link: order._id ? `/order/${String(order._id)}` : '/account/orders',
   });
 
-  try {
-    const user = await User.findById(order.customerId).select('email').lean();
-    const to = user?.email ?? order.contact?.email;
-    if (!to) return;
-    await emailProvider.send({
-      to,
-      subject: `${titles[event] ?? `Order ${order.orderNumber} update`} — ${order.orderNumber}`,
-      html: `<p>Your order <b>${order.orderNumber}</b> is now <b>${event}</b>.</p><p>Total: ₹${total}</p>`,
-    });
-  } catch {
-    /* email failure never breaks the order flow */
-  }
+  void sendOrderEmail(order, event);
 }
 
 /** Return stock to variants (on cancel / refund). */

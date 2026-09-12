@@ -6,6 +6,7 @@ import { Payment } from '../../modules/payments/payment.model.js';
 import { getSettings } from '../../modules/settings/settings.model.js';
 import { emitToUser, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../../modules/notifications/notifications.module.js';
+import { sendOrderEmail } from '../../modules/orders/order-email.js';
 
 const SWEEP_INTERVAL_MS = 5 * 60_000; // every 5 minutes
 
@@ -75,6 +76,7 @@ export async function expireUnpaidOrders(now = new Date()): Promise<number> {
       body: `${order.orderNumber} was cancelled because payment wasn't completed. Your items are back in stock.`,
       link: '/account/orders',
     });
+    void sendOrderEmail(order, 'payment_expired');
     expired += 1;
   }
 

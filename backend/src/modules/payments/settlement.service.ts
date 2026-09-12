@@ -8,6 +8,7 @@ import { getSettings } from '../settings/settings.model.js';
 import { ledgerService, type LedgerEntryInput } from '../ledger/ledger.service.js';
 import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
+import { sendOrderEmail } from '../orders/order-email.js';
 
 type OrderRecord = HydratedDocument<OrderDoc>;
 
@@ -106,6 +107,7 @@ export const settlementService = {
     await order.save();
 
     announcePaid(order, snapshots);
+    void sendOrderEmail(order, 'paid');
     return order;
   },
 
