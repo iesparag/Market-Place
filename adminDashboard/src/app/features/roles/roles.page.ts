@@ -1,6 +1,8 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { matchesSearch } from '../../shared/search';
 
 interface User { _id: string; name: string; email: string; role: string; }
 interface PermInfo { role: string; wildcard: boolean; effective: string[]; all: string[]; }
@@ -8,13 +10,14 @@ interface PermInfo { role: string; wildcard: boolean; effective: string[]; all: 
 @Component({
   selector: 'app-roles',
   standalone: true,
-  imports: [],
+  imports: [FormsModule],
   template: `
     <header class="head"><h1>Roles & Permissions</h1><p class="muted">Grant granular access per user</p></header>
     <div class="cols">
       <div class="card users">
         <h3>Users</h3>
-        @for (u of users(); track u._id) {
+        <input class="input search" [(ngModel)]="q" placeholder="Search users…" />
+        @for (u of filteredUsers(); track u._id) {
           <button class="urow" [class.sel]="selected()?._id === u._id" (click)="select(u)">
             <div>{{ u.name }}</div>
             <div class="muted small">{{ u.role }}</div>
@@ -59,6 +62,7 @@ interface PermInfo { role: string; wildcard: boolean; effective: string[]; all: 
       @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } }
       .urow { display: block; width: 100%; text-align: left; padding: 10px; border: none; background: none; border-radius: 8px; cursor: pointer; }
       .urow:hover { background: var(--surface-2); } .urow.sel { background: var(--brand-50); }
+      .users .search { width: 100%; margin-bottom: 10px; }
       .small { font-size: 0.8rem; }
       .ehead { display: flex; justify-content: space-between; align-items: center; }
       .group { margin-top: 16px; } .gname { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.04em; margin-bottom: 6px; }
@@ -75,6 +79,11 @@ export class RolesPage implements OnInit {
   selected = signal<User | null>(null);
   info = signal<PermInfo | null>(null);
   checked = signal<Set<string>>(new Set());
+  q = '';
+
+  filteredUsers(): User[] {
+    return this.users().filter((u) => matchesSearch(this.q, u.name, u.email, u.role));
+  }
 
   grouped = computed(() => {
     const all = this.info()?.all ?? [];

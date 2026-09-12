@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { SlicePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { matchesSearch } from '../../shared/search';
 
 interface Answer { _id: string; userName?: string; role: string; text: string; }
 interface Question { _id: string; productTitle: string; userName?: string; text: string; answers: Answer[]; createdAt: string; }
@@ -18,7 +19,12 @@ interface Question { _id: string; productTitle: string; userName?: string; text:
       <button class="btn btn-ghost btn-sm" (click)="load()">↻ Refresh</button>
     </header>
 
-    @for (q of questions(); track q._id) {
+    <div class="toolbar">
+      <input class="input search" [(ngModel)]="search" placeholder="Search by product, customer or question text…" />
+      <span class="count muted">{{ filtered().length }} of {{ questions().length }}</span>
+    </div>
+
+    @for (q of filtered(); track q._id) {
       <div class="card qa">
         <div class="top">
           <div>
@@ -41,12 +47,14 @@ interface Question { _id: string; productTitle: string; userName?: string; text:
           <button class="btn btn-primary btn-sm" [disabled]="!drafts[q._id]" (click)="answer(q)">Answer</button>
         </div>
       </div>
-    } @empty { <div class="card muted pad">No questions yet.</div> }
+    } @empty { <div class="card muted pad">{{ search ? 'No questions match your search.' : 'No questions yet.' }}</div> }
   `,
   styles: [
     `
       .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
       .head h1 { margin-bottom: 2px; }
+      .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+      .search { flex: 1; max-width: 360px; } .count { white-space: nowrap; }
       .qa { margin-bottom: 14px; }
       .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
       .prod { font-size: 0.75rem; font-weight: 700; color: var(--brand-700); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -66,6 +74,11 @@ export class QuestionsPage implements OnInit {
   private readonly notify = inject(NotificationService);
   questions = signal<Question[]>([]);
   drafts: Record<string, string> = {};
+  search = '';
+
+  filtered(): Question[] {
+    return this.questions().filter((q) => matchesSearch(this.search, q.productTitle, q.userName, q.text));
+  }
 
   ngOnInit(): void { this.load(); }
   load(): void { this.api.get<Question[]>('/faq').subscribe({ next: (q) => this.questions.set(q) }); }

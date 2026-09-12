@@ -1,25 +1,31 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
 import { downloadCsv } from '../../shared/csv';
+import { matchesSearch } from '../../shared/search';
 
 interface User { _id: string; name: string; email: string; role: string; status: string; }
 
 @Component({
   selector: 'app-users',
   standalone: true,
-  imports: [HasPermissionDirective],
+  imports: [HasPermissionDirective, FormsModule],
   template: `
     <header class="head">
       <div><h1>Users</h1><p class="muted">All platform accounts</p></div>
       <button class="btn btn-sm" (click)="exportCsv()">⬇ CSV</button>
     </header>
+    <div class="toolbar">
+      <input class="input search" [(ngModel)]="q" placeholder="Search by name, email or role…" />
+      <span class="count muted">{{ filtered().length }} of {{ users().length }}</span>
+    </div>
     <div class="card card--flush">
       <table class="table">
         <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
         <tbody>
-          @for (u of users(); track u._id) {
+          @for (u of filtered(); track u._id) {
             <tr>
               <td>{{ u.name }}</td>
               <td class="muted">{{ u.email }}</td>
@@ -34,7 +40,7 @@ interface User { _id: string; name: string; email: string; role: string; status:
                 </select>
               </td>
             </tr>
-          } @empty { <tr><td colspan="5" class="pad muted">No users.</td></tr> }
+          } @empty { <tr><td colspan="5" class="pad muted">{{ q ? 'No users match your search.' : 'No users.' }}</td></tr> }
         </tbody>
       </table>
     </div>
@@ -42,6 +48,8 @@ interface User { _id: string; name: string; email: string; role: string; status:
   styles: [
     `
       .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+      .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+      .search { flex: 1; max-width: 360px; } .count { white-space: nowrap; }
       .pad { padding: 16px; } .actions { text-align: right; } .sel { max-width: 150px; }
     `,
   ],
@@ -50,6 +58,11 @@ export class UsersPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotificationService);
   users = signal<User[]>([]);
+  q = '';
+
+  filtered(): User[] {
+    return this.users().filter((u) => matchesSearch(this.q, u.name, u.email, u.role));
+  }
 
   ngOnInit(): void { this.load(); }
   load(): void {

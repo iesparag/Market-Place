@@ -1,8 +1,10 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+import { matchesSearch } from '../../shared/search';
 
 interface Store {
   _id: string;
@@ -16,18 +18,23 @@ interface Store {
 @Component({
   selector: 'app-stores',
   standalone: true,
-  imports: [HasPermissionDirective, RouterLink],
+  imports: [HasPermissionDirective, RouterLink, FormsModule],
   template: `
     <header class="head">
       <div><h1>Vendors</h1><p class="muted">Approve and manage seller stores</p></div>
       <a class="btn btn-primary btn-sm" routerLink="/vendors/new" *hasPermission="'store:approve'">＋ Add vendor</a>
     </header>
 
+    <div class="toolbar">
+      <input class="input search" [(ngModel)]="q" placeholder="Search by name, slug or type…" />
+      <span class="count muted">{{ filtered().length }} of {{ stores().length }}</span>
+    </div>
+
     <div class="card card--flush">
       <table class="table">
         <thead><tr><th>Store</th><th>Type</th><th>Status</th><th></th></tr></thead>
         <tbody>
-          @for (s of stores(); track s._id) {
+          @for (s of filtered(); track s._id) {
             <tr>
               <td><b>{{ s.name }}</b><div class="muted small">{{ s.description }}</div></td>
               <td>{{ s.vendorType }}</td>
@@ -48,7 +55,7 @@ interface Store {
                 <button class="btn btn-ghost btn-sm del" *hasPermission="'store:delete'" (click)="remove(s)">Delete</button>
               </td>
             </tr>
-          } @empty { <tr><td colspan="4" class="pad muted">No vendors yet.</td></tr> }
+          } @empty { <tr><td colspan="4" class="pad muted">{{ q ? 'No vendors match your search.' : 'No vendors yet.' }}</td></tr> }
         </tbody>
       </table>
     </div>
@@ -56,6 +63,8 @@ interface Store {
   styles: [
     `
       .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+      .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+      .search { flex: 1; max-width: 360px; } .count { white-space: nowrap; }
       .small { font-size: 0.8rem; }
       .pad { padding: 16px; }
       .actions { text-align: right; white-space: nowrap; display: flex; gap: 8px; justify-content: flex-end; }
@@ -67,6 +76,11 @@ export class StoresPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotificationService);
   stores = signal<Store[]>([]);
+  q = '';
+
+  filtered(): Store[] {
+    return this.stores().filter((s) => matchesSearch(this.q, s.name, s.slug, s.vendorType));
+  }
 
   ngOnInit(): void { this.load(); }
   load(): void {

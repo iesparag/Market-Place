@@ -1,7 +1,8 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { matchesSearch } from '../../shared/search';
 
 interface Coupon {
   _id: string; code: string; type: 'percent' | 'flat'; value: number;
@@ -11,15 +12,16 @@ interface Coupon {
 @Component({
   selector: 'app-coupons',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, FormsModule],
   template: `
     <header class="head"><h1>Coupons</h1><p class="muted">Discount codes customers apply at checkout</p></header>
     <div class="cols">
       <div class="card card--flush list">
+        <div class="search-row"><input class="input" [(ngModel)]="q" placeholder="Search by code…" /></div>
         <table class="table">
           <thead><tr><th>Code</th><th>Discount</th><th>Min</th><th>Used</th><th></th></tr></thead>
           <tbody>
-            @for (c of coupons(); track c._id) {
+            @for (c of filtered(); track c._id) {
               <tr>
                 <td><b>{{ c.code }}</b></td>
                 <td>{{ c.type === 'percent' ? c.value + '%' : '₹' + c.value / 100 }}</td>
@@ -30,7 +32,7 @@ interface Coupon {
                   <span class="badge" [class.badge-success]="c.active">{{ c.active ? 'active' : 'off' }}</span>
                 </td>
               </tr>
-            } @empty { <tr><td colspan="5" class="pad muted">No coupons yet.</td></tr> }
+            } @empty { <tr><td colspan="5" class="pad muted">{{ q ? 'No coupons match your search.' : 'No coupons yet.' }}</td></tr> }
           </tbody>
         </table>
       </div>
@@ -61,6 +63,8 @@ interface Coupon {
       .label { margin-top: 10px; } .pad { padding: 16px; }
       .actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
       .btn-primary { margin-top: 16px; }
+      .search-row { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+      .search-row .input { width: 100%; }
     `,
   ],
 })
@@ -69,6 +73,11 @@ export class CouponsPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotificationService);
   coupons = signal<Coupon[]>([]);
+  q = '';
+
+  filtered(): Coupon[] {
+    return this.coupons().filter((c) => matchesSearch(this.q, c.code));
+  }
 
   form = this.fb.nonNullable.group({
     code: ['', Validators.required],

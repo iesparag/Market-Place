@@ -1,9 +1,11 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { SlicePipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
 import { downloadCsv } from '../../shared/csv';
+import { matchesSearch } from '../../shared/search';
 
 interface Order {
   _id: string;
@@ -18,7 +20,7 @@ interface Order {
 @Component({
   selector: 'app-admin-orders',
   standalone: true,
-  imports: [SlicePipe, HasPermissionDirective],
+  imports: [SlicePipe, HasPermissionDirective, FormsModule],
   template: `
     <header class="head">
       <div><h1>Orders</h1><p class="muted">Live — new orders appear as they come in</p></div>
@@ -28,13 +30,18 @@ interface Order {
       </div>
     </header>
 
+    <div class="toolbar">
+      <input class="input search" [(ngModel)]="q" placeholder="Search by order number, customer or status…" />
+      <span class="count muted">{{ filtered().length }} of {{ orders().length }}</span>
+    </div>
+
     <div class="card card--flush">
       <table class="table">
         <thead>
           <tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th></th></tr>
         </thead>
         <tbody>
-          @for (o of orders(); track o._id) {
+          @for (o of filtered(); track o._id) {
             <tr>
               <td>{{ o.orderNumber }}</td>
               <td>{{ o.contact?.name || '—' }}</td>
@@ -63,7 +70,7 @@ interface Order {
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="pad muted">No orders yet.</td></tr>
+            <tr><td colspan="7" class="pad muted">{{ q ? 'No orders match your search.' : 'No orders yet.' }}</td></tr>
           }
         </tbody>
       </table>
@@ -74,6 +81,8 @@ interface Order {
       .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
       .head h1 { margin-bottom: 2px; }
       .hactions { display: flex; gap: 8px; }
+      .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+      .search { flex: 1; max-width: 360px; } .count { white-space: nowrap; }
       .pad { padding: 16px; }
       .actions { white-space: nowrap; display: flex; gap: 6px; }
     `,
@@ -83,6 +92,11 @@ export class OrdersPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotificationService);
   orders = signal<Order[]>([]);
+  q = '';
+
+  filtered(): Order[] {
+    return this.orders().filter((o) => matchesSearch(this.q, o.orderNumber, o.contact?.name, o.status));
+  }
 
   ngOnInit(): void { this.load(); }
   load(): void {

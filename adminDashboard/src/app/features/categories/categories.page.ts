@@ -1,12 +1,13 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CategoriesApi, type Category } from './categories.api';
+import { matchesSearch } from '../../shared/search';
 
 /** Super-admin defines + edits categories and their attribute schema (drives the dynamic product form). */
 @Component({
   selector: 'app-categories',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, FormsModule],
   template: `
     <header class="head"><h1>Categories</h1><p class="muted">Departments, sub-categories & their attribute schema</p></header>
 
@@ -14,7 +15,8 @@ import { CategoriesApi, type Category } from './categories.api';
       <!-- Clean department → sub-category tree -->
       <div class="card list">
         <div class="lhead"><h3>Categories</h3><span class="muted small">department › sub-category</span></div>
-        @for (row of flattened(); track row.cat._id) {
+        <div class="search-row"><input class="input" [(ngModel)]="q" placeholder="Search categories…" /></div>
+        @for (row of filteredRows(); track row.cat._id) {
           <div class="crow" [class.dept]="row.depth === 0" [class.editing]="editingId() === row.cat._id" [style.padding-left.px]="14 + row.depth * 22">
             <div class="cinfo">
               <div class="cname">
@@ -25,7 +27,7 @@ import { CategoriesApi, type Category } from './categories.api';
             </div>
             <button class="btn btn-ghost btn-sm" (click)="edit(row.cat)">✎ Edit</button>
           </div>
-        } @empty { <p class="muted pad">No categories yet.</p> }
+        } @empty { <p class="muted pad">{{ q ? 'No categories match your search.' : 'No categories yet.' }}</p> }
       </div>
 
       <form class="card" [formGroup]="form" (ngSubmit)="submit()">
@@ -87,6 +89,8 @@ import { CategoriesApi, type Category } from './categories.api';
       @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } }
       .list { padding: 0; overflow: hidden; }
       .lhead { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 16px 12px; border-bottom: 1px solid var(--border); }
+      .search-row { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+      .search-row .input { width: 100%; }
       .crow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
       .crow:hover { background: var(--surface-2); }
       .crow.dept { background: var(--surface-2); }
@@ -114,6 +118,7 @@ export class CategoriesPage implements OnInit {
   editingId = signal<string | null>(null);
   saving = signal(false);
   error = signal<string | null>(null);
+  q = '';
 
   form = this.fb.nonNullable.group({
     name: ['', Validators.required],
@@ -142,6 +147,11 @@ export class CategoriesPage implements OnInit {
     const shown = new Set(out.map((r) => r.cat._id));
     for (const c of all) if (!shown.has(c._id)) out.push({ cat: c, depth: 0 });
     return out;
+  }
+
+  /** Search matches a row's own name/slug/appliesTo — kept simple, not hierarchy-aware. */
+  filteredRows(): { cat: Category; depth: number }[] {
+    return this.flattened().filter((row) => matchesSearch(this.q, row.cat.name, row.cat.slug, row.cat.appliesTo));
   }
 
   /** Valid parents = everything except the category being edited and its descendants (no cycles). */
