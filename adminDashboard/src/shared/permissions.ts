@@ -16,6 +16,7 @@ export const PERMISSIONS = [
   'store:update',
   'store:approve',
   'store:suspend',
+  'store:delete',
   // Orders
   'order:read',
   'order:update',

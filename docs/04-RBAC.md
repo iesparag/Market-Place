@@ -24,7 +24,7 @@ imported by backend (to enforce) and frontends (to render).
 
 ```
 Catalog       category:manage  product:read  product:create  product:update  product:delete
-Vendors       store:read  store:create  store:update  store:approve  store:suspend
+Vendors       store:read  store:create  store:update  store:approve  store:suspend  store:delete
 Orders        order:read  order:update  order:cancel  order:refund
 Fulfillment   suborder:read  suborder:update
 Finance       commission:manage  ledger:read  payout:read  payout:release  wallet:read
@@ -44,7 +44,7 @@ kept in a `PERMISSION_META` map in `shared/`.
 | Role | Scope | Gets |
 |------|-------|------|
 | **super_admin** | platform | **all** permissions (wildcard `*`). Cannot be reduced. |
-| **admin** | platform | configurable subset chosen by super_admin. Starter set: `product:read`, `order:read`, `order:refund`, `store:read`, `store:approve`, `review:moderate`, `analytics:read`. |
+| **admin** | platform | configurable subset chosen by super_admin. Starter set: `product:read`, `order:read`, `order:refund`, `store:read`, `store:approve`, `store:suspend`, `review:moderate`, `analytics:read`. Notably **not** `store:delete` — hard-deleting a store is super_admin-only by default. |
 | **vendor** (store owner) | store | `product:*`, `suborder:read`, `suborder:update`, `order:read`, `wallet:read`, `payout:read`, `review:read`, `store:update` — **all auto-scoped to their store**. |
 | **vendor_staff** | store | subset the owner grants (e.g. only `product:*` + `suborder:update`). |
 | **customer** | n/a | no dashboard permissions; storefront only. |
@@ -123,6 +123,24 @@ effective-permission list (`GET /me` returns `permissions: string[]`). Frontend 
 3. On approve: create **payment connected account** (`payment:manage`), enable product
    creation, send welcome email.
 4. Vendor can now create products (scoped to their store) and start selling.
+
+## Suspending vs deleting a store
+
+These are two different permissions on purpose — a support/trust-and-safety role can be
+granted `store:suspend` alone, without the power to approve new vendors or delete anything.
+
+- **Suspend** (`store:suspend`, `PATCH /stores/:id/status`) — reversible. A suspended store and
+  all its products disappear from the customer storefront everywhere (browse, direct product
+  link, store page, related products, AI support search) and can no longer be checked out even
+  if items are already sitting in a customer's cart — `orders.service.create` re-checks the
+  store's status at order time, not just at browse time. This is the correct action for any
+  store that has ever taken an order.
+- **Delete** (`store:delete`, `DELETE /stores/:id`, super_admin only by default) — permanent,
+  hard delete of the store **and its own products**. It is refused outright if the store has
+  any order history (`Order.exists({ storeIds })`), since orders/ledger/payouts reference
+  `storeId` and must survive for financial/audit integrity (rule #6). **Categories are never
+  touched** — they're a shared platform taxonomy with no `storeId` (see
+  [03-DATA-MODEL.md](03-DATA-MODEL.md)), so other vendors' products stay intact.
 
 ## Audit
 

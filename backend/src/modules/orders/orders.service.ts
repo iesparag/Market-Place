@@ -2,6 +2,7 @@ import { SOCKET_EVENTS, type OrderStatusUpdated } from '@app/shared';
 import { AppError } from '../../common/AppError.js';
 import { sum, percentOf } from '../../common/money.js';
 import { Product } from '../products/product.model.js';
+import { Store } from '../stores/store.model.js';
 import { Order } from './order.model.js';
 import { getSettings } from '../settings/settings.model.js';
 import { paymentProvider } from '../../providers/payment/index.js';
@@ -39,9 +40,26 @@ export const ordersService = {
 
     const lines = [];
     const lowStockAlerts: { storeId: string; productId: string; variantSku: string; stock: number }[] = [];
+    // Cache per store so a multi-line cart from one vendor doesn't re-query their status.
+    const storeStatusCache = new Map<string, string>();
     for (const item of input.items) {
       const product = await Product.findById(item.productId).lean();
       if (!product) throw AppError.notFound(`Product ${item.productId} not found`);
+      if (product.status !== 'active' || product.visibility !== 'public')
+        throw AppError.badRequest('PRODUCT_UNAVAILABLE', `${product.title} is no longer available`);
+
+      const storeIdStr = String(product.storeId);
+      let storeStatus = storeStatusCache.get(storeIdStr);
+      if (storeStatus === undefined) {
+        const store = await Store.findById(product.storeId).select('status').lean();
+        storeStatus = store?.status ?? 'missing';
+        storeStatusCache.set(storeIdStr, storeStatus);
+      }
+      // A store can go from approved → suspended after items were added to a cart; re-check
+      // at order time so a suspended vendor can never be paid, not just hidden from browsing.
+      if (storeStatus !== 'approved')
+        throw AppError.badRequest('VENDOR_UNAVAILABLE', `${product.title} is currently unavailable`);
+
       const variant = product.variants.find((v) => v.sku === item.variantSku);
       if (!variant) throw AppError.badRequest('VARIANT_NOT_FOUND', 'Variant not found');
       if (item.qty < 1) throw AppError.badRequest('BAD_QTY', 'Quantity must be >= 1');

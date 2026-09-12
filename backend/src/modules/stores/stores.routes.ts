@@ -29,9 +29,10 @@ storesRoutes.patch(
   authorize('payout:release'),
   asyncHandler(storesController.verifyBank),
 );
-storesRoutes.patch(
-  '/:id/status',
-  authenticate,
-  authorize('store:approve'),
-  asyncHandler(storesController.setStatus),
-);
+// Permission depends on the requested status (approved/rejected need `store:approve`,
+// suspended needs `store:suspend`) — checked inside the controller, not here.
+storesRoutes.patch('/:id/status', authenticate, asyncHandler(storesController.setStatus));
+
+// Admin-only, irreversible: hard-deletes a store that has never had an order (see
+// stores.service.ts). Anything with order/ledger history must be suspended instead.
+storesRoutes.delete('/:id', authenticate, authorize('store:delete'), asyncHandler(storesController.remove));

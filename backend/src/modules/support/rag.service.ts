@@ -2,6 +2,7 @@ import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { aiProvider } from '../../providers/ai/index.js';
 import { Category } from '../categories/category.model.js';
+import { Store } from '../stores/store.model.js';
 import { ProductEmbedding } from './kb.model.js';
 
 /**
@@ -99,10 +100,22 @@ export async function searchProducts(
   const [q] = await aiProvider.embed([query]);
   if (!q?.length) return [];
 
+  // Customer-facing search (no explicit store scope, e.g. the support bot) must never
+  // surface a suspended/unapproved vendor's products — the storefront already hides
+  // them everywhere (catalog.service.ts); a vendor searching their own store (opts.storeId
+  // set) is unaffected, since that's their own inventory, not a customer-facing result.
+  let approvedStoreIds: string[] | undefined;
+  if (!opts.storeId) {
+    const stores = await Store.find({ status: 'approved' }).select('_id').lean();
+    approvedStoreIds = stores.map((s) => String(s._id));
+    if (approvedStoreIds.length === 0) return [];
+  }
+
   if (env.VECTOR_ENGINE === 'atlas') {
     try {
       const filter: Record<string, unknown> = { status: 'active' };
       if (opts.storeId) filter.storeId = opts.storeId;
+      else if (approvedStoreIds) filter.storeId = { $in: approvedStoreIds };
       const rows = await ProductEmbedding.aggregate<{ title: string; slug: string; score: number }>([
         {
           $vectorSearch: {
@@ -125,6 +138,7 @@ export async function searchProducts(
   // Mongo cosine (dev default / fallback).
   const filter: Record<string, unknown> = { status: 'active', embedding: { $ne: [] } };
   if (opts.storeId) filter.storeId = opts.storeId;
+  else if (approvedStoreIds) filter.storeId = { $in: approvedStoreIds };
   const docs = await ProductEmbedding.find(filter).select('productId title slug embedding').limit(1000).lean();
   return docs
     .map((d) => ({

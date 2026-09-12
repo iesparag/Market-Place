@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
 
 interface Store {
@@ -39,9 +40,12 @@ interface Store {
                 <a class="btn btn-ghost btn-sm" [routerLink]="['/stores', s._id]">Details</a>
                 <ng-container *hasPermission="'store:approve'">
                   @if (s.status !== 'approved') { <button class="btn btn-primary btn-sm" (click)="setStatus(s, 'approved')">Approve</button> }
-                  @if (s.status === 'approved') { <button class="btn btn-ghost btn-sm" (click)="setStatus(s, 'suspended')">Suspend</button> }
                   @if (s.status === 'pending') { <button class="btn btn-ghost btn-sm" (click)="setStatus(s, 'rejected')">Reject</button> }
                 </ng-container>
+                @if (s.status === 'approved') {
+                  <button class="btn btn-ghost btn-sm" *hasPermission="'store:suspend'" (click)="setStatus(s, 'suspended')">Suspend</button>
+                }
+                <button class="btn btn-ghost btn-sm del" *hasPermission="'store:delete'" (click)="remove(s)">Delete</button>
               </td>
             </tr>
           } @empty { <tr><td colspan="4" class="pad muted">No vendors yet.</td></tr> }
@@ -55,11 +59,13 @@ interface Store {
       .small { font-size: 0.8rem; }
       .pad { padding: 16px; }
       .actions { text-align: right; white-space: nowrap; display: flex; gap: 8px; justify-content: flex-end; }
+      .del:hover { color: var(--danger); }
     `,
   ],
 })
 export class StoresPage implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly notify = inject(NotificationService);
   stores = signal<Store[]>([]);
 
   ngOnInit(): void { this.load(); }
@@ -73,5 +79,14 @@ export class StoresPage implements OnInit {
         ? this.api.patch(`/stores/${s._id}/approve`, {})
         : this.api.patch(`/stores/${s._id}/status`, { status });
     call.subscribe({ next: () => this.load() });
+  }
+
+  /** Irreversible — the backend refuses this once the store has taken even one order. */
+  remove(s: Store): void {
+    if (!confirm(`Delete "${s.name}"? This permanently removes the store and all its products. This cannot be undone.`)) return;
+    this.api.delete(`/stores/${s._id}`).subscribe({
+      next: () => { this.notify.push('Store deleted', `${s.name} and its products were removed`, 'success'); this.load(); },
+      error: (e) => this.notify.push('Could not delete store', e?.message, 'warning'),
+    });
   }
 }

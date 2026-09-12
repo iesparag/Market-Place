@@ -3,6 +3,9 @@ import { env } from '../../config/env.js';
 import { Store } from './store.model.js';
 import { User } from '../auth/user.model.js';
 import { emailProvider } from '../../providers/email/index.js';
+import { Product } from '../products/product.model.js';
+import { Order } from '../orders/order.model.js';
+import { ProductEmbedding } from '../support/kb.model.js';
 
 function slugify(name: string): string {
   return name
@@ -108,6 +111,37 @@ export const storesService = {
     if (!store) throw AppError.notFound('Store not found');
     await this.notifyOwnerStatus(store.ownerId, store.name, status);
     return store;
+  },
+
+  /**
+   * Hard delete — irreversible, and only for a store that has never taken an order.
+   *
+   * Categories are a shared platform taxonomy (no `storeId` on the Category model — see
+   * docs/03-DATA-MODEL.md), so deleting a store must never touch them: other vendors' products
+   * reference the same categories. Only this store's own products are removed.
+   *
+   * A store with any order history is refused outright: its orders/ledger/payout rows carry
+   * `storeId` references that must survive for financial/audit integrity (CLAUDE.md rule #6).
+   * `suspend` (via `setStatus`) is the correct action for a store that has ever transacted —
+   * it already hides the store and its products everywhere (see `catalog.service.ts`).
+   */
+  async remove(id: string) {
+    const store = await Store.findById(id);
+    if (!store) throw AppError.notFound('Store not found');
+
+    const hasOrders = await Order.exists({ storeIds: id });
+    if (hasOrders)
+      throw AppError.badRequest(
+        'STORE_HAS_ORDERS',
+        'This store has order history and cannot be deleted. Suspend it instead.',
+      );
+
+    const productIds = await Product.find({ storeId: id }).distinct('_id');
+    await ProductEmbedding.deleteMany({ storeId: id });
+    await Product.deleteMany({ storeId: id });
+    await Store.deleteOne({ _id: id });
+
+    return { deleted: true, storeId: id, productsDeleted: productIds.length };
   },
 
   /** Email the store owner when their store is approved / rejected / suspended (no-op if SMTP unset). */

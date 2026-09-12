@@ -118,6 +118,11 @@ AttributeDef = {
 > Category schemas are managed by super_admin (or a permitted admin) in the dashboard — see
 > [04-RBAC.md](04-RBAC.md) `category:manage`. Adding a new vendor type = adding categories +
 > attribute defs. **No code change.**
+>
+> Note there is deliberately **no `storeId` on `categories`** — it's a shared platform
+> taxonomy, not owned by any one vendor (two grocery stores both sell under "Vegetables").
+> This is why deleting a store (`store:delete`, see [04-RBAC.md](04-RBAC.md)) only ever
+> deletes that store's own `products`, never categories.
 
 ### `products`
 ```

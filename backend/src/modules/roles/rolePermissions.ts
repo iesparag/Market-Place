@@ -18,6 +18,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'ledger:read',
     'store:read',
     'store:approve',
+    'store:suspend',
     'review:read',
     'review:moderate',
     'analytics:read',

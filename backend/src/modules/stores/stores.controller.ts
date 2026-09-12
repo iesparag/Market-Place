@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import type { Permission } from '@app/shared';
+import { WILDCARD_PERMISSION } from '@app/shared';
 import { ok, created } from '../../common/apiResponse.js';
 import { AppError } from '../../common/AppError.js';
 import { storesService } from './stores.service.js';
@@ -78,10 +80,23 @@ export const storesController = {
     writeAudit(req.user?.id, 'store:approve', { targetType: 'store', targetId: req.params.id });
     ok(res, store);
   },
+  /** Suspending is a distinct permission from approving — a role can have one without the other. */
   async setStatus(req: Request, res: Response) {
     const status = z.enum(['approved', 'rejected', 'suspended']).parse(req.body.status);
+    const required: Permission = status === 'suspended' ? 'store:suspend' : 'store:approve';
+    const perms = req.user?.permissions ?? [];
+    if (!perms.includes(WILDCARD_PERMISSION) && !perms.includes(required))
+      throw AppError.forbidden(`Missing permission: ${required}`);
+
     const store = await storesService.setStatus(req.params.id!, status);
     writeAudit(req.user?.id, `store:${status}`, { targetType: 'store', targetId: req.params.id });
     ok(res, store);
+  },
+
+  /** Hard delete — only ever reaches the service for a store with zero order history. */
+  async remove(req: Request, res: Response) {
+    const result = await storesService.remove(req.params.id!);
+    writeAudit(req.user?.id, 'store:delete', { targetType: 'store', targetId: req.params.id, meta: result });
+    ok(res, result);
   },
 };
