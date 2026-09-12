@@ -158,18 +158,26 @@ A full refund nets `vendor_payable`, `commission_income` and `platform_cash` bac
 1. **Place order** (`POST /orders`): the server recomputes every line price from the DB
    (`variant.price + Σ modifier deltas`), applies coupon/tax/delivery. Never trust client
    prices. The order is created **unpaid** and survives a failed payment, so an abandoned
-   sheet never costs the customer their cart.
+   sheet never costs the customer their cart. **No customer-facing email/notification fires
+   here** — a bare `Order.create()` is just a draft awaiting payment, not a commitment. Only
+   the vendor (`SUBORDER_NEW`) and admin get a realtime heads-up; those are ops signals, not
+   a customer confirmation. (Earlier versions sent an "Order placed" email at this step —
+   removed because customers who abandoned checkout before paying still got a confirmation
+   email, which read as "you have an order" when nothing had actually been committed.)
 2. **Start payment** (`POST /payments/checkout`): creates a gateway order for `grandTotal`.
    Calling it again for the same order **resumes** the same gateway order rather than
    creating a second one.
-3. **Customer pays** in the Razorpay sheet (web Checkout.js / Flutter SDK).
+   - **COD**: `startCod` confirms immediately here (bell + `placed` email) — COD has no
+     gateway step, so choosing it *is* the commitment, same as BigBasket/Amazon confirm a
+     COD order on placement. Guarded to fire once per order (not on a resumed call).
+3. **Customer pays** in the Razorpay sheet (web Checkout.js / Flutter SDK) — prepaid only.
 4. **Two paths converge**: the signed client handshake (`POST /payments/confirm`, fast) and
    the **webhook** (`payment.captured`, authoritative). Both call the same
    `applyGatewayPayment` → `settlePrepaid`, which is atomically claimed — so whichever
    arrives second is a no-op. Settlement marks the order paid, snapshots commission, writes
-   the ledger and notifies the customer (bell + `paid` email) + each vendor. This is
-   deliberately separate from the `placed` email sent at step 1 — placing an order and
-   paying for it are different events, each gets its own email.
+   the ledger and notifies the customer (bell + `paid` email) + each vendor. **This is the
+   first customer-facing confirmation a prepaid order gets** — nothing is sent before the
+   money actually lands.
 5. **Fulfillment** per sub-order (vendor accepts → prepares → ships/delivers, or integration
    `purchase()`), status timeline updated.
 6. **Settlement window** (e.g. T+2 after delivery, configurable) makes payable **releasable**.

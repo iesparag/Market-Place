@@ -16,6 +16,7 @@ import {
 } from '../../providers/payment/index.js';
 import { Payment, type PaymentMethod } from './payment.model.js';
 import { settlementService } from './settlement.service.js';
+import { sendOrderEmail } from '../orders/order-email.js';
 
 type OrderRecord = HydratedDocument<OrderDoc>;
 type PlatformSettings = Awaited<ReturnType<typeof getSettings>>;
@@ -132,6 +133,8 @@ export const paymentsService = {
         `Cash on delivery is available on orders up to ₹${cap / 100}. Please pay online.`,
       );
 
+    const alreadyStarted = await Payment.exists({ orderId: order._id, method: 'cod' });
+
     const payment = await Payment.findOneAndUpdate(
       { orderId: order._id, method: 'cod' },
       {
@@ -157,6 +160,20 @@ export const paymentsService = {
       'payment.paymentId': payment._id,
     });
     await order.save();
+
+    // COD has no gateway step to wait for — the order itself is the commitment, so this
+    // is the customer-facing confirmation point (unlike prepaid, which waits for
+    // settlementService.settlePrepaid after actual payment capture). Only on first start,
+    // not on a resumed/repeated checkout call for the same order.
+    if (!alreadyStarted) {
+      void notify(String(order.customerId), {
+        type: 'order',
+        title: 'Order placed 🛍️',
+        body: `${order.orderNumber} · ₹${amount / 100}`,
+        link: `/order/${String(order._id)}`,
+      });
+      void sendOrderEmail(order, 'placed');
+    }
 
     return {
       paymentId: payment.id as string,

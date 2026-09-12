@@ -89,40 +89,140 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       case PayCod():
         context.go('/order-success?number=${Uri.encodeComponent(orderNumber)}&cod=1');
       case PayCancelled():
-        _showUnpaid(orderNumber, 'Payment cancelled — your order is saved. You can pay from My Orders.');
+        _showUnpaid(orderNumber, "You didn't complete the payment, so nothing was charged. Your order is saved and ready whenever you are.");
       case PayFailed(:final message):
         _showUnpaid(orderNumber, message);
+      case PayPending(:final message):
+        _showPending(orderNumber, message);
     }
   }
 
-  /// The order exists but isn't paid: say so plainly and send them to My Orders,
-  /// where the retry button lives.
+  /// Genuinely unpaid (cancelled or failed) — safe to retry, so "Pay now" is the primary action.
   void _showUnpaid(String orderNumber, String message) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Order saved — not paid yet'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(message),
-          const SizedBox(height: 12),
-          Text('Order $orderNumber', style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700)),
-        ]),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogCtx);
-              context.go('/');
-            },
-            child: const Text('Keep shopping'),
-          ),
-          ElevatedButton(
+    _outcomeDialog(
+      orderNumber: orderNumber,
+      icon: Icons.receipt_long_rounded,
+      iconColor: const Color(0xFFF59E0B),
+      iconBg: const Color(0xFFFFF4E5),
+      title: 'Order saved — not paid yet',
+      message: message,
+      actionsBuilder: (dialogCtx) => [
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
             onPressed: () {
               Navigator.pop(dialogCtx);
               context.go('/orders');
             },
             child: const Text('Pay now'),
           ),
-        ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.go('/');
+            },
+            child: const Text('Keep shopping'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Outcome is uncertain, not absent — the gateway may already have taken the money and
+  /// we're just waiting to hear back. Deliberately has NO "pay now" button: offering one
+  /// here would risk the customer paying twice for the same order.
+  void _showPending(String orderNumber, String message) {
+    _outcomeDialog(
+      orderNumber: orderNumber,
+      icon: Icons.hourglass_top_rounded,
+      iconColor: const Color(0xFF2563EB),
+      iconBg: const Color(0xFFEAF2FF),
+      title: 'Confirming your payment',
+      message: message,
+      caption: "Please don't pay again for this order — we'll update it automatically.",
+      actionsBuilder: (dialogCtx) => [
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.go('/orders');
+            },
+            child: const Text('Track in My Orders'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton(
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.go('/');
+            },
+            child: const Text('Keep shopping'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Shared chrome for a post-checkout outcome: icon, headline, message, order number chip,
+  /// then whatever actions the caller needs — mirrors the visual language of
+  /// [OrderSuccessScreen] (icon circle + stacked full-width buttons) so every checkout
+  /// outcome, paid or not, feels like the same app.
+  void _outcomeDialog({
+    required String orderNumber,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String title,
+    required String message,
+    required List<Widget> Function(BuildContext dialogCtx) actionsBuilder,
+    String? caption,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                child: Icon(icon, color: iconColor, size: 36),
+              ),
+              const SizedBox(height: 18),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text(message, textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted, height: 1.4)),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(color: BrandColors.bg, borderRadius: BorderRadius.circular(10)),
+                child: Text('Order $orderNumber', style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700)),
+              ),
+              if (caption != null) ...[
+                const SizedBox(height: 12),
+                Text(caption, textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5, fontStyle: FontStyle.italic)),
+              ],
+              const SizedBox(height: 24),
+              ...actionsBuilder(dialogCtx),
+            ],
+          ),
+        ),
       ),
     );
   }

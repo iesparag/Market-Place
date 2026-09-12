@@ -89,12 +89,15 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
         ref.invalidate(myOrdersProvider);
       case PayCancelled():
         messenger.showSnackBar(const SnackBar(content: Text('Payment cancelled — your order is still saved.')));
-      case PayFailed(:final message):
+      case PayPending(:final message):
         messenger.showSnackBar(SnackBar(content: Text(message)));
-        // A UPI collect can still land after the sheet closes; the webhook settles
-        // it, so refresh once the server has had a chance to hear about it.
+        // Outcome is uncertain, not absent — a UPI collect / wallet redirect can still
+        // land after the sheet closes; the webhook settles it, so refresh once the
+        // server has had a chance to hear about it.
         final settled = await _payment.waitForSettlement(widget.order.id);
         if (settled != null && mounted) ref.invalidate(myOrdersProvider);
+      case PayFailed(:final message):
+        messenger.showSnackBar(SnackBar(content: Text(message)));
     }
   }
 

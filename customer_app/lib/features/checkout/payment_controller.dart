@@ -26,6 +26,15 @@ class PayCancelled extends PayResult {
   const PayCancelled();
 }
 
+/// Success is uncertain, not absent: the gateway reported success (or the customer left
+/// for an external wallet) but our own verification hasn't landed yet. Money may already
+/// be gone, so this must never be shown alongside a "Pay now" retry — that risks a double
+/// charge. Distinct from [PayCancelled]/[PayFailed], which are safe to retry.
+class PayPending extends PayResult {
+  final String message;
+  const PayPending(this.message);
+}
+
 class PayFailed extends PayResult {
   final String message;
   const PayFailed(this.message);
@@ -164,7 +173,7 @@ class PaymentController {
 
   void _onExternalWallet(ExternalWalletResponse response) {
     // The customer left for an external wallet app; the webhook will settle it.
-    _finish(PayFailed('Complete the payment in ${response.walletName ?? 'your wallet app'} — we will confirm it automatically.'));
+    _finish(PayPending('Complete the payment in ${response.walletName ?? 'your wallet app'} — we will confirm it automatically.'));
   }
 
   Future<void> _finishWithServerTruth(String fallbackMessage) async {
@@ -173,7 +182,7 @@ class PaymentController {
     if (status != null && status.isPaid) {
       _finish(PayPaid(status));
     } else {
-      _finish(PayFailed(fallbackMessage));
+      _finish(PayPending(fallbackMessage));
     }
   }
 

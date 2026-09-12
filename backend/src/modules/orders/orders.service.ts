@@ -159,7 +159,11 @@ export const ordersService = {
         }),
       );
     }
-    void notifyOrder(order, 'placed');
+    // No customer-facing confirmation here — the order isn't a commitment yet, just a
+    // draft awaiting payment. COD confirms at `paymentsService.startCod` (no gateway step
+    // needed); prepaid confirms at `settlementService.settlePrepaid` (once actually paid).
+    // Sending "Order placed" this early is what caused customers to get a confirmation
+    // email for carts they never finished paying for.
 
     return order;
   },
