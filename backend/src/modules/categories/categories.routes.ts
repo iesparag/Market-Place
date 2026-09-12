@@ -26,3 +26,9 @@ categoriesRoutes.patch(
   validate(UpdateCategorySchema),
   asyncHandler(categoriesController.update),
 );
+categoriesRoutes.delete(
+  '/:id',
+  authenticate,
+  authorize('category:manage'),
+  asyncHandler(categoriesController.remove),
+);

@@ -12,4 +12,7 @@ export const categoriesController = {
   async update(req: Request, res: Response) {
     ok(res, await categoriesService.update(req.params.id!, req.body));
   },
+  async remove(req: Request, res: Response) {
+    ok(res, await categoriesService.remove(req.params.id!));
+  },
 };

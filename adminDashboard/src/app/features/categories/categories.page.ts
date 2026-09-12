@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CategoriesApi, type Category } from './categories.api';
+import { NotificationService } from '../../core/services/notification.service';
 import { matchesSearch } from '../../shared/search';
 
 /** Super-admin defines + edits categories and their attribute schema (drives the dynamic product form). */
@@ -25,7 +26,10 @@ import { matchesSearch } from '../../shared/search';
               </div>
               <div class="muted xs">{{ row.cat.attributeSchema.length }} attrs · axes: {{ row.cat.variantAxes.join(', ') || '—' }}</div>
             </div>
-            <button class="btn btn-ghost btn-sm" (click)="edit(row.cat)">✎ Edit</button>
+            <div class="crow-actions">
+              <button class="btn btn-ghost btn-sm" (click)="edit(row.cat)">✎ Edit</button>
+              <button class="btn btn-ghost btn-sm del" (click)="remove(row.cat)">🗑</button>
+            </div>
           </div>
         } @empty { <p class="muted pad">{{ q ? 'No categories match your search.' : 'No categories yet.' }}</p> }
       </div>
@@ -95,6 +99,8 @@ import { matchesSearch } from '../../shared/search';
       .crow:hover { background: var(--surface-2); }
       .crow.dept { background: var(--surface-2); }
       .crow.editing { box-shadow: inset 3px 0 0 var(--brand-600); }
+      .crow-actions { display: flex; gap: 4px; }
+      .del:hover { color: var(--danger); }
       .dept .cname { font-weight: 800; font-size: 0.98rem; }
       .cname { font-weight: 600; display: flex; align-items: center; gap: 8px; }
       .tw { color: var(--text-muted); }
@@ -113,6 +119,7 @@ import { matchesSearch } from '../../shared/search';
 export class CategoriesPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(CategoriesApi);
+  private readonly notify = inject(NotificationService);
 
   categories = signal<Category[]>([]);
   editingId = signal<string | null>(null);
@@ -203,6 +210,19 @@ export class CategoriesPage implements OnInit {
     this.editingId.set(null);
     this.form.reset({ appliesTo: 'generic', parentId: '' });
     this.attrs.clear();
+  }
+
+  /** Backend refuses this if any product or sub-category still references it. */
+  remove(cat: Category): void {
+    if (!confirm(`Delete "${cat.name}"? This cannot be undone.`)) return;
+    this.api.remove(cat._id).subscribe({
+      next: () => {
+        this.notify.push('Category deleted', cat.name, 'success');
+        if (this.editingId() === cat._id) this.cancelEdit();
+        this.load();
+      },
+      error: (e) => this.notify.push('Could not delete category', e?.message, 'warning'),
+    });
   }
 
   syncSlug(): void {

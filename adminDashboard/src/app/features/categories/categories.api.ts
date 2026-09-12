@@ -24,4 +24,7 @@ export class CategoriesApi {
   update(id: string, body: Partial<Omit<Category, '_id'>>) {
     return this.api.patch<Category>(`/categories/${id}`, body);
   }
+  remove(id: string) {
+    return this.api.delete<{ deleted: true }>(`/categories/${id}`);
+  }
 }
