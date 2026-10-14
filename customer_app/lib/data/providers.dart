@@ -7,6 +7,7 @@ import '../models/address.dart';
 import '../models/order.dart';
 import 'catalog_repository.dart';
 import 'checkout_repository.dart';
+import 'geocode_repository.dart';
 import 'payment_repository.dart';
 
 // ── core ──────────────────────────────────────────────────────────────────
@@ -20,6 +21,7 @@ final apiClientProvider = Provider<ApiClient>((ref) => ApiClient(ref.read(tokenS
 final catalogRepoProvider = Provider<CatalogRepository>((ref) => CatalogRepository(ref.read(apiClientProvider)));
 final checkoutRepoProvider = Provider<CheckoutRepository>((ref) => CheckoutRepository(ref.read(apiClientProvider)));
 final paymentRepoProvider = Provider<PaymentRepository>((ref) => PaymentRepository(ref.read(apiClientProvider)));
+final geocodeRepoProvider = Provider<GeocodeRepository>((ref) => GeocodeRepository(ref.read(apiClientProvider)));
 
 
 /// Which payment methods to offer (admin-configurable, so read it fresh).
@@ -34,6 +36,7 @@ final pricingSettingsProvider = FutureProvider<PricingSettings>((ref) async {
 // ── authenticated data ─────────────────────────────────────────────────────
 final addressesProvider = FutureProvider.autoDispose<List<Address>>((ref) => ref.read(checkoutRepoProvider).addresses());
 final myOrdersProvider = FutureProvider.autoDispose<List<OrderModel>>((ref) => ref.read(checkoutRepoProvider).myOrders());
+final orderProvider = FutureProvider.autoDispose.family<OrderModel, String>((ref, id) => ref.read(checkoutRepoProvider).order(id));
 
 /// App launch config (version gate + ad content). Public — no auth.
 final appConfigProvider = FutureProvider<Map<String, dynamic>>((ref) async {

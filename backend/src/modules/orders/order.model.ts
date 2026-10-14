@@ -7,6 +7,7 @@ const orderItemSchema = new Schema(
     title: String,
     variantSku: String,
     variantLabel: String,
+    image: String,
     qty: { type: Number, required: true },
     unitPrice: { type: Number, required: true }, // minor units, incl. modifiers
     modifiers: [{ name: String, priceDelta: Number }],

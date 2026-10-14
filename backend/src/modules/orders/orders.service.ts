@@ -12,6 +12,7 @@ import { computeDiscount, markCouponUsed } from '../coupons/coupons.module.js';
 import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
 import { sendOrderEmail, type NotifiableOrder } from './order-email.js';
+import { deliveryTasksService } from '../delivery/delivery-tasks.service.js';
 
 const NEXT_STATUS = ['pending', 'paid', 'fulfilled', 'cancelled'] as const;
 export type OrderStatus = (typeof NEXT_STATUS)[number];
@@ -84,6 +85,7 @@ export const ordersService = {
         title: product.title,
         variantSku: variant.sku,
         variantLabel: Object.values(variant.optionValues ?? {}).join(' / '),
+        image: variant.image || product.images?.[0] || undefined,
         qty: item.qty,
         unitPrice,
         modifiers: chosen,
@@ -235,7 +237,7 @@ export const ordersService = {
     if (!session.providerOrderId) throw AppError.badRequest('NO_SESSION', 'Could not start a mock payment');
     const handshake = await paymentsService.mockPay(customerId, session.providerOrderId);
     await paymentsService.confirmFromClient(customerId, handshake);
-    return this.getById(id);
+    return this.getById(id, { id: customerId, role: 'customer' });
   },
 
   /** Customer cancels their own PENDING (unpaid) order → restock. */
@@ -285,10 +287,18 @@ export const ordersService = {
     return Order.find().sort({ createdAt: -1 }).limit(200).lean();
   },
 
-  async getById(id: string) {
+  /** Scope: customer → only their own order; vendor/staff → only if their store is on it; admin/super → any. */
+  async getById(id: string, actor: { id: string; role: string; storeId?: string }) {
     const order = await Order.findById(id).lean();
     if (!order) throw AppError.notFound('Order not found');
-    return order;
+    if (actor.role === 'customer' && String(order.customerId) !== actor.id)
+      throw AppError.forbidden('Not your order');
+    const isStoreScoped = actor.role === 'vendor' || actor.role === 'vendor_staff';
+    if (isStoreScoped && !(order.storeIds ?? []).some((s) => String(s) === actor.storeId))
+      throw AppError.forbidden('Not your order');
+    // Per-store delivery status + rider for the order-detail screen's tracking timeline.
+    const deliveryTasks = await deliveryTasksService.listForOrder(id);
+    return { ...order, deliveryTasks };
   },
 };
 

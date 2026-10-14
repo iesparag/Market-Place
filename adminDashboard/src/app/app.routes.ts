@@ -29,6 +29,16 @@ export const routes: Routes = [
         loadComponent: () => import('./features/orders/orders.page').then((m) => m.OrdersPage),
       },
       {
+        path: 'fulfillment',
+        canMatch: [permissionGuard('suborder:read')],
+        loadComponent: () => import('./features/fulfillment/fulfillment.page').then((m) => m.FulfillmentPage),
+      },
+      {
+        path: 'delivery',
+        canMatch: [permissionGuard('rider:read')],
+        loadComponent: () => import('./features/delivery/delivery.page').then((m) => m.DeliveryPage),
+      },
+      {
         path: 'categories',
         canMatch: [permissionGuard('category:manage')],
         loadComponent: () => import('./features/categories/categories.page').then((m) => m.CategoriesPage),

@@ -4,6 +4,7 @@ import { connectDb } from './config/db.js';
 import { createApp } from './app.js';
 import { createHttpServer } from './server.js';
 import { startPaymentExpirySweeper } from './jobs/schedulers/payment-expiry.js';
+import { startAutoAssignSweeper } from './jobs/schedulers/auto-assign-sweep.js';
 
 async function bootstrap(): Promise<void> {
   // Connect DB but don't hard-crash in dev if Mongo isn't up yet — /health will report it.
@@ -22,6 +23,8 @@ async function bootstrap(): Promise<void> {
 
   // Give back stock held by orders whose payment was never completed.
   startPaymentExpirySweeper();
+  // Drive the automatic rider-assignment offer cascade (timeout → next-ranked rider).
+  startAutoAssignSweeper();
 
   const shutdown = (signal: string) => {
     logger.info(`${signal} received, shutting down`);

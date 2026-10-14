@@ -30,6 +30,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'support:assign',
     'support:config', // owns every support feature toggle
     'kb:manage',
+    'rider:read',
+    'rider:manage',
+    'delivery:assign',
+    'delivery:settings',
   ],
   [Role.VENDOR]: [
     'product:read',
@@ -47,6 +51,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'support:read', // sees only their store's tickets (store-scoped)
     'support:reply',
     'kb:manage', // their store's KB docs
+    'rider:read',
+    'delivery:assign', // request/assign a rider for their own store's tasks
   ],
   [Role.VENDOR_STAFF]: [
     'product:read',
@@ -55,6 +61,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'suborder:update',
     'support:read',
     'support:reply',
+    'rider:read',
   ],
   [Role.CUSTOMER]: [],
 };

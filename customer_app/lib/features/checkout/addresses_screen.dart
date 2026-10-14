@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
+import 'address_search_field.dart';
 
 class AddressesScreen extends ConsumerWidget {
   const AddressesScreen({super.key});
@@ -74,6 +75,8 @@ class AddressesScreen extends ConsumerWidget {
     final city = TextEditingController();
     final pincode = TextEditingController();
     final phone = TextEditingController();
+    double? lat;
+    double? lng;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -87,6 +90,14 @@ class AddressesScreen extends ConsumerWidget {
           children: [
             const Text('Add address', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             const SizedBox(height: 14),
+            AddressSearchField(onPicked: (r) {
+              line1.text = r.line1;
+              city.text = r.city;
+              if (r.pincode != null && r.pincode!.isNotEmpty) pincode.text = r.pincode!;
+              lat = r.lat;
+              lng = r.lng;
+            }),
+            const SizedBox(height: 10),
             TextField(controller: label, decoration: const InputDecoration(labelText: 'Label')),
             const SizedBox(height: 10),
             TextField(controller: line1, decoration: const InputDecoration(labelText: 'Address line')),
@@ -108,6 +119,7 @@ class AddressesScreen extends ConsumerWidget {
                         label: label.text.trim().isEmpty ? 'Home' : label.text.trim(),
                         line1: line1.text.trim(), city: city.text.trim(),
                         pincode: pincode.text.trim(), phone: phone.text.trim(),
+                        lat: lat, lng: lng,
                       );
                   ref.invalidate(addressesProvider);
                   if (sheetCtx.mounted) Navigator.pop(sheetCtx);

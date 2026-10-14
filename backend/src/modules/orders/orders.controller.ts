@@ -43,7 +43,8 @@ export const ordersController = {
   },
 
   async get(req: Request, res: Response) {
-    ok(res, await ordersService.getById(req.params.id!));
+    const user = req.user!;
+    ok(res, await ordersService.getById(req.params.id!, { id: user.id, role: user.role, storeId: user.storeId }));
   },
 
   async updateStatus(req: Request, res: Response) {

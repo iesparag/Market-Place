@@ -6,6 +6,8 @@ class Address {
   final String? pincode;
   final String? phone;
   final bool isDefault;
+  final double? lat;
+  final double? lng;
 
   Address({
     required this.id,
@@ -15,6 +17,8 @@ class Address {
     this.pincode,
     this.phone,
     required this.isDefault,
+    this.lat,
+    this.lng,
   });
 
   factory Address.fromJson(Map<String, dynamic> j) => Address(
@@ -25,6 +29,8 @@ class Address {
         pincode: j['pincode']?.toString(),
         phone: j['phone']?.toString(),
         isDefault: j['isDefault'] == true,
+        lat: (j['lat'] as num?)?.toDouble(),
+        lng: (j['lng'] as num?)?.toDouble(),
       );
 
   String get oneLine => [line1, city, if (pincode != null && pincode!.isNotEmpty) pincode].join(', ');

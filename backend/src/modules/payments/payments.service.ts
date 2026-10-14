@@ -17,6 +17,7 @@ import {
 import { Payment, type PaymentMethod } from './payment.model.js';
 import { settlementService } from './settlement.service.js';
 import { sendOrderEmail } from '../orders/order-email.js';
+import { deliveryTasksService } from '../delivery/delivery-tasks.service.js';
 
 type OrderRecord = HydratedDocument<OrderDoc>;
 type PlatformSettings = Awaited<ReturnType<typeof getSettings>>;
@@ -173,6 +174,7 @@ export const paymentsService = {
         link: `/order/${String(order._id)}`,
       });
       void sendOrderEmail(order, 'placed');
+      void deliveryTasksService.createForOrder(order);
     }
 
     return {

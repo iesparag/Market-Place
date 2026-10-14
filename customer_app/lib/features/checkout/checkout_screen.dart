@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../models/address.dart';
 import '../../data/payment_repository.dart';
 import '../cart/cart_controller.dart';
+import 'address_search_field.dart';
 import 'payment_controller.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -382,6 +383,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final pincode = TextEditingController();
     final phone = TextEditingController();
     bool saving = false;
+    double? lat;
+    double? lng;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -396,6 +399,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             children: [
               const Text('Add address', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
               const SizedBox(height: 14),
+              AddressSearchField(onPicked: (r) {
+                line1.text = r.line1;
+                city.text = r.city;
+                if (r.pincode != null && r.pincode!.isNotEmpty) pincode.text = r.pincode!;
+                lat = r.lat;
+                lng = r.lng;
+              }),
+              const SizedBox(height: 10),
               TextField(controller: label, decoration: const InputDecoration(labelText: 'Label (Home / Work)')),
               const SizedBox(height: 10),
               TextField(controller: line1, decoration: const InputDecoration(labelText: 'Address line')),
@@ -425,6 +436,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   line1: line1.text.trim(), city: city.text.trim(),
                                   pincode: pincode.text.trim(), phone: phone.text.trim(),
                                   isDefault: true,
+                                  lat: lat, lng: lng,
                                 );
                             ref.invalidate(addressesProvider);
                             if (mounted) setState(() => _selectedId = a.id);

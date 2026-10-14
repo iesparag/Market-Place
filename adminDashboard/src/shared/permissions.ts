@@ -25,6 +25,11 @@ export const PERMISSIONS = [
   // Fulfillment
   'suborder:read',
   'suborder:update',
+  // Delivery / riders
+  'rider:read',
+  'rider:manage',
+  'delivery:assign',
+  'delivery:settings',
   // Finance
   'commission:manage',
   'ledger:read',
@@ -97,6 +102,7 @@ export const NAV_META: NavSectionMeta[] = [
     items: [
       { perm: 'order:read', label: 'Orders', route: '/orders' },
       { perm: 'suborder:read', label: 'Fulfillment', route: '/fulfillment' },
+      { perm: 'rider:read', label: 'Delivery', route: '/delivery' },
     ],
   },
   {

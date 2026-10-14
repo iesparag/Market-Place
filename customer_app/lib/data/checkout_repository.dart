@@ -21,12 +21,16 @@ class CheckoutRepository {
     String? pincode,
     String? phone,
     bool isDefault = false,
+    double? lat,
+    double? lng,
   }) async {
     final data = await api.post('/addresses', body: {
       'label': label, 'line1': line1, 'city': city,
       if (pincode != null && pincode.isNotEmpty) 'pincode': pincode,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
       'isDefault': isDefault,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
     }) as Map<String, dynamic>;
     return Address.fromJson(data);
   }
@@ -47,5 +51,15 @@ class CheckoutRepository {
   Future<List<OrderModel>> myOrders() async {
     final data = await api.get('/orders') as List;
     return data.map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<OrderModel> order(String id) async {
+    final data = await api.get('/orders/$id') as Map<String, dynamic>;
+    return OrderModel.fromJson(data);
+  }
+
+  Future<OrderModel> cancelOrder(String id) async {
+    final data = await api.post('/orders/$id/cancel') as Map<String, dynamic>;
+    return OrderModel.fromJson(data);
   }
 }

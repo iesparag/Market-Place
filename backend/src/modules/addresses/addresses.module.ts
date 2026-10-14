@@ -15,6 +15,8 @@ const addressSchema = new Schema(
     pincode: String,
     phone: String,
     isDefault: { type: Boolean, default: false },
+    lat: Number,
+    lng: Number,
   },
   { timestamps: true },
 );
@@ -28,6 +30,8 @@ const AddressInput = z.object({
   pincode: z.string().optional(),
   phone: z.string().optional(),
   isDefault: z.boolean().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
 });
 
 export const addressesRoutes = Router();

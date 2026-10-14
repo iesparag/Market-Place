@@ -9,6 +9,7 @@ import { ledgerService, type LedgerEntryInput } from '../ledger/ledger.service.j
 import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
 import { sendOrderEmail } from '../orders/order-email.js';
+import { deliveryTasksService } from '../delivery/delivery-tasks.service.js';
 
 type OrderRecord = HydratedDocument<OrderDoc>;
 
@@ -108,6 +109,7 @@ export const settlementService = {
 
     announcePaid(order, snapshots);
     void sendOrderEmail(order, 'paid');
+    void deliveryTasksService.createForOrder(order);
     return order;
   },
 

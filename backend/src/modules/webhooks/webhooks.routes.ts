@@ -1,6 +1,7 @@
 import { Router, raw } from 'express';
 import { asyncHandler } from '../../common/asyncHandler.js';
 import { handlePaymentWebhook } from '../payments/webhooks.controller.js';
+import { handleLogisticsWebhook } from '../delivery/logistics-webhooks.controller.js';
 
 /**
  * Gateway callbacks. Mounted in app.ts BEFORE `express.json()` and outside the API
@@ -18,3 +19,5 @@ webhooksRoutes.post(
 // Same handler, provider-neutral alias — lets the gateway be swapped without
 // re-registering a new URL in a dashboard.
 webhooksRoutes.post('/payments', raw({ type: '*/*', limit: '1mb' }), asyncHandler(handlePaymentWebhook));
+
+webhooksRoutes.post('/logistics', raw({ type: '*/*', limit: '1mb' }), asyncHandler(handleLogisticsWebhook));
