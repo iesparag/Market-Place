@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../data/providers.dart';
 
 class CartLine {
   final String productId;
@@ -48,10 +50,12 @@ class CartLine {
 }
 
 class CartController extends StateNotifier<List<CartLine>> {
-  CartController() : super([]) {
+  final Ref ref;
+  CartController(this.ref) : super([]) {
     _load();
   }
   static const _key = 'cart_v1';
+  Timer? _syncDebounce;
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -64,6 +68,22 @@ class CartController extends StateNotifier<List<CartLine>> {
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, jsonEncode(state.map((e) => e.toJson()).toList()));
+    _scheduleSync();
+  }
+
+  /// Mirrors the cart to the backend (debounced) so the abandoned-cart reminder
+  /// sweeper has something to read — the cart's state of record stays this local
+  /// store; the server copy is best-effort and silently dropped if it fails or the
+  /// user is signed out (sync requires auth, unlike the rest of the cart feature).
+  void _scheduleSync() {
+    _syncDebounce?.cancel();
+    _syncDebounce = Timer(const Duration(seconds: 2), () async {
+      try {
+        await ref.read(apiClientProvider).put('/cart/sync', body: {
+          'items': state.map((e) => e.toJson()).toList(),
+        });
+      } catch (_) {/* best-effort — local cart already saved either way */}
+    });
   }
 
   void add(CartLine line) {
@@ -99,6 +119,12 @@ class CartController extends StateNotifier<List<CartLine>> {
 
   int get count => state.fold(0, (n, l) => n + l.qty);
   int get subtotal => state.fold(0, (n, l) => n + l.lineTotal);
+
+  @override
+  void dispose() {
+    _syncDebounce?.cancel();
+    super.dispose();
+  }
 }
 
-final cartProvider = StateNotifierProvider<CartController, List<CartLine>>((ref) => CartController());
+final cartProvider = StateNotifierProvider<CartController, List<CartLine>>((ref) => CartController(ref));

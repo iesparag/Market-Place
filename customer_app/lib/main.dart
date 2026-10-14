@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/push/push_service.dart';
 import 'core/theme/theme.dart';
 import 'data/providers.dart';
 import 'router.dart';
@@ -10,6 +11,7 @@ const _themeCacheKey = 'cached_theme_json';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initPush();
   final prefs = await SharedPreferences.getInstance();
   runApp(ProviderScope(
     overrides: [sharedPrefsProvider.overrideWithValue(prefs)],

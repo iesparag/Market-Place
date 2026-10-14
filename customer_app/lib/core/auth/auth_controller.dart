@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
+import '../push/push_service.dart';
 
 class AuthUser {
   final String id;
@@ -24,11 +25,19 @@ class AuthController extends StateNotifier<AuthUser?> {
   }
 
   Future<void> _restore() async {
+    // Lives for the app's whole lifetime regardless of login state — a token can
+    // rotate (reinstall, app restore) before the user has even signed back in.
+    fcmTokenRefreshStream()?.listen((token) {
+      if (isLoggedIn) ref.read(notificationsRepoProvider).registerDevice(token).catchError((_) {});
+    });
+
     final store = ref.read(tokenStoreProvider);
     if (await store.hasSession) {
       try {
         final me = await ref.read(apiClientProvider).get('/me') as Map<String, dynamic>;
         state = AuthUser.fromJson(me);
+        await ref.read(appSocketProvider).connect();
+        await _registerPush();
       } catch (_) {
         await store.clear();
       }
@@ -36,10 +45,23 @@ class AuthController extends StateNotifier<AuthUser?> {
     ready = true;
   }
 
+  /// Best-effort — a device/build without Firebase configured (no google-services.json
+  /// yet) simply gets no FCM token, and this silently no-ops. In-app bell + socket keep
+  /// working either way.
+  Future<void> _registerPush() async {
+    final token = await currentFcmToken();
+    if (token == null) return;
+    try {
+      await ref.read(notificationsRepoProvider).registerDevice(token);
+    } catch (_) {/* best-effort */}
+  }
+
   Future<void> login(String email, String password) async {
     final d = await ref.read(apiClientProvider).post('/auth/login', body: {'email': email, 'password': password}) as Map<String, dynamic>;
     await ref.read(tokenStoreProvider).save(d['token'] as String, d['refreshToken'] as String);
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
+    await ref.read(appSocketProvider).connect();
+    await _registerPush();
   }
 
   Future<void> register(String name, String email, String password, {String? phone}) async {
@@ -51,6 +73,8 @@ class AuthController extends StateNotifier<AuthUser?> {
     }) as Map<String, dynamic>;
     await ref.read(tokenStoreProvider).save(d['token'] as String, d['refreshToken'] as String);
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
+    await ref.read(appSocketProvider).connect();
+    await _registerPush();
   }
 
   Future<void> registerVendor({
@@ -75,6 +99,8 @@ class AuthController extends StateNotifier<AuthUser?> {
     }) as Map<String, dynamic>;
     await ref.read(tokenStoreProvider).save(d['token'] as String, d['refreshToken'] as String);
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
+    await ref.read(appSocketProvider).connect();
+    await _registerPush();
   }
 
   /// Step 1 of a password reset: emails a 6-digit code (valid 15 minutes).
@@ -94,6 +120,7 @@ class AuthController extends StateNotifier<AuthUser?> {
   }
 
   Future<void> logout() async {
+    ref.read(appSocketProvider).disconnect();
     await ref.read(tokenStoreProvider).clear();
     state = null;
   }

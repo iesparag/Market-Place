@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/theme.dart';
+import '../../data/providers.dart';
 import '../home/home_screen.dart';
 import '../stores/stores_list_screen.dart';
 import '../catalog/catalog_screen.dart';
@@ -10,8 +13,13 @@ import '../account/account_screen.dart';
 /// can jump straight to a tab like Account without a separate route.
 final shellTabProvider = StateProvider<int>((ref) => 0);
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
   // Home · Stores · Products · Account
   static const _tabs = [
     HomeScreen(),
@@ -20,8 +28,28 @@ class AppShell extends ConsumerWidget {
     AccountScreen(),
   ];
 
+  StreamSubscription<Map<String, dynamic>>? _notifSub;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    // Lives for the whole session (AppShell is the '/' route, never disposed) — a
+    // notification arriving while the user is on Stores/Products/Account still has
+    // to refresh the bell badge, not just while they happen to be on Home.
+    _notifSub = ref.read(appSocketProvider).notifications.listen((_) {
+      ref.invalidate(unreadCountProvider);
+      ref.invalidate(notificationsProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final index = ref.watch(shellTabProvider);
     final b = context.brand;
     NavigationDestination dest(IconData o, IconData s, String l) =>
@@ -30,20 +58,48 @@ class AppShell extends ConsumerWidget {
           selectedIcon: Icon(s, color: b.primary),
           label: l,
         );
-    return Scaffold(
-      body: IndexedStack(index: index, children: _tabs),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => ref.read(shellTabProvider.notifier).state = i,
-        backgroundColor: Colors.white,
-        indicatorColor: b.soft,
-        height: 58,
-        destinations: [
-          dest(Icons.home_outlined, Icons.home_rounded, 'Home'),
-          dest(Icons.storefront_outlined, Icons.storefront_rounded, 'Stores'),
-          dest(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Products'),
-          dest(Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        // Not on Home → first back press lands the user on Home, same as every
+        // other shopping app, instead of exiting straight from Stores/Products/Account.
+        if (index != 0) {
+          ref.read(shellTabProvider.notifier).state = 0;
+          return;
+        }
+        final exit = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Exit app?'),
+            content: const Text('Are you sure you want to close Marketplace?'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Exit')),
+            ],
+          ),
+        );
+        if (exit == true) SystemNavigator.pop();
+      },
+      child: Scaffold(
+        body: IndexedStack(index: index, children: _tabs),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (i) => ref.read(shellTabProvider.notifier).state = i,
+          backgroundColor: Colors.white,
+          indicatorColor: b.soft,
+          height: 58,
+          destinations: [
+            dest(Icons.home_outlined, Icons.home_rounded, 'Home'),
+            dest(Icons.storefront_outlined, Icons.storefront_rounded, 'Stores'),
+            dest(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Products'),
+            dest(Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
+          ],
+        ),
       ),
     );
   }

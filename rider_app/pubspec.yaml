@@ -19,6 +19,8 @@ dependencies:
   intl: ^0.19.0                  # ₹ formatting
   flutter_tts: ^4.2.0            # spoken task-assigned alert — audible over riding noise
   permission_handler: ^11.3.1    # POST_NOTIFICATIONS (Android 13+) for alerts
+  firebase_core: ^3.8.0          # required before any other Firebase plugin
+  firebase_messaging: ^15.1.5    # push notifications (new task offer/assignment)
 
 dev_dependencies:
   flutter_test:

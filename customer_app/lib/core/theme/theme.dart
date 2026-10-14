@@ -176,7 +176,10 @@ class AppTheme {
           backgroundColor: tokens.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          // Symmetric with only `vertical` set defaults horizontal to 0 — any button
+          // that sizes to its content (not stretched full-width) then has its label
+          // touching the pill's edges. Always set both axes explicitly.
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 26),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
           textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),

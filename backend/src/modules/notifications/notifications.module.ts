@@ -35,7 +35,13 @@ const deviceTokenSchema = new Schema(
 );
 export const DeviceToken = model('DeviceToken', deviceTokenSchema);
 
-/** Create + push a per-user notification. Safe to call from any service (fire-and-forget socket). */
+/**
+ * Create + push a per-user notification. Safe to call from any service (fire-and-forget
+ * socket + FCM). This is the single place order/payment/delivery events already call
+ * (see orders.service.ts, payments.service.ts, delivery-tasks.service.ts,
+ * payment-expiry.ts, settlement.service.ts) — so every one of those automatically gets
+ * a real device push the moment FCM is configured, with no per-call-site changes.
+ */
 export async function notify(
   userId: string,
   data: { type?: string; title: string; body?: string; link?: string },
@@ -49,6 +55,10 @@ export async function notify(
       at: doc.createdAt?.toISOString() ?? new Date().toISOString(),
     }),
   );
+  const tokens = (await DeviceToken.find({ userId }).select('token').lean()).map((t) => t.token);
+  if (tokens.length) {
+    void pushProvider.send({ tokens, title: data.title, body: data.body ?? '', data: data.link ? { link: data.link } : {} });
+  }
 }
 
 export const notificationsRoutes = Router();
@@ -103,12 +113,9 @@ notificationsRoutes.post('/broadcast', authorize('notification:manage'), asyncHa
   const filter = audience === 'all' ? {} : { role: Role.CUSTOMER };
   const users = await User.find(filter).select('_id').lean();
 
-  // Bell notification + live push for every target.
+  // Bell notification + live socket + FCM push for every target — notify() does all three.
   for (const u of users) await notify(String(u._id), { type: 'promo', title, body, link });
 
-  // Future Flutter app: send FCM push to their registered devices (stub until FCM is wired).
-  const tokens = (await DeviceToken.find({ userId: { $in: users.map((u) => u._id) } }).select('token').lean()).map((t) => t.token);
-  void pushProvider.send({ tokens, title, body, data: link ? { link } : {} });
-
-  ok(res, { audience, recipients: users.length, devices: tokens.length });
+  const devices = await DeviceToken.countDocuments({ userId: { $in: users.map((u) => u._id) } });
+  ok(res, { audience, recipients: users.length, devices });
 }));

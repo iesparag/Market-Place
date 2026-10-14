@@ -5,6 +5,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Only activates once android/app/google-services.json is added — applying it
+// unconditionally fails the build for everyone who hasn't set up Firebase yet,
+// which would break the existing APK build pattern.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.rider_app"
     compileSdk = flutter.compileSdkVersion
@@ -20,8 +27,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.rider_app"
+        // Must match the Android app registered in Firebase (google-services.json) —
+        // the google-services Gradle plugin matches on this exact string, not on
+        // the Kotlin `namespace` above (which stays com.example.rider_app so
+        // MainActivity.kt didn't need to move).
+        applicationId = "com.market_place.rider_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

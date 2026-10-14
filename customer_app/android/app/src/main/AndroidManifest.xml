@@ -3,6 +3,10 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Voice search (speech_to_text) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Android 13+ requires this explicit runtime-requested permission before any
+         push notification (order/payment/delivery/promo/cart) is shown — see
+         core/push/push_service.dart. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Marketplace"
         android:name="${applicationName}"

@@ -1,7 +1,7 @@
 name: customer_app
 description: Marketplace customer app — multi-vendor, BB/Blinkit-style.
 publish_to: 'none'
-version: 1.0.12+15
+version: 1.0.12+16
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -24,6 +24,8 @@ dependencies:
   flutter_map: ^7.0.2            # free OSM map for live rider tracking, no API key
   latlong2: ^0.9.1               # LatLng type for flutter_map
   lottie: ^3.1.2                 # festival greeting animations (admin-configured)
+  firebase_core: ^3.8.0          # required before any other Firebase plugin
+  firebase_messaging: ^15.1.5    # push notifications (order/payment/delivery/promo/cart)
 
 dev_dependencies:
   flutter_lints: ^4.0.0

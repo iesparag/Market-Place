@@ -15,6 +15,7 @@ import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/shimmer.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
+import '../../shared/widgets/notification_bell.dart';
 import '../../shared/widgets/search_bar_pill.dart';
 import 'festival_greeting_overlay.dart';
 
@@ -120,6 +121,8 @@ class _Header extends ConsumerWidget {
             children: [
               const _MarketplaceMark(),
               const Spacer(),
+              const NotificationBell(filled: true),
+              const SizedBox(width: 6),
               const WishlistButton(filled: true),
               const SizedBox(width: 6),
               const CartButton(filled: true, color: Colors.white),

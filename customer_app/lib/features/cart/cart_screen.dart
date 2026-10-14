@@ -152,20 +152,36 @@ class _EmptyCart extends StatelessWidget {
   const _EmptyCart({required this.onShop});
   @override
   Widget build(BuildContext context) {
+    final b = context.brand;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🛒', style: TextStyle(fontSize: 56)),
-          const SizedBox(height: 12),
+          Container(
+            width: 132,
+            height: 132,
+            decoration: BoxDecoration(color: b.soft, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: const Text('🛒', style: TextStyle(fontSize: 58)),
+          ),
+          const SizedBox(height: 22),
           const Text('Your cart is empty',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19)),
           const SizedBox(height: 6),
           const Text('Add products to get started',
-              style: TextStyle(color: BrandColors.textMuted)),
-          const SizedBox(height: 16),
-          ElevatedButton(
-              onPressed: onShop, child: const Text('Start shopping')),
+              style: TextStyle(color: BrandColors.textMuted, fontSize: 13.5)),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: onShop,
+              icon: const Icon(Icons.storefront_rounded, size: 19),
+              label: const Text('Start shopping'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+              ),
+            ),
+          ),
         ],
       ),
     );

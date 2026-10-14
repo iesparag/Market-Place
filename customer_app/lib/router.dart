@@ -13,6 +13,7 @@ import 'features/orders/orders_screen.dart';
 import 'features/orders/order_detail_screen.dart';
 import 'features/orders/order_success_screen.dart';
 import 'features/wishlist/wishlist_screen.dart';
+import 'features/notifications/notifications_screen.dart';
 import 'features/vendor/become_vendor_screen.dart';
 import 'features/support/support_screen.dart';
 import 'features/splash/splash_screen.dart';
@@ -64,6 +65,7 @@ final appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/wishlist', builder: (_, __) => const WishlistScreen()),
+    GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
     GoRoute(path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
     GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),

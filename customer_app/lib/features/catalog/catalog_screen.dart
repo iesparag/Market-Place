@@ -248,15 +248,49 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   }
 
   // ── BigBasket-style left category rail (department mode + Products tab) ──────
+  // Collapsible: on smaller screens the rail eats a lot of width that the product
+  // grid could use — toggle it down to a thin strip without losing category access.
+  bool _railCollapsed = false;
+
   Widget _leftRail() {
+    if (_railCollapsed) {
+      return GestureDetector(
+        onTap: () => setState(() => _railCollapsed = false),
+        child: Container(
+          width: 26,
+          color: const Color(0xFFF0F7F2),
+          alignment: Alignment.topCenter,
+          padding: const EdgeInsets.only(top: 16),
+          child: const Icon(Icons.chevron_right_rounded,
+              size: 20, color: BrandColors.textMuted),
+        ),
+      );
+    }
     return Container(
       width: 84,
       color: const Color(0xFFF0F7F2),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+      child: Column(
         children: [
-          _railTile('All', null, _railSlug == null),
-          for (final r in _rail) _railTile(r.name, r.slug, _railSlug == r.slug),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.chevron_left_rounded, size: 20),
+              color: BrandColors.textMuted,
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Collapse categories',
+              onPressed: () => setState(() => _railCollapsed = true),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+              children: [
+                _railTile('All', null, _railSlug == null),
+                for (final r in _rail)
+                  _railTile(r.name, r.slug, _railSlug == r.slug),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -416,23 +450,38 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                   ]),
                   const SizedBox(height: 18),
                   Row(children: [
-                    TextButton(
-                      onPressed: () => refresh(() {
-                        _sort = 'popularity';
-                        _veg = false;
-                        _bandIndex = -1;
-                        _ratingMin = 0;
-                        _railSlug = null;
-                      }),
-                      child: const Text('Reset'),
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: () => refresh(() {
+                          _sort = 'popularity';
+                          _veg = false;
+                          _bandIndex = -1;
+                          _ratingMin = 0;
+                          _railSlug = null;
+                        }),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          side: const BorderSide(color: BrandColors.border),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(13)),
+                        ),
+                        child: const Text('Reset'),
+                      ),
                     ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _load(reset: true);
-                      },
-                      child: const Text('Apply filters'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _load(reset: true);
+                          },
+                          icon: const Icon(Icons.check_rounded, size: 19),
+                          label: const Text('Apply filters'),
+                        ),
+                      ),
                     ),
                   ]),
                 ],

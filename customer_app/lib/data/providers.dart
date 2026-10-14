@@ -2,14 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api/api_client.dart';
 import '../core/auth/token_store.dart';
+import '../core/socket/app_socket_service.dart';
 import '../models/product.dart';
 import '../models/address.dart';
 import '../models/order.dart';
 import '../models/festival.dart';
+import '../models/app_notification.dart';
 import 'catalog_repository.dart';
 import 'checkout_repository.dart';
 import 'geocode_repository.dart';
 import 'payment_repository.dart';
+import 'notifications_repository.dart';
 
 // ── core ──────────────────────────────────────────────────────────────────
 /// Loaded in main() and injected via ProviderScope override — lets us read the
@@ -23,6 +26,11 @@ final catalogRepoProvider = Provider<CatalogRepository>((ref) => CatalogReposito
 final checkoutRepoProvider = Provider<CheckoutRepository>((ref) => CheckoutRepository(ref.read(apiClientProvider)));
 final paymentRepoProvider = Provider<PaymentRepository>((ref) => PaymentRepository(ref.read(apiClientProvider)));
 final geocodeRepoProvider = Provider<GeocodeRepository>((ref) => GeocodeRepository(ref.read(apiClientProvider)));
+final notificationsRepoProvider = Provider<NotificationsRepository>((ref) => NotificationsRepository(ref.read(apiClientProvider)));
+
+/// One instance for the app's lifetime — connects on login/restore, disconnects on
+/// logout (see AuthController). Live push for the bell icon; REST is the fallback.
+final appSocketProvider = Provider<AppSocketService>((ref) => AppSocketService(ref.read(tokenStoreProvider)));
 
 
 /// Which payment methods to offer (admin-configurable, so read it fresh).
@@ -50,6 +58,11 @@ final festivalProvider = FutureProvider.autoDispose<FestivalModel?>((ref) async 
   final data = await ref.read(apiClientProvider).get('/festivals/active');
   return data == null ? null : FestivalModel.fromJson((data as Map).cast<String, dynamic>());
 });
+
+final notificationsProvider = FutureProvider.autoDispose<List<AppNotification>>(
+    (ref) => ref.read(notificationsRepoProvider).list());
+final unreadCountProvider = FutureProvider.autoDispose<int>(
+    (ref) => ref.read(notificationsRepoProvider).unreadCount());
 
 // ── data (auto-fetch) ─────────────────────────────────────────────────────
 final homeSectionsProvider = FutureProvider.autoDispose((ref) => ref.read(catalogRepoProvider).home());
