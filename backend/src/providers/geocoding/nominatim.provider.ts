@@ -50,14 +50,23 @@ export class NominatimProvider implements GeocodeProvider {
 
   private async get(path: string): Promise<unknown> {
     await this.throttle();
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { Accept: 'application/json', 'User-Agent': env.GEOCODE_USER_AGENT },
-    });
-    if (!res.ok) {
-      logger.warn({ status: res.status, path }, 'Nominatim request failed');
+    try {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        headers: { Accept: 'application/json', 'User-Agent': env.GEOCODE_USER_AGENT },
+        // Nominatim silently drops (never responds to) requests it anti-abuse-flags —
+        // notably from cloud/datacenter IPs — rather than returning an error. Without a
+        // hard deadline that hangs the request forever instead of just failing the search.
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) {
+        logger.warn({ status: res.status, path }, 'Nominatim request failed');
+        return null;
+      }
+      return await res.json();
+    } catch (err) {
+      logger.warn({ err, path }, 'Nominatim request timed out or errored');
       return null;
     }
-    return res.json();
   }
 
   async search(query: string): Promise<GeocodeResult[]> {

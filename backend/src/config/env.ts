@@ -59,12 +59,16 @@ const EnvSchema = z.object({
   APP_LATEST_VERSION: z.string().default('1.0.0'),
   APP_UPDATE_URL: z.string().default(''), // Play Store / APK / Drive link
   APP_UPDATE_MESSAGE: z.string().default('A new version is available. Please update to continue.'),
-  // Address search / geocoding. Default is Nominatim (OpenStreetMap) — free, no API key.
-  // Proxied + Redis-cached server-side (never called directly from a client) so we stay
-  // within Nominatim's usage policy (identifying User-Agent, ~1 req/sec) across all apps.
-  GEOCODE_PROVIDER: z.enum(['nominatim']).default('nominatim'),
+  // Address search / geocoding. auto (default): LocationIQ when a key is set, else
+  // Nominatim. Nominatim silently drops requests from cloud/datacenter IPs (Railway,
+  // AWS, etc.) as anti-abuse policy — it works from a laptop but hangs/fails from a
+  // deployed server, so production needs a LocationIQ key. Sign up free (no card) at
+  // locationiq.com → 5,000 req/day → set LOCATIONIQ_API_KEY. Proxied + Redis-cached
+  // server-side either way (never called directly from a client).
+  GEOCODE_PROVIDER: z.enum(['auto', 'nominatim', 'locationiq']).default('auto'),
   GEOCODE_USER_AGENT: z.string().default('MarketplaceApp/1.0 (ops@yourdomain.example)'),
   GEOCODE_CACHE_TTL_SECONDS: z.coerce.number().default(2592000), // 30 days — addresses rarely move
+  LOCATIONIQ_API_KEY: z.string().optional(),
   // Third-party logistics (orders outside our own rider-covered cities). Keyless mock in
   // dev, same auto-fallback shape as PAYMENT_PROVIDER — see providers/logistics/index.ts.
   LOGISTICS_PROVIDER: z.enum(['mock']).default('mock'),

@@ -19,7 +19,9 @@ export const geocodingService = {
     if (cached) return JSON.parse(cached) as GeocodeResult[];
 
     const results = await geocodeProvider.search(query);
-    await redis.set(key, JSON.stringify(results), 'EX', env.GEOCODE_CACHE_TTL_SECONDS);
+    // Don't cache a provider failure (empty array) for 30 days — a transient outage
+    // would otherwise lock that query out of search results for a month.
+    if (results.length > 0) await redis.set(key, JSON.stringify(results), 'EX', env.GEOCODE_CACHE_TTL_SECONDS);
     return results;
   },
 
@@ -30,7 +32,7 @@ export const geocodingService = {
     if (cached) return JSON.parse(cached) as GeocodeResult | null;
 
     const result = await geocodeProvider.reverse(lat, lng);
-    await redis.set(key, JSON.stringify(result), 'EX', env.GEOCODE_CACHE_TTL_SECONDS);
+    if (result) await redis.set(key, JSON.stringify(result), 'EX', env.GEOCODE_CACHE_TTL_SECONDS);
     return result;
   },
 };

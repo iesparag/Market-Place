@@ -6,7 +6,7 @@
  * touching the geocoding module or any client.
  */
 
-export type GeocodeProviderName = 'nominatim';
+export type GeocodeProviderName = 'nominatim' | 'locationiq';
 
 export interface GeocodeResult {
   label: string;
