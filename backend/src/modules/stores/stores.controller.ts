@@ -44,7 +44,8 @@ const UpdateStoreSchema = z
 export const storesController = {
   async list(req: Request, res: Response) {
     const status = req.query.status as string | undefined;
-    ok(res, await storesService.list(status ? { status } : {}));
+    const q = req.query.q as string | undefined;
+    ok(res, await storesService.list({ ...(status ? { status } : {}), ...(q ? { q } : {}) }));
   },
   async mine(req: Request, res: Response) {
     if (!req.user) throw AppError.unauthenticated();

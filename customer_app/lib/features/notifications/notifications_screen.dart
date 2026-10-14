@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
@@ -83,15 +84,19 @@ class _NotificationTile extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                margin: const EdgeInsets.only(top: 2),
-                decoration:
-                    BoxDecoration(color: b.soft, shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: Icon(_iconFor(n.type), color: b.primaryDark, size: 19),
-              ),
+              if (n.image != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: n.image!,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _TypeIcon(type: n.type, brand: b),
+                  ),
+                )
+              else
+                _TypeIcon(type: n.type, brand: b),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -126,6 +131,24 @@ class _NotificationTile extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+}
+
+class _TypeIcon extends StatelessWidget {
+  final String type;
+  final BrandTokens brand;
+  const _TypeIcon({required this.type, required this.brand});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      margin: const EdgeInsets.only(top: 2),
+      decoration: BoxDecoration(color: brand.soft, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: Icon(_iconFor(type), color: brand.primaryDark, size: 19),
     );
   }
 

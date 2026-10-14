@@ -48,13 +48,20 @@ export const usersController = {
     ok(res, nav);
   },
 
-  /** Admin: list users. */
+  /** Admin: list users — optional `?role=` filter and `?q=` search (name/email/phone),
+   * the latter powering the individual-customer picker on the push/promo screens. */
   async list(req: Request, res: Response) {
     const role = req.query.role as string | undefined;
-    const users = await User.find(role ? { role } : {})
-      .select('name email role storeId status createdAt')
+    const q = (req.query.q as string | undefined)?.trim();
+    const filter: Record<string, unknown> = role ? { role } : {};
+    if (q) {
+      const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ name: rx }, { email: rx }, { phone: rx }];
+    }
+    const users = await User.find(filter)
+      .select('name email phone role storeId status createdAt')
       .sort({ createdAt: -1 })
-      .limit(200)
+      .limit(q ? 20 : 200)
       .lean();
     ok(res, users);
   },

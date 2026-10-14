@@ -17,6 +17,7 @@ const notificationSchema = new Schema(
     title: { type: String, required: true },
     body: { type: String, default: '' },
     link: { type: String, default: '' }, // where clicking it should navigate
+    image: { type: String, default: '' }, // hero image — product/vendor photo or campaign art
     read: { type: Boolean, default: false, index: true },
   },
   { timestamps: true },
@@ -44,7 +45,7 @@ export const DeviceToken = model('DeviceToken', deviceTokenSchema);
  */
 export async function notify(
   userId: string,
-  data: { type?: string; title: string; body?: string; link?: string },
+  data: { type?: string; title: string; body?: string; link?: string; image?: string },
 ): Promise<void> {
   const doc = await Notification.create({ userId, ...data });
   safeEmit(() =>
@@ -52,12 +53,19 @@ export async function notify(
       id: String(doc._id),
       title: doc.title,
       body: doc.body ?? '',
+      image: doc.image ?? '',
       at: doc.createdAt?.toISOString() ?? new Date().toISOString(),
     }),
   );
   const tokens = (await DeviceToken.find({ userId }).select('token').lean()).map((t) => t.token);
   if (tokens.length) {
-    void pushProvider.send({ tokens, title: data.title, body: data.body ?? '', data: data.link ? { link: data.link } : {} });
+    void pushProvider.send({
+      tokens,
+      title: data.title,
+      body: data.body ?? '',
+      imageUrl: data.image || undefined,
+      data: data.link ? { link: data.link } : {},
+    });
   }
 }
 
@@ -71,7 +79,7 @@ notificationsRoutes.get('/', asyncHandler(async (req, res) => {
     .limit(30)
     .lean();
   ok(res, items.map((n) => ({
-    _id: String(n._id), type: n.type, title: n.title, body: n.body, link: n.link, read: n.read, createdAt: n.createdAt,
+    _id: String(n._id), type: n.type, title: n.title, body: n.body, link: n.link, image: n.image, read: n.read, createdAt: n.createdAt,
   })));
 }));
 
@@ -102,20 +110,43 @@ notificationsRoutes.post('/register-device', asyncHandler(async (req, res) => {
   ok(res, { registered: true });
 }));
 
-/** Admin broadcast → in-app notification (bell) + live socket + FCM push (stub) to an audience. */
+/** Admin broadcast → in-app notification (bell) + live socket + FCM push to an audience. */
 notificationsRoutes.post('/broadcast', authorize('notification:manage'), asyncHandler(async (req, res) => {
   const title = String(req.body.title ?? '').trim();
   if (!title) throw AppError.badRequest('NO_TITLE', 'Title is required');
   const body = String(req.body.body ?? '');
   const link = String(req.body.link ?? '');
+  const image = String(req.body.image ?? '');
   const audience = req.body.audience === 'all' ? 'all' : 'customers';
 
   const filter = audience === 'all' ? {} : { role: Role.CUSTOMER };
   const users = await User.find(filter).select('_id').lean();
 
   // Bell notification + live socket + FCM push for every target — notify() does all three.
-  for (const u of users) await notify(String(u._id), { type: 'promo', title, body, link });
+  for (const u of users) await notify(String(u._id), { type: 'promo', title, body, link, image });
 
   const devices = await DeviceToken.countDocuments({ userId: { $in: users.map((u) => u._id) } });
   ok(res, { audience, recipients: users.length, devices });
+}));
+
+/**
+ * Admin send → same as /broadcast but targeted at specific customers (picked by name/
+ * email/phone search — see GET /users?q=) instead of a whole audience. Used for the
+ * product/vendor-promo push ("send this product to these 12 customers") and the
+ * cart-recovery campaign (see cart-recovery.module.ts).
+ */
+notificationsRoutes.post('/send', authorize('notification:manage'), asyncHandler(async (req, res) => {
+  const title = String(req.body.title ?? '').trim();
+  if (!title) throw AppError.badRequest('NO_TITLE', 'Title is required');
+  const userIds = Array.isArray(req.body.userIds) ? req.body.userIds.map(String) : [];
+  if (!userIds.length) throw AppError.badRequest('NO_RECIPIENTS', 'Select at least one customer');
+  const body = String(req.body.body ?? '');
+  const link = String(req.body.link ?? '');
+  const image = String(req.body.image ?? '');
+  const type = String(req.body.type ?? 'promo');
+
+  for (const userId of userIds) await notify(userId, { type, title, body, link, image });
+
+  const devices = await DeviceToken.countDocuments({ userId: { $in: userIds } });
+  ok(res, { recipients: userIds.length, devices });
 }));

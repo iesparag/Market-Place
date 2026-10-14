@@ -6,6 +6,7 @@ class AppNotification {
   final String title;
   final String body;
   final String? link;
+  final String? image;
   final bool read;
   final DateTime createdAt;
 
@@ -15,6 +16,7 @@ class AppNotification {
     required this.title,
     required this.body,
     this.link,
+    this.image,
     required this.read,
     required this.createdAt,
   });
@@ -25,6 +27,7 @@ class AppNotification {
         title: (j['title'] ?? '').toString(),
         body: (j['body'] ?? '').toString(),
         link: (j['link']?.toString().isEmpty ?? true) ? null : j['link'].toString(),
+        image: (j['image']?.toString().isEmpty ?? true) ? null : j['image'].toString(),
         read: j['read'] == true,
         createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
       );

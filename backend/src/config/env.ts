@@ -72,6 +72,13 @@ const EnvSchema = z.object({
   // Third-party logistics (orders outside our own rider-covered cities). Keyless mock in
   // dev, same auto-fallback shape as PAYMENT_PROVIDER — see providers/logistics/index.ts.
   LOGISTICS_PROVIDER: z.enum(['mock']).default('mock'),
+  // WhatsApp Business Platform (Meta Cloud API) — cart-recovery / promo campaigns.
+  // Logs instead of sending if unset, same keyless-safe shape as every other provider
+  // here. Get a free trial token + test number at developers.facebook.com → an App →
+  // add the WhatsApp product. See providers/whatsapp/index.ts.
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(), // needed only to create/list templates
   LOGISTICS_WEBHOOK_SECRET: z.string().default('dev-logistics-webhook-secret'),
 });
 

@@ -18,6 +18,7 @@ import { deliveryTasksRoutes } from '../modules/delivery/delivery-tasks.routes.j
 import { ridersRoutes } from '../modules/riders/riders.routes.js';
 import { festivalsRoutes } from '../modules/festivals/festivals.module.js';
 import { cartRoutes } from '../modules/cart/cart.module.js';
+import { whatsappRoutes } from '../modules/whatsapp/whatsapp.module.js';
 import { wishlistRoutes } from '../modules/wishlist/wishlist.module.js';
 import { mediaRoutes } from '../modules/media/media.module.js';
 import { couponsRoutes } from '../modules/coupons/coupons.module.js';
@@ -55,6 +56,7 @@ export function buildApiRouter(): Router {
   api.use('/riders', ridersRoutes);
   api.use('/festivals', festivalsRoutes);
   api.use('/cart', cartRoutes);
+  api.use('/whatsapp', whatsappRoutes);
   api.use('/wishlist', wishlistRoutes);
   api.use('/media', mediaRoutes);
   api.use('/coupons', couponsRoutes);

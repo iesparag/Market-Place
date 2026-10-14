@@ -16,8 +16,11 @@ function slugify(name: string): string {
 }
 
 export const storesService = {
-  async list(filter: { status?: string } = {}) {
-    return Store.find(filter).sort({ createdAt: -1 }).lean();
+  async list(filter: { status?: string; q?: string } = {}) {
+    const { q, ...rest } = filter;
+    const query: Record<string, unknown> = { ...rest };
+    if (q) query.name = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    return Store.find(query).sort({ createdAt: -1 }).limit(q ? 20 : 0).lean();
   },
 
   async getById(id: string) {

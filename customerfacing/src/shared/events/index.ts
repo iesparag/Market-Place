@@ -54,6 +54,7 @@ export const NotificationNewSchema = z.object({
   id: z.string(),
   title: z.string(),
   body: z.string(),
+  image: z.string().optional(),
   at: z.string(),
 });
 export type NotificationNew = z.infer<typeof NotificationNewSchema>;
