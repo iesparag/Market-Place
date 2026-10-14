@@ -33,6 +33,10 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# build_apk.sh output — built APKs are too large for git (GitHub rejects files over
+# 100MB) and regenerate on demand anyway, so they don't belong in version control.
+/releases/
+
 # Symbolication related
 app.*.symbols
 
