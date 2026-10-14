@@ -5,6 +5,7 @@ import '../core/auth/token_store.dart';
 import '../models/product.dart';
 import '../models/address.dart';
 import '../models/order.dart';
+import '../models/festival.dart';
 import 'catalog_repository.dart';
 import 'checkout_repository.dart';
 import 'geocode_repository.dart';
@@ -42,6 +43,12 @@ final orderProvider = FutureProvider.autoDispose.family<OrderModel, String>((ref
 final appConfigProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final data = await ref.read(apiClientProvider).get('/app/config');
   return (data as Map).cast<String, dynamic>();
+});
+
+/// The one festival live right now (or null) — admin-configured, public, no auth.
+final festivalProvider = FutureProvider.autoDispose<FestivalModel?>((ref) async {
+  final data = await ref.read(apiClientProvider).get('/festivals/active');
+  return data == null ? null : FestivalModel.fromJson((data as Map).cast<String, dynamic>());
 });
 
 // ── data (auto-fetch) ─────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ import '../../shared/widgets/shimmer.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/search_bar_pill.dart';
+import 'festival_greeting_overlay.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -25,6 +26,13 @@ class HomeScreen extends ConsumerWidget {
     final banners = ref.watch(bannersProvider);
     final tree = ref.watch(categoryTreeProvider);
     final sections = ref.watch(homeSectionsProvider);
+
+    // Fires once when the active-festival data arrives (not on every rebuild) —
+    // the dedup-by-day check inside decides whether to actually show anything.
+    ref.listen(festivalProvider, (_, next) {
+      final festival = next.valueOrNull;
+      if (festival != null) maybeShowFestivalGreeting(context, ref, festival);
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F4),

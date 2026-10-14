@@ -23,6 +23,7 @@ dependencies:
   socket_io_client: ^2.0.3+1     # live order room: status + rider location pushes
   flutter_map: ^7.0.2            # free OSM map for live rider tracking, no API key
   latlong2: ^0.9.1               # LatLng type for flutter_map
+  lottie: ^3.1.2                 # festival greeting animations (admin-configured)
 
 dev_dependencies:
   flutter_lints: ^4.0.0

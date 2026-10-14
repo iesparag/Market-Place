@@ -142,6 +142,7 @@ export const NAV_META: NavSectionMeta[] = [
       { perm: 'banner:manage', label: 'Home / Landing', route: '/home' },
       { perm: 'promo:manage', label: 'Coupons', route: '/coupons' },
       { perm: 'banner:manage', label: 'Carousel', route: '/carousel' },
+      { perm: 'banner:manage', label: 'Festivals', route: '/festivals' },
       { perm: 'notification:manage', label: 'Push / Announce', route: '/announcements' },
     ],
   },

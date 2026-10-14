@@ -115,6 +115,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/carousel/carousel.page').then((m) => m.CarouselPage),
       },
       {
+        path: 'festivals',
+        canMatch: [permissionGuard('banner:manage')],
+        loadComponent: () => import('./features/festivals/festivals.page').then((m) => m.FestivalsPage),
+      },
+      {
         path: 'announcements',
         canMatch: [permissionGuard('notification:manage')],
         loadComponent: () => import('./features/announcements/announcements.page').then((m) => m.AnnouncementsPage),
