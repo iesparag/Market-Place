@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { ZodError } from 'zod';
 import { AppError } from '../common/AppError.js';
 import { fail } from '../common/apiResponse.js';
 import { logger } from '../config/logger.js';
@@ -9,6 +10,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   if (err instanceof AppError) {
     if (err.status >= 500) logger.error({ err }, 'AppError');
     fail(res, err.code, err.message, err.status, err.details);
+    return;
+  }
+  // Many controllers call `Schema.parse(req.body)` directly (not through the
+  // `validate()` middleware), which throws a raw ZodError on bad input. Without this,
+  // that falls through to the generic 500 branch below — every validation failure on
+  // those routes looked like a server crash instead of a 400, in prod and dev alike.
+  if (err instanceof ZodError) {
+    fail(res, 'VALIDATION_ERROR', 'Validation failed', 422, err.flatten());
     return;
   }
   logger.error({ err }, 'Unhandled error');

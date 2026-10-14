@@ -1,8 +1,8 @@
 /// App-wide config — same backend as customer_app, different app.
 /// Dev: use your machine's LAN IP (not localhost — that's the phone, not your PC).
 class Config {
-  static const String apiBaseUrl = 'http://localhost:4000/api/v1';
-  static const String socketUrl = 'http://localhost:4000';
+  static const String apiBaseUrl = 'https://market-place-production-991b.up.railway.app/api/v1';
+  static const String socketUrl = 'https://market-place-production-991b.up.railway.app';
 
   // Deployed backend (uncomment when pointing at production):
   // static const String apiBaseUrl = 'https://market-place-production-991b.up.railway.app/api/v1';
