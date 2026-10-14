@@ -34,12 +34,31 @@ class TaskOffer {
   }
 }
 
+/// One step in the rider-controlled pickup/delivery leg, in order. Mirrors
+/// backend/src/modules/delivery/delivery-tasks.service.ts's RIDER_STATUSES.
+class TaskStep {
+  final String status;
+  final String buttonLabel;
+  final String currentLabel;
+  const TaskStep(this.status, this.buttonLabel, this.currentLabel);
+}
+
+const List<TaskStep> kTaskSteps = [
+  TaskStep('pickup_started', 'Start heading to pickup', 'Heading to pickup'),
+  TaskStep('pickup_arrived', 'Arrived at pickup', 'At the pickup point'),
+  TaskStep('picked_up', 'Mark picked up', 'Picked up — heading out'),
+  TaskStep('delivery_started', 'Start delivery', 'Out for delivery'),
+  TaskStep('delivery_arrived', 'Arrived at customer', 'At the customer\'s location'),
+  TaskStep('delivered', 'Mark delivered', 'Delivered'),
+];
+
 /// A delivery task as the assigned (or offered-to) rider sees it — one per (order,
 /// store), same entity the admin portal's Delivery/Fulfillment pages manage.
 class TaskModel {
   final String id;
   final String orderNumber;
-  /// pending | accepted | preparing | ready | shipped | delivered | cancelled | refunded
+  /// pending | accepted | preparing | ready | pickup_started | pickup_arrived |
+  /// picked_up | delivery_started | delivery_arrived | delivered | cancelled | refunded
   final String status;
   final List<TaskItem> items;
   final TaskAddress pickup;
@@ -57,7 +76,24 @@ class TaskModel {
   });
 
   bool get isReadyForPickup => status == 'ready';
-  bool get isOutForDelivery => status == 'shipped';
+  bool get isDelivered => status == 'delivered';
+
+  /// The step the rider should take next, or null once delivered (nothing left to do)
+  /// or if the task is still 'ready' (use [isReadyForPickup] — the first step, index 0,
+  /// applies there).
+  TaskStep? get nextStep {
+    if (status == 'ready') return kTaskSteps.first;
+    final i = kTaskSteps.indexWhere((s) => s.status == status);
+    if (i == -1 || i + 1 >= kTaskSteps.length) return null;
+    return kTaskSteps[i + 1];
+  }
+
+  /// Human label for the task's current stage (for the status badge).
+  String get stageLabel {
+    if (status == 'ready') return 'Ready for pickup';
+    final step = kTaskSteps.firstWhere((s) => s.status == status, orElse: () => kTaskSteps.first);
+    return step.currentLabel;
+  }
 
   factory TaskModel.fromJson(Map<String, dynamic> j) {
     final items = j['items'] is List

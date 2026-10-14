@@ -3,6 +3,7 @@ import { Server as IOServer } from 'socket.io';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import type { AuthUser } from '../common/types.js';
+import type { RiderAuthPayload } from '../modules/riders/rider.types.js';
 import { socketAuth } from './socket.auth.js';
 import { rooms } from './rooms.js';
 import { Role } from '@app/shared';
@@ -17,7 +18,18 @@ export function initSocket(server: HttpServer): IOServer {
   io.use(socketAuth);
 
   io.on('connection', (socket) => {
-    const user = (socket.data as { user: AuthUser }).user;
+    const data = socket.data as { user?: AuthUser; rider?: RiderAuthPayload };
+
+    if (data.rider) {
+      // Rider app connection — its own room only, no user/store/admin rooms apply.
+      socket.join(rooms.rider(data.rider.riderId));
+      logger.debug({ riderId: data.rider.riderId }, 'rider socket connected');
+      socket.on('order:join', (orderId: string) => socket.join(rooms.order(orderId)));
+      socket.on('order:leave', (orderId: string) => socket.leave(rooms.order(orderId)));
+      return;
+    }
+
+    const user = data.user!;
     // Auto-join the caller's personal + store + admin rooms.
     socket.join(rooms.user(user.id));
     if (user.storeId) socket.join(rooms.store(user.storeId));

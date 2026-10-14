@@ -11,7 +11,19 @@ interface DeliveryTask {
   orderId: string;
   orderNumber: string;
   storeId: string;
-  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  status:
+    | 'pending'
+    | 'accepted'
+    | 'preparing'
+    | 'ready'
+    | 'pickup_started'
+    | 'pickup_arrived'
+    | 'picked_up'
+    | 'delivery_started'
+    | 'delivery_arrived'
+    | 'delivered'
+    | 'cancelled'
+    | 'refunded';
   fulfillmentSource: 'own_fleet' | 'third_party';
   items: { title?: string; qty: number }[];
   riderId?: string;
@@ -47,7 +59,11 @@ const NEXT: Record<string, { label: string; status: string } | undefined> = {
         <option value="accepted">Accepted</option>
         <option value="preparing">Preparing</option>
         <option value="ready">Ready for pickup</option>
-        <option value="shipped">Out for delivery</option>
+        <option value="pickup_started">Rider heading to pickup</option>
+        <option value="pickup_arrived">Rider at the store</option>
+        <option value="picked_up">Picked up</option>
+        <option value="delivery_started">Out for delivery</option>
+        <option value="delivery_arrived">Rider arrived</option>
         <option value="delivered">Delivered</option>
         <option value="cancelled">Cancelled</option>
       </select>
@@ -74,7 +90,7 @@ const NEXT: Record<string, { label: string; status: string } | undefined> = {
                       [class.badge-success]="t.status === 'delivered' || t.status === 'ready'"
                       [class.badge-warning]="t.status === 'pending' || t.status === 'accepted' || t.status === 'preparing'"
                       [class.badge-danger]="t.status === 'cancelled' || t.status === 'refunded'"
-                      [class.badge-info]="t.status === 'shipped'">{{ statusLabel(t.status) }}</span>
+                      [class.badge-info]="isInTransit(t.status)">{{ statusLabel(t.status) }}</span>
               </td>
               <td class="muted">{{ t.createdAt | slice: 0:10 }}</td>
               <td class="actions">
@@ -147,12 +163,21 @@ export class FulfillmentPage implements OnInit {
         accepted: 'Accepted',
         preparing: 'Preparing',
         ready: 'Ready for pickup',
-        shipped: 'Out for delivery',
+        pickup_started: 'Rider heading to pickup',
+        pickup_arrived: 'Rider at the store',
+        picked_up: 'Picked up',
+        delivery_started: 'Out for delivery',
+        delivery_arrived: 'Rider arrived',
         delivered: 'Delivered',
         cancelled: 'Cancelled',
         refunded: 'Refunded',
       }[s] ?? s
     );
+  }
+
+  /** The 5 rider-controlled pickup/delivery sub-stages — shown with the "in progress" badge. */
+  isInTransit(status: string): boolean {
+    return ['pickup_started', 'pickup_arrived', 'picked_up', 'delivery_started', 'delivery_arrived'].includes(status);
   }
 
   next(t: DeliveryTask): { label: string; status: string } | undefined {

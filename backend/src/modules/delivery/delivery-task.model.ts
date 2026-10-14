@@ -27,7 +27,20 @@ const deliveryTaskSchema = new Schema(
     items: { type: [deliveryTaskItemSchema], default: [] },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'preparing', 'ready', 'shipped', 'delivered', 'cancelled', 'refunded'],
+      enum: [
+        'pending', // vendor hasn't acted yet
+        'accepted', // vendor accepted the order
+        'preparing', // vendor is prepping it
+        'ready', // ready for pickup — rider assignment (manual or auto) triggers here
+        'pickup_started', // rider is en route to the pickup point
+        'pickup_arrived', // rider is at the pickup point
+        'picked_up', // rider has the order in hand
+        'delivery_started', // rider is en route to the customer
+        'delivery_arrived', // rider is at the customer's location
+        'delivered', // handed off — terminal
+        'cancelled',
+        'refunded',
+      ],
       default: 'pending',
       index: true,
     },

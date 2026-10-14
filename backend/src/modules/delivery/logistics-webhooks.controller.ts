@@ -5,10 +5,16 @@ import { LogisticsEvent } from './logistics-event.model.js';
 import { DeliveryTask } from './delivery-task.model.js';
 import { deliveryTasksService } from './delivery-tasks.service.js';
 
-/** The courier's event `type` → our internal task status. Unknown types are acked, ignored. */
-const TYPE_TO_STATUS: Record<string, 'shipped' | 'delivered' | 'cancelled'> = {
-  'task.picked_up': 'shipped',
-  'task.out_for_delivery': 'shipped',
+/**
+ * The courier's event `type` → our internal task status. Third parties don't report
+ * our own riders' granular pickup/delivery sub-stages, so both their pickup signals
+ * collapse to `delivery_started` — see applyExternalStatus, which (unlike our own
+ * rider's strictly sequential updateStatus) accepts this as a valid jump from `ready`.
+ * Unknown types are acked, ignored.
+ */
+const TYPE_TO_STATUS: Record<string, 'delivery_started' | 'delivered' | 'cancelled'> = {
+  'task.picked_up': 'delivery_started',
+  'task.out_for_delivery': 'delivery_started',
   'task.delivered': 'delivered',
   'task.cancelled': 'cancelled',
 };

@@ -3,8 +3,9 @@ import { haversineKm } from '../../common/geo.js';
 import { DeliveryTask, type DeliveryTaskDoc } from './delivery-task.model.js';
 import { Rider, type RiderDoc } from '../riders/rider.model.js';
 import { getDeliverySettings } from './delivery-settings.model.js';
-import { emitToOrder, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
+import { emitToOrder, emitToAdmin, emitToRider, safeEmit } from '../../realtime/emitters.js';
 import { AppError } from '../../common/AppError.js';
+import { notifyRider } from '../riders/rider-push.js';
 
 type DeliverySettings = Awaited<ReturnType<typeof getDeliverySettings>>;
 /** Defined locally (not derived from the lean Mongoose doc type) so every field is a
@@ -161,8 +162,22 @@ export const autoAssignService = {
     );
     if (!claimed) return;
     await Rider.updateOne({ _id: top._id }, { $inc: { offersReceived: 1 } });
-    // Riders poll GET /riders/me/offers rather than a push channel — no rider socket/FCM
-    // wiring exists yet (see the standalone rider app), so there's nothing to emit here.
+    const timeoutMin = Math.round((settings.offerTimeoutSeconds ?? 120) / 60);
+    void notifyRider(String(top._id), {
+      title: 'New delivery offer 🔔',
+      body: `${claimed.orderNumber} — respond within ${timeoutMin > 0 ? `${timeoutMin} min` : `${settings.offerTimeoutSeconds}s`}`,
+      data: { taskId: String(task._id) },
+    });
+    const eventPayload = {
+      taskId: String(task._id),
+      orderNumber: claimed.orderNumber,
+      kind: 'offered' as const,
+      riderId: String(top._id),
+      riderName: top.name,
+      at: new Date().toISOString(),
+    };
+    safeEmit(() => emitToAdmin(SOCKET_EVENTS.DELIVERY_TASK_EVENT, eventPayload));
+    safeEmit(() => emitToRider(String(top._id), SOCKET_EVENTS.DELIVERY_TASK_EVENT, eventPayload));
   },
 
   /** Rider accepts their current offer — finalizes the assignment, same effect as a manual assign.

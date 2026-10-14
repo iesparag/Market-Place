@@ -66,7 +66,11 @@ interface DeliverySettings {
         <select class="input status-filter" [(ngModel)]="statusFilter" (change)="loadTasks()">
           <option value="">All statuses</option>
           <option value="ready">Ready for pickup</option>
-          <option value="shipped">Out for delivery</option>
+          <option value="pickup_started">Rider heading to pickup</option>
+          <option value="pickup_arrived">Rider at the store</option>
+          <option value="picked_up">Picked up</option>
+          <option value="delivery_started">Out for delivery</option>
+          <option value="delivery_arrived">Rider arrived</option>
           <option value="delivered">Delivered</option>
         </select>
         <label class="check">
@@ -95,7 +99,7 @@ interface DeliverySettings {
                   }
                 </td>
                 <td>
-                  <span class="badge" [class.badge-success]="t.status === 'delivered'" [class.badge-info]="t.status === 'shipped'" [class.badge-warning]="t.status === 'ready'">{{ t.status }}</span>
+                  <span class="badge" [class.badge-success]="t.status === 'delivered'" [class.badge-info]="isInTransit(t.status)" [class.badge-warning]="t.status === 'ready'">{{ statusLabel(t.status) }}</span>
                 </td>
                 <td>
                   @if (t.riderId) {
@@ -285,6 +289,25 @@ export class DeliveryPage implements OnInit {
   riderName(id?: string): string {
     if (!id) return '—';
     return this.riders().find((r) => r.id === id)?.name ?? '—';
+  }
+
+  /** The 5 rider-controlled pickup/delivery sub-stages — shown with the "in progress" badge. */
+  isInTransit(status: string): boolean {
+    return ['pickup_started', 'pickup_arrived', 'picked_up', 'delivery_started', 'delivery_arrived'].includes(status);
+  }
+
+  statusLabel(s: string): string {
+    return (
+      {
+        ready: 'Ready for pickup',
+        pickup_started: 'Heading to pickup',
+        pickup_arrived: 'At the store',
+        picked_up: 'Picked up',
+        delivery_started: 'Out for delivery',
+        delivery_arrived: 'Arrived',
+        delivered: 'Delivered',
+      }[s] ?? s
+    );
   }
 
   // Riders — create modal

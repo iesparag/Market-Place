@@ -34,6 +34,14 @@ export function emitToAdmin<E extends SocketEvent>(event: E, payload: SocketEven
   getIO().to(rooms.admin()).emit(event, payload);
 }
 
+export function emitToRider<E extends SocketEvent>(
+  riderId: string,
+  event: E,
+  payload: SocketEventPayloads[E],
+): void {
+  getIO().to(rooms.rider(riderId)).emit(event, payload);
+}
+
 /** Fire-and-forget: emit helpers should never break a request if sockets aren't ready. */
 export function safeEmit(fn: () => void): void {
   try {

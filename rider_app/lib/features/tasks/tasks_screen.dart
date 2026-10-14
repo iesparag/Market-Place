@@ -15,14 +15,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   String? _busyId;
 
   Future<void> _advance(TaskModel task) async {
-    final nextStatus = task.isReadyForPickup ? 'shipped' : 'delivered';
+    final next = task.nextStep;
+    if (next == null) return;
     setState(() => _busyId = task.id);
     try {
-      await ref.read(ridersRepoProvider).updateTaskStatus(task.id, nextStatus);
+      await ref.read(ridersRepoProvider).updateTaskStatus(task.id, next.status);
       ref.invalidate(myTasksProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(nextStatus == 'shipped' ? 'Picked up — on the way' : 'Delivered 🎉')),
+          SnackBar(content: Text(next.status == 'delivered' ? 'Delivered 🎉' : next.currentLabel)),
         );
       }
     } on ApiException catch (e) {
@@ -73,6 +74,8 @@ class _TaskCard extends StatelessWidget {
         : task.items.length > 1
             ? '${task.items.first.title} +${task.items.length - 1} more'
             : task.items.first.title;
+    final next = task.nextStep;
+    final stepIndex = kTaskSteps.indexWhere((s) => s.status == task.status); // -1 while still 'ready'
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -82,14 +85,8 @@ class _TaskCard extends StatelessWidget {
           Expanded(child: Text(task.orderNumber, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'monospace'))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: (task.isOutForDelivery ? RiderColors.primary : RiderColors.warning).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              task.isOutForDelivery ? 'Out for delivery' : 'Ready for pickup',
-              style: TextStyle(color: task.isOutForDelivery ? RiderColors.primary : RiderColors.warning, fontWeight: FontWeight.w700, fontSize: 11.5),
-            ),
+            decoration: BoxDecoration(color: RiderColors.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+            child: Text(task.stageLabel, style: const TextStyle(color: RiderColors.primary, fontWeight: FontWeight.w700, fontSize: 11.5)),
           ),
         ]),
         if (itemsSummary.isNotEmpty) ...[
@@ -108,18 +105,46 @@ class _TaskCard extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(child: Text(task.drop.oneLine, style: const TextStyle(fontSize: 12.5))),
         ]),
-        const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          height: 46,
-          child: ElevatedButton(
-            onPressed: busy ? null : onAdvance,
-            child: busy
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text(task.isReadyForPickup ? 'Mark picked up' : 'Mark delivered'),
+        const SizedBox(height: 10),
+        _StepDots(currentIndex: stepIndex),
+        const SizedBox(height: 10),
+        if (next != null)
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
+              onPressed: busy ? null : onAdvance,
+              child: busy
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(next.buttonLabel),
+            ),
           ),
-        ),
       ]),
+    );
+  }
+}
+
+/// Small 6-dot progress indicator through the pickup/delivery steps.
+class _StepDots extends StatelessWidget {
+  final int currentIndex; // -1 = not started (still 'ready')
+  const _StepDots({required this.currentIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(kTaskSteps.length, (i) {
+        final done = i <= currentIndex;
+        return Expanded(
+          child: Container(
+            height: 4,
+            margin: EdgeInsets.only(right: i == kTaskSteps.length - 1 ? 0 : 4),
+            decoration: BoxDecoration(
+              color: done ? RiderColors.primary : RiderColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        );
+      }),
     );
   }
 }

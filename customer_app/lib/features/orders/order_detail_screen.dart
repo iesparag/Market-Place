@@ -22,11 +22,25 @@ const _taskStepMeta = <String, (String, IconData)>{
   'accepted': ('Order confirmed by the store', Icons.storefront_outlined),
   'preparing': ('Preparing your order', Icons.soup_kitchen_outlined),
   'ready': ('Ready for pickup', Icons.inventory_2_outlined),
-  'shipped': ('Out for delivery', Icons.local_shipping_outlined),
+  'pickup_started': ('Rider heading to pickup', Icons.directions_bike_outlined),
+  'pickup_arrived': ('Rider at the store', Icons.storefront),
+  'picked_up': ('Picked up', Icons.inventory_2),
+  'delivery_started': ('Out for delivery', Icons.local_shipping_outlined),
+  'delivery_arrived': ('Rider has arrived', Icons.near_me_outlined),
   'delivered': ('Delivered', Icons.check_circle_outline),
   'cancelled': ('Delivery cancelled', Icons.cancel_outlined),
 };
-const _taskStepOrder = ['accepted', 'preparing', 'ready', 'shipped', 'delivered'];
+const _taskStepOrder = [
+  'accepted',
+  'preparing',
+  'ready',
+  'pickup_started',
+  'pickup_arrived',
+  'picked_up',
+  'delivery_started',
+  'delivery_arrived',
+  'delivered',
+];
 
 /// Status-only fallback — used before an order is a real commitment (still `pending`,
 /// so it has no delivery task yet). Placed / Paid (or Cash on delivery) / Fulfilled,

@@ -7,8 +7,9 @@ import { DeliveryTask } from './delivery-task.model.js';
 import { getDeliverySettings } from './delivery-settings.model.js';
 import { autoAssignService } from './auto-assign.service.js';
 import { logisticsProvider } from '../../providers/logistics/index.js';
-import { emitToOrder, emitToStore, safeEmit } from '../../realtime/emitters.js';
+import { emitToOrder, emitToStore, emitToAdmin, emitToRider, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
+import { notifyRider } from '../riders/rider-push.js';
 
 export interface OrderForDeliveryTasks {
   _id: unknown;
@@ -19,8 +20,31 @@ export interface OrderForDeliveryTasks {
   shippingAddress?: { line1?: string | null; city?: string | null; pincode?: string | null } | null;
 }
 
-const STATUS_FLOW = ['pending', 'accepted', 'preparing', 'ready', 'shipped', 'delivered'] as const;
+const STATUS_FLOW = [
+  'pending',
+  'accepted',
+  'preparing',
+  'ready',
+  'pickup_started',
+  'pickup_arrived',
+  'picked_up',
+  'delivery_started',
+  'delivery_arrived',
+  'delivered',
+] as const;
 type TaskStatus = (typeof STATUS_FLOW)[number] | 'cancelled' | 'refunded';
+
+/** The rider-controlled leg — from "assigned and ready" through to handoff. Used to
+ *  gate what a rider may set (see updateStatus) and which statuses count as "actively
+ *  out working" for GPS broadcast (see riders.service.ts updateLocation). */
+export const RIDER_STATUSES = [
+  'pickup_started',
+  'pickup_arrived',
+  'picked_up',
+  'delivery_started',
+  'delivery_arrived',
+  'delivered',
+] as const;
 
 /** What the task's *current* status must be for a transition to the key to be valid.
  *  `cancelled` is reachable from any non-terminal state, so it's left unconstrained here
@@ -29,8 +53,12 @@ const VALID_FROM: Partial<Record<TaskStatus, TaskStatus[]>> = {
   accepted: ['pending'],
   preparing: ['accepted'],
   ready: ['preparing'],
-  shipped: ['ready'],
-  delivered: ['shipped'],
+  pickup_started: ['ready'],
+  pickup_arrived: ['pickup_started'],
+  picked_up: ['pickup_arrived'],
+  delivery_started: ['picked_up'],
+  delivery_arrived: ['delivery_started'],
+  delivered: ['delivery_arrived'],
 };
 
 export const deliveryTasksService = {
@@ -141,7 +169,7 @@ export const deliveryTasksService = {
   },
 
   async listForRider(riderId: string) {
-    return DeliveryTask.find({ riderId, status: { $in: ['ready', 'shipped'] } })
+    return DeliveryTask.find({ riderId, status: { $in: ['ready', ...RIDER_STATUSES.filter((s) => s !== 'delivered')] } })
       .sort({ createdAt: -1 })
       .lean();
   },
@@ -220,6 +248,11 @@ export const deliveryTasksService = {
     }
 
     announce(task, task.status as TaskStatus); // let the order room know a rider is now on it
+    void notifyRider(riderId, { title: 'New delivery assigned 📦', body: task.orderNumber, data: { taskId: String(task._id) } });
+    announceTaskEvent(task, previousRiderId && String(previousRiderId) !== riderId ? 'reassigned' : 'assigned', riderId, rider.name);
+    if (previousRiderId && String(previousRiderId) !== riderId) {
+      void notifyRider(String(previousRiderId), { title: 'Delivery reassigned', body: `${task.orderNumber} was moved to another rider` });
+    }
     return task;
   },
 
@@ -242,6 +275,8 @@ export const deliveryTasksService = {
     await Rider.updateOne({ _id: previousRiderId }, { $inc: { activeTaskCount: -1 } });
 
     announce(task, task.status as TaskStatus);
+    void notifyRider(String(previousRiderId), { title: 'Delivery unassigned', body: `${task.orderNumber} was removed from your list` });
+    announceTaskEvent(task, 'unassigned', String(previousRiderId));
     return task;
   },
 
@@ -261,8 +296,8 @@ export const deliveryTasksService = {
 
     if (actor.kind === 'rider') {
       if (String(existing.riderId) !== actor.riderId) throw AppError.forbidden('Not your task');
-      if (!(['shipped', 'delivered'] as TaskStatus[]).includes(status))
-        throw AppError.badRequest('BAD_STATUS', 'Riders can only mark a task shipped or delivered');
+      if (!(RIDER_STATUSES as readonly TaskStatus[]).includes(status))
+        throw AppError.badRequest('BAD_STATUS', 'Riders can only move a task through the pickup/delivery stages');
     } else {
       const isStoreScoped = actor.role === 'vendor' || actor.role === 'vendor_staff';
       if (isStoreScoped) {
@@ -305,8 +340,14 @@ export const deliveryTasksService = {
   async applyExternalStatus(taskId: string, status: TaskStatus) {
     const existing = await DeliveryTask.findById(taskId).lean();
     if (!existing) return null;
-    const allowedFrom = VALID_FROM[status];
-    if (allowedFrom && !allowedFrom.includes(existing.status as TaskStatus)) return existing;
+    // A third-party courier doesn't report our own riders' granular pickup/delivery
+    // sub-stages (see TYPE_TO_STATUS in logistics-webhooks.controller.ts), so this is
+    // deliberately NOT the strict VALID_FROM sequential check updateStatus() uses —
+    // only reject if the task is already in a terminal state (don't resurrect a
+    // cancelled/delivered task from a late or redelivered webhook).
+    if (existing.status === 'delivered' || existing.status === 'cancelled' || existing.status === 'refunded') {
+      return existing;
+    }
 
     const task = await writeStatus(taskId, existing.status as TaskStatus, status);
     if (!task) return existing; // lost a concurrent race — the webhook can redeliver
@@ -340,6 +381,20 @@ interface TaskLike {
   customerId: unknown;
 }
 
+/** Socket nudge (on top of the FCM push) for the admin dashboard's alert sound and the
+ *  rider app's live list refresh — sent to the `admin` room and, when there's a
+ *  specific rider, their own `rider:{id}` room. */
+function announceTaskEvent(
+  task: { _id: unknown; orderNumber: string },
+  kind: 'offered' | 'assigned' | 'unassigned' | 'reassigned',
+  riderId?: string,
+  riderName?: string,
+): void {
+  const payload = { taskId: String(task._id), orderNumber: task.orderNumber, kind, riderId, riderName, at: new Date().toISOString() };
+  safeEmit(() => emitToAdmin(SOCKET_EVENTS.DELIVERY_TASK_EVENT, payload));
+  if (riderId) safeEmit(() => emitToRider(riderId, SOCKET_EVENTS.DELIVERY_TASK_EVENT, payload));
+}
+
 /** Live push only — order room hears the new state, no history entry written. */
 function announce(task: TaskLike, status: TaskStatus): void {
   const orderId = String(task.orderId);
@@ -369,7 +424,11 @@ const STATUS_TITLES: Record<string, string> = {
   accepted: 'Order confirmed by the store 🧾',
   preparing: 'Your order is being prepared 👨‍🍳',
   ready: 'Ready for pickup 📦',
-  shipped: 'Out for delivery 🛵',
+  pickup_started: 'Your rider is heading to pick up your order 🛵',
+  pickup_arrived: 'Your rider has reached the store 📍',
+  picked_up: 'Your order has been picked up — on its way 📦',
+  delivery_started: 'Out for delivery 🛵',
+  delivery_arrived: 'Your rider has arrived 📍',
   delivered: 'Delivered ✅',
   cancelled: 'Delivery cancelled',
 };

@@ -4,6 +4,8 @@ import { ok, created } from '../../common/apiResponse.js';
 import { ridersService } from './riders.service.js';
 import { deliveryTasksService } from '../delivery/delivery-tasks.service.js';
 import { autoAssignService } from '../delivery/auto-assign.service.js';
+import { RiderDeviceToken } from './rider-push.js';
+import { AppError } from '../../common/AppError.js';
 
 const CreateSchema = z.object({
   name: z.string().min(1),
@@ -19,7 +21,10 @@ const UpdateSchema = z.object({
 const LoginSchema = z.object({ phone: z.string().min(6), password: z.string().min(1) });
 const StatusSchema = z.object({ status: z.enum(['offline', 'available', 'busy']) });
 const LocationSchema = z.object({ lat: z.number(), lng: z.number() });
-const TaskStatusSchema = z.object({ status: z.enum(['shipped', 'delivered']) });
+const RegisterDeviceSchema = z.object({ token: z.string().min(1), platform: z.enum(['android', 'ios']).optional() });
+const TaskStatusSchema = z.object({
+  status: z.enum(['pickup_started', 'pickup_arrived', 'picked_up', 'delivery_started', 'delivery_arrived', 'delivered']),
+});
 
 export const ridersController = {
   // ── admin/vendor management ────────────────────────────────────────────
@@ -66,6 +71,16 @@ export const ridersController = {
   async declineOffer(req: Request, res: Response) {
     await autoAssignService.declineOffer(req.params.id!, req.rider!.riderId);
     ok(res, { declined: true });
+  },
+  async registerDevice(req: Request, res: Response) {
+    const { token, platform } = RegisterDeviceSchema.parse(req.body);
+    if (!token) throw AppError.badRequest('NO_TOKEN', 'Device token required');
+    await RiderDeviceToken.updateOne(
+      { token },
+      { $set: { riderId: req.rider!.riderId, platform: platform ?? 'android' } },
+      { upsert: true },
+    );
+    ok(res, { registered: true });
   },
   async updateTaskStatus(req: Request, res: Response) {
     const { status } = TaskStatusSchema.parse(req.body);

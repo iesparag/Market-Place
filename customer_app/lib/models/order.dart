@@ -121,7 +121,8 @@ class DeliveryRider {
 class DeliveryTaskInfo {
   final String id;
   final String storeId;
-  /// pending | accepted | preparing | ready | shipped | delivered | cancelled | refunded
+  /// pending | accepted | preparing | ready | pickup_started | pickup_arrived |
+  /// picked_up | delivery_started | delivery_arrived | delivered | cancelled | refunded
   final String status;
   final List<DeliveryStatusEvent> statusHistory;
   final String fulfillmentSource; // own_fleet | third_party
@@ -138,7 +139,15 @@ class DeliveryTaskInfo {
     this.rider,
   });
 
-  bool get isOutForDelivery => status == 'shipped';
+  /// True while the rider is actively on the move (not just assigned-and-waiting,
+  /// not yet handed off) — this is when the live map is worth showing.
+  bool get isOutForDelivery => const {
+        'pickup_started',
+        'pickup_arrived',
+        'picked_up',
+        'delivery_started',
+        'delivery_arrived',
+      }.contains(status);
 
   factory DeliveryTaskInfo.fromJson(Map<String, dynamic> j) {
     final history = j['statusHistory'] is List

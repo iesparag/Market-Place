@@ -6,7 +6,18 @@ import { deliveryTasksService } from './delivery-tasks.service.js';
 
 const AssignSchema = z.object({ riderId: z.string().min(1) });
 const StatusSchema = z.object({
-  status: z.enum(['accepted', 'preparing', 'ready', 'shipped', 'delivered', 'cancelled']),
+  status: z.enum([
+    'accepted',
+    'preparing',
+    'ready',
+    'pickup_started',
+    'pickup_arrived',
+    'picked_up',
+    'delivery_started',
+    'delivery_arrived',
+    'delivered',
+    'cancelled',
+  ]),
 });
 
 export const deliveryTasksController = {

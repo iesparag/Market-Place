@@ -6,7 +6,11 @@ import { AppError } from '../../common/AppError.js';
 import { emitToOrder, safeEmit } from '../../realtime/emitters.js';
 import { Rider } from './rider.model.js';
 import { DeliveryTask } from '../delivery/delivery-task.model.js';
+import { RIDER_STATUSES } from '../delivery/delivery-tasks.service.js';
 import type { RiderAuthPayload } from './rider.types.js';
+
+/** Broadcast GPS while the rider is actively on the move — not once they've handed off. */
+const ACTIVELY_MOVING_STATUSES = RIDER_STATUSES.filter((s) => s !== 'delivered');
 
 function signRiderToken(riderId: string, tenantId: string): string {
   const payload: RiderAuthPayload = { riderId, tenantId, type: 'rider' };
@@ -70,7 +74,9 @@ export const ridersService = {
     const at = new Date();
     await Rider.updateOne({ _id: riderId }, { currentLocation: { lat, lng, at } });
 
-    const activeTasks = await DeliveryTask.find({ riderId, status: 'shipped' }).select('orderId').lean();
+    const activeTasks = await DeliveryTask.find({ riderId, status: { $in: ACTIVELY_MOVING_STATUSES } })
+      .select('orderId')
+      .lean();
     for (const task of activeTasks) {
       safeEmit(() =>
         emitToOrder(String(task.orderId), SOCKET_EVENTS.DELIVERY_LOCATION, {

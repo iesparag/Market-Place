@@ -17,6 +17,10 @@ export const SOCKET_EVENTS = {
   ORDER_STATUS_UPDATED: 'order:status_updated',
   SUBORDER_NEW: 'suborder:new',
   DELIVERY_LOCATION: 'delivery:location',
+  /** A task was offered/assigned/unassigned — sent to the `admin` room (every admin
+   *  dashboard, for the alert sound) and, when there's a specific rider, their
+   *  `rider:{id}` room too (the rider app's push-free live nudge). */
+  DELIVERY_TASK_EVENT: 'delivery:task_event',
   INVENTORY_CHANGED: 'inventory:changed',
   NOTIFICATION_NEW: 'notification:new',
   CHAT_MESSAGE: 'chat:message',
@@ -53,6 +57,16 @@ export const DeliveryLocationSchema = z.object({
   at: z.string(),
 });
 export type DeliveryLocation = z.infer<typeof DeliveryLocationSchema>;
+
+export const DeliveryTaskEventSchema = z.object({
+  taskId: z.string(),
+  orderNumber: z.string(),
+  kind: z.enum(['offered', 'assigned', 'unassigned', 'reassigned']),
+  riderId: z.string().optional(),
+  riderName: z.string().optional(),
+  at: z.string(),
+});
+export type DeliveryTaskEvent = z.infer<typeof DeliveryTaskEventSchema>;
 
 export const InventoryChangedSchema = z.object({
   productId: z.string(),
@@ -117,6 +131,7 @@ export interface SocketEventPayloads {
   [SOCKET_EVENTS.ORDER_STATUS_UPDATED]: OrderStatusUpdated;
   [SOCKET_EVENTS.SUBORDER_NEW]: SubOrderNew;
   [SOCKET_EVENTS.DELIVERY_LOCATION]: DeliveryLocation;
+  [SOCKET_EVENTS.DELIVERY_TASK_EVENT]: DeliveryTaskEvent;
   [SOCKET_EVENTS.INVENTORY_CHANGED]: InventoryChanged;
   [SOCKET_EVENTS.NOTIFICATION_NEW]: NotificationNew;
   [SOCKET_EVENTS.CHAT_MESSAGE]: ChatMessage;

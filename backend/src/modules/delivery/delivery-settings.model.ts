@@ -19,7 +19,7 @@ const deliverySettingsSchema = new Schema(
       vehicleMatch: { type: Number, default: 0.1 },
     },
     /** How long one rider has to accept an auto-offer before it cascades to the next. */
-    offerTimeoutSeconds: { type: Number, default: 45 },
+    offerTimeoutSeconds: { type: Number, default: 120 },
     /** How many riders to cascade through before falling back to manual + admin alert. */
     maxOfferCascadeAttempts: { type: Number, default: 5 },
     /** Only consider riders within this radius (km) of the pickup point. */
@@ -40,7 +40,7 @@ export const DeliverySettings = model('DeliverySettings', deliverySettingsSchema
 const DEFAULTS = {
   assignmentMode: 'manual' as const,
   criteriaWeights: { distance: 0.35, rating: 0.2, activeLoad: 0.2, reliability: 0.15, vehicleMatch: 0.1 },
-  offerTimeoutSeconds: 45,
+  offerTimeoutSeconds: 120,
   maxOfferCascadeAttempts: 5,
   maxAssignRadiusKm: 10,
   serviceableCities: [] as string[],

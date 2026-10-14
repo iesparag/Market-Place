@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import { SOCKET_EVENTS, type SocketEventPayloads } from '@app/shared';
 import { environment } from '../../../environments/environment';
 import { NotificationService } from './notification.service';
+import { playAlertBeep } from '../../shared/alert-sound';
 
 /**
  * Connects with the auth token and turns inbound realtime events into UI toasts.
@@ -32,6 +33,21 @@ export class SocketService {
       SOCKET_EVENTS.INVENTORY_CHANGED,
       (p: SocketEventPayloads[typeof SOCKET_EVENTS.INVENTORY_CHANGED]) =>
         this.notify.push('Low stock ⚠️', `${p.variantSku} · ${p.stock} left`, 'warning'),
+    );
+    // Delivery task offered/assigned/unassigned — rings so it's noticed even if the
+    // admin isn't looking at the Delivery tab (see delivery-tasks.service.ts / auto-assign.service.ts).
+    this.socket.on(
+      SOCKET_EVENTS.DELIVERY_TASK_EVENT,
+      (p: SocketEventPayloads[typeof SOCKET_EVENTS.DELIVERY_TASK_EVENT]) => {
+        playAlertBeep();
+        const label = {
+          offered: `Offered to ${p.riderName ?? 'a rider'} 🔔`,
+          assigned: `Assigned to ${p.riderName ?? 'a rider'} ✅`,
+          reassigned: `Reassigned to ${p.riderName ?? 'a rider'} 🔁`,
+          unassigned: 'Unassigned — needs a rider ⚠️',
+        }[p.kind];
+        this.notify.push(label, p.orderNumber, p.kind === 'unassigned' ? 'warning' : 'info');
+      },
     );
   }
 

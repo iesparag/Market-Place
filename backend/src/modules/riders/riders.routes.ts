@@ -24,7 +24,11 @@ ridersRoutes.post('/me/location', authenticateRider, asyncHandler(ridersControll
 ridersRoutes.get('/me/tasks', authenticateRider, asyncHandler(ridersController.myTasks));
 ridersRoutes.patch('/me/tasks/:id/status', authenticateRider, asyncHandler(ridersController.updateTaskStatus));
 
-// Automatic-assignment offers — poll-based (the rider app has no push/socket channel yet).
+// Automatic-assignment offers — poll-based + a push nudge so a rider doesn't have to
+// have the app open to notice a new job (see auto-assign.service.ts / rider-push.ts).
 ridersRoutes.get('/me/offers', authenticateRider, asyncHandler(ridersController.myOffers));
 ridersRoutes.post('/me/offers/:id/accept', authenticateRider, asyncHandler(ridersController.acceptOffer));
 ridersRoutes.post('/me/offers/:id/decline', authenticateRider, asyncHandler(ridersController.declineOffer));
+
+// Rider app registers its FCM device token for push (assignment/offer/unassign alerts).
+ridersRoutes.post('/me/register-device', authenticateRider, asyncHandler(ridersController.registerDevice));

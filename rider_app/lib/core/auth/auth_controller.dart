@@ -16,6 +16,8 @@ class AuthController extends StateNotifier<RiderModel?> {
     if (await store.hasSession) {
       try {
         state = await ref.read(ridersRepoProvider).me();
+        await ref.read(riderSocketProvider).connect();
+        await ref.read(alertServiceProvider).requestPermission();
       } catch (_) {
         await store.clear();
       }
@@ -31,6 +33,8 @@ class AuthController extends StateNotifier<RiderModel?> {
     final result = await ref.read(ridersRepoProvider).login(phone, password);
     await ref.read(tokenStoreProvider).save(result.token);
     state = result.rider;
+    await ref.read(riderSocketProvider).connect();
+    await ref.read(alertServiceProvider).requestPermission();
   }
 
   Future<void> logout() async {
@@ -40,6 +44,7 @@ class AuthController extends StateNotifier<RiderModel?> {
         await ref.read(ridersRepoProvider).setStatus('offline');
       } catch (_) {/* ignore — logging out either way */}
     }
+    ref.read(riderSocketProvider).disconnect();
     await ref.read(tokenStoreProvider).clear();
     state = null;
   }

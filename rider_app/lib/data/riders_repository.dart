@@ -37,8 +37,16 @@ class RidersRepository {
   Future<void> acceptOffer(String taskId) => api.post('/riders/me/offers/$taskId/accept');
   Future<void> declineOffer(String taskId) => api.post('/riders/me/offers/$taskId/decline');
 
-  /// Riders may only ever move a task to shipped (picked up) or delivered — every other
-  /// stage (accepted/preparing/ready) belongs to the vendor, enforced server-side too.
+  /// Riders may only ever move a task through the pickup/delivery stages (pickup_started
+  /// → pickup_arrived → picked_up → delivery_started → delivery_arrived → delivered) —
+  /// every earlier stage (accepted/preparing/ready) belongs to the vendor, enforced
+  /// server-side too.
   Future<void> updateTaskStatus(String taskId, String status) =>
       api.patch('/riders/me/tasks/$taskId/status', body: {'status': status});
+
+  /// Registers an FCM device token for push (new offer / assigned / unassigned alerts
+  /// when the app isn't open). Call once a real token is available — wiring
+  /// firebase_messaging is a separate step once a Firebase project is set up for this app.
+  Future<void> registerDevice(String fcmToken, {String platform = 'android'}) =>
+      api.post('/riders/me/register-device', body: {'token': fcmToken, 'platform': platform});
 }

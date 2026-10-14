@@ -10,6 +10,7 @@ export const SOCKET_EVENTS = {
   ORDER_STATUS_UPDATED: 'order:status_updated',
   SUBORDER_NEW: 'suborder:new',
   DELIVERY_LOCATION: 'delivery:location',
+  DELIVERY_TASK_EVENT: 'delivery:task_event',
   INVENTORY_CHANGED: 'inventory:changed',
   NOTIFICATION_NEW: 'notification:new',
   CHAT_MESSAGE: 'chat:message',
@@ -42,6 +43,16 @@ export const DeliveryLocationSchema = z.object({
 });
 export type DeliveryLocation = z.infer<typeof DeliveryLocationSchema>;
 
+export const DeliveryTaskEventSchema = z.object({
+  taskId: z.string(),
+  orderNumber: z.string(),
+  kind: z.enum(['offered', 'assigned', 'unassigned', 'reassigned']),
+  riderId: z.string().optional(),
+  riderName: z.string().optional(),
+  at: z.string(),
+});
+export type DeliveryTaskEvent = z.infer<typeof DeliveryTaskEventSchema>;
+
 export const InventoryChangedSchema = z.object({
   productId: z.string(),
   variantSku: z.string(),
@@ -71,6 +82,7 @@ export interface SocketEventPayloads {
   [SOCKET_EVENTS.ORDER_STATUS_UPDATED]: OrderStatusUpdated;
   [SOCKET_EVENTS.SUBORDER_NEW]: SubOrderNew;
   [SOCKET_EVENTS.DELIVERY_LOCATION]: DeliveryLocation;
+  [SOCKET_EVENTS.DELIVERY_TASK_EVENT]: DeliveryTaskEvent;
   [SOCKET_EVENTS.INVENTORY_CHANGED]: InventoryChanged;
   [SOCKET_EVENTS.NOTIFICATION_NEW]: NotificationNew;
   [SOCKET_EVENTS.CHAT_MESSAGE]: ChatMessage;
