@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:lottie/lottie.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../data/providers.dart';
@@ -10,6 +11,7 @@ import '../shell/app_shell.dart';
 import '../../models/category.dart';
 import '../../models/home.dart';
 import '../../models/store.dart';
+import '../../models/festival.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/shimmer.dart';
@@ -27,6 +29,7 @@ class HomeScreen extends ConsumerWidget {
     final banners = ref.watch(bannersProvider);
     final tree = ref.watch(categoryTreeProvider);
     final sections = ref.watch(homeSectionsProvider);
+    final festival = ref.watch(festivalProvider);
 
     // Fires once when the active-festival data arrives (not on every rebuild) —
     // the dedup-by-day check inside decides whether to actually show anything.
@@ -52,6 +55,12 @@ class HomeScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.only(bottom: 24),
                   children: [
+                    festival.maybeWhen(
+                      data: (f) => f == null
+                          ? const SizedBox.shrink()
+                          : _FestivalBanner(festival: f),
+                      orElse: () => const SizedBox.shrink(),
+                    ),
                     banners.maybeWhen(
                       data: (b) => b.isEmpty
                           ? const SizedBox.shrink()
@@ -119,8 +128,8 @@ class _Header extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const _MarketplaceMark(),
-              const Spacer(),
+              const Expanded(child: _LocationBar()),
+              const SizedBox(width: 6),
               const NotificationBell(filled: true),
               const SizedBox(width: 6),
               const WishlistButton(filled: true),
@@ -175,49 +184,86 @@ class _AccountButton extends StatelessWidget {
   }
 }
 
-class _MarketplaceMark extends StatelessWidget {
-  const _MarketplaceMark();
+/// "Deliver to <address>" — tap to change, like BigBasket/Blinkit's top bar. Shows
+/// the default saved address, or a CTA to add one for a guest/first-time user.
+class _LocationBar extends ConsumerWidget {
+  const _LocationBar();
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            gradient: context.brand.gradient,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
-              BoxShadow(
-                  color: Color(0x22000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 4))
-            ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+    final addresses = user == null ? null : ref.watch(addressesProvider);
+
+    String title = 'Welcome';
+    String subtitle = 'Tap to sign in';
+    if (user != null) {
+      final list = addresses?.asData?.value ?? const [];
+      if (list.isEmpty) {
+        title = 'Add delivery address';
+        subtitle = addresses?.isLoading == true ? 'Loading…' : 'For faster checkout';
+      } else {
+        final a = list.firstWhere((x) => x.isDefault, orElse: () => list.first);
+        title = a.label.isNotEmpty ? a.label : 'Deliver to';
+        subtitle = [a.line1, a.city].where((s) => s.isNotEmpty).join(', ');
+      }
+    }
+
+    return GestureDetector(
+      onTap: () => context.push(user == null ? '/login' : '/addresses'),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              gradient: context.brand.gradient,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4))
+              ],
+            ),
+            child: const Icon(Icons.location_on_rounded,
+                color: Colors.white, size: 20),
           ),
-          child: const Icon(Icons.storefront_rounded,
-              color: Colors.white, size: 22),
-        ),
-        const SizedBox(width: 8),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Marketplace',
-                style: TextStyle(
-                    color: BrandColors.ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    height: 1)),
-            SizedBox(height: 2),
-            Text('Local stores, fast',
-                style: TextStyle(
-                    color: BrandColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    height: 1)),
-          ],
-        ),
-      ],
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: BrandColors.ink,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              height: 1)),
+                    ),
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 18, color: BrandColors.ink),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: BrandColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        height: 1)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -557,6 +603,81 @@ class _VendorCard extends StatelessWidget {
             ),
           ),
         ]),
+      ),
+    );
+  }
+}
+
+// ── Live festival banner (admin-configured) ──────────────────────────────────
+/// The home-screen counterpart to the one-time popup in festival_greeting_overlay.dart
+/// — BigBasket/Blinkit-style: a standing festive card at the top of the feed for as
+/// long as the festival is live, not just a dialog seen once a day.
+class _FestivalBanner extends StatelessWidget {
+  final FestivalModel festival;
+  const _FestivalBanner({required this.festival});
+
+  Color get _base {
+    final hex = festival.themeColor;
+    if (hex == null || hex.isEmpty) return BrandColors.brand600;
+    final h = hex.replaceAll('#', '');
+    try {
+      return Color(int.parse('FF$h', radix: 16));
+    } catch (_) {
+      return BrandColors.brand600;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = _base;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.fromLTRB(18, 16, 8, 16),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [base, Color.lerp(base, Colors.black, 0.25)!],
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(festival.greetingTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15)),
+                const SizedBox(height: 6),
+                Text(festival.greetingMessage,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12.5)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 96,
+            height: 96,
+            child: festival.lottieUrl.isEmpty
+                ? const Icon(Icons.celebration_rounded, color: Colors.white, size: 48)
+                : Lottie.network(
+                    festival.lottieUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.celebration_rounded, color: Colors.white, size: 48),
+                  ),
+          ),
+        ],
       ),
     );
   }

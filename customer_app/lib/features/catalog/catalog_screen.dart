@@ -257,38 +257,42 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       return GestureDetector(
         onTap: () => setState(() => _railCollapsed = false),
         child: Container(
-          width: 26,
+          width: 18,
           color: const Color(0xFFF0F7F2),
-          alignment: Alignment.topCenter,
-          padding: const EdgeInsets.only(top: 16),
-          child: const Icon(Icons.chevron_right_rounded,
-              size: 20, color: BrandColors.textMuted),
+          alignment: Alignment.center,
+          child: const _EdgeHandle(),
         ),
       );
     }
-    return Container(
+    return SizedBox(
       width: 84,
-      color: const Color(0xFFF0F7F2),
-      child: Column(
+      child: Stack(
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              icon: const Icon(Icons.chevron_left_rounded, size: 20),
-              color: BrandColors.textMuted,
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Collapse categories',
-              onPressed: () => setState(() => _railCollapsed = true),
-            ),
-          ),
-          Expanded(
+          Container(
+            color: const Color(0xFFF0F7F2),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+              padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
               children: [
                 _railTile('All', null, _railSlug == null),
                 for (final r in _rail)
                   _railTile(r.name, r.slug, _railSlug == r.slug),
               ],
+            ),
+          ),
+          // Edge handle — tap-to-collapse, styled like a Samsung Edge panel pull
+          // tab instead of a chevron, sitting right on the rail/grid boundary.
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () => setState(() => _railCollapsed = true),
+              child: Container(
+                width: 16,
+                color: Colors.transparent,
+                alignment: Alignment.center,
+                child: const _EdgeHandle(),
+              ),
             ),
           ),
         ],
@@ -489,6 +493,23 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// A small vertical pull-tab — like the Samsung Edge panel handle — used in place of
+/// a chevron for the category rail's collapse/expand toggle.
+class _EdgeHandle extends StatelessWidget {
+  const _EdgeHandle();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 4,
+      height: 46,
+      decoration: BoxDecoration(
+        color: BrandColors.border,
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }
