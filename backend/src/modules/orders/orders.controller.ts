@@ -21,10 +21,15 @@ const CreateOrderSchema = z.object({
   contact: z
     .object({ name: z.string().optional(), phone: z.string().optional(), email: z.string().optional() })
     .optional(),
+  // The whole object stays optional (an 'integration'-type purchase, e.g. ticket
+  // booking, has nothing to physically deliver) — but once a shippingAddress is given,
+  // lat/lng are REQUIRED, not optional: ordersService.create()'s deliverability check
+  // (vendor-to-customer distance) can't run against a free-text-only address, and a
+  // production delivery app should never let checkout complete with an unresolved pin.
   shippingAddress: z
     .object({
       line1: z.string().optional(), city: z.string().optional(), pincode: z.string().optional(),
-      lat: z.number().optional(), lng: z.number().optional(),
+      lat: z.number(), lng: z.number(),
     })
     .optional(),
 });

@@ -11,7 +11,7 @@ import { selectCartLines } from '../../store/cart/cart.selectors';
 import { Store } from '@ngrx/store';
 
 interface Settings { taxPercent: number; deliveryFee: number; freeDeliveryAbove: number; }
-interface Address { _id: string; label: string; line1: string; city: string; pincode?: string; phone?: string; isDefault?: boolean; }
+interface Address { _id: string; label: string; line1: string; city: string; pincode?: string; phone?: string; isDefault?: boolean; lat?: number; lng?: number; }
 
 @Component({
   selector: 'app-checkout',
@@ -152,6 +152,10 @@ export class CheckoutComponent implements OnInit {
   itemsTotal = signal(0);
   addresses = signal<Address[]>([]);
   selectedId = signal<string>('');
+  /** Not a form control — set only via a saved address or an app-location-picker pick,
+   * never hand-typed, so it tracks whether the current line1/city text actually has a
+   * confirmed map pin behind it (backend requires one — see onPicked()/place() below). */
+  selectedGeo = signal<{ lat: number; lng: number } | null>(null);
   settings = signal<Settings>({ taxPercent: 5, deliveryFee: 4000, freeDeliveryAbove: 50000 });
   couponCode = '';
   appliedCode = signal('');
@@ -193,14 +197,20 @@ export class CheckoutComponent implements OnInit {
       line1: a.line1, city: a.city, pincode: a.pincode ?? '',
       phone: a.phone || this.form.controls.phone.value,
     });
+    // Saved addresses from before the Places-backed address flow (or ones never run
+    // through the map picker) may have no lat/lng — surface that as "no pin" rather
+    // than crashing, same contract as a brand-new unpicked address.
+    this.selectedGeo.set(a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null);
   }
   useNew(): void {
     this.selectedId.set('');
     this.form.patchValue({ line1: '', city: '', pincode: '' });
+    this.selectedGeo.set(null);
   }
   onPicked(loc: PickedLocation): void {
     this.selectedId.set('');
     this.form.patchValue({ line1: loc.line1, city: loc.city, pincode: loc.pincode });
+    this.selectedGeo.set({ lat: loc.lat, lng: loc.lng });
   }
 
   applyCoupon(): void {
@@ -240,6 +250,14 @@ export class CheckoutComponent implements OnInit {
   async place(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
+    // Backend requires a resolved pin to run its vendor-to-customer deliverability
+    // check (orders.service.ts) — catch a missing one here with a clear, actionable
+    // message instead of letting the order request fail on a generic validation error.
+    const geo = this.selectedGeo();
+    if (!geo) {
+      this.error.set('This address needs a confirmed location — search it above and pick a suggestion.');
+      return;
+    }
     this.placing.set(true);
     this.payStage.set('placing');
     this.error.set(null);
@@ -254,7 +272,7 @@ export class CheckoutComponent implements OnInit {
           items: lines.map((l) => ({ productId: l.productId, variantSku: l.variantSku, qty: l.qty, modifierNames: l.modifierNames ?? [] })),
           couponCode: this.appliedCode() || undefined,
           contact: { name: f.name, phone: f.phone },
-          shippingAddress: { line1: f.line1, city: f.city, pincode: f.pincode },
+          shippingAddress: { line1: f.line1, city: f.city, pincode: f.pincode, lat: geo.lat, lng: geo.lng },
         }),
       );
       orderId = order._id;

@@ -53,6 +53,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add a delivery address first')));
       return;
     }
+    // Backend requires a resolved pin to run its vendor-to-customer deliverability check
+    // (orders.service.ts) — an address saved before that check shipped, or hand-edited
+    // after a Places pick, can be missing lat/lng. Catch it here with a clear, actionable
+    // message instead of letting the order request fail on a generic validation error.
+    if (addr.lat == null || addr.lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('This address needs a confirmed location — re-search it above and pick a suggestion.'),
+      ));
+      return;
+    }
     setState(() {
       _placing = true;
       _stage = 'placing';

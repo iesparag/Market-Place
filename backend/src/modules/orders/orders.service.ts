@@ -1,6 +1,8 @@
 import { SOCKET_EVENTS, type OrderStatusUpdated } from '@app/shared';
 import { AppError } from '../../common/AppError.js';
 import { sum, percentOf } from '../../common/money.js';
+import { haversineKm } from '../../common/geo.js';
+import { env } from '../../config/env.js';
 import { Product } from '../products/product.model.js';
 import { Store } from '../stores/store.model.js';
 import { Order } from './order.model.js';
@@ -95,6 +97,41 @@ export const ordersService = {
 
     const itemsTotal = sum(lines.map((l) => l.lineTotal));
     const storeIds = [...new Set(lines.map((l) => String(l.storeId)))];
+
+    // Vendor-to-customer deliverability — the production-app boundary check: a customer
+    // browsing via search/a direct link/the Stores list (none of which are geo-filtered
+    // the way the home feed's "Shops Near You" is) could otherwise add items from a
+    // vendor hundreds of km away and complete checkout. Reject BEFORE any payment/stock/
+    // coupon side effects run, so a rejected order leaves nothing to clean up.
+    //
+    // Fails OPEN per side of the check that's missing data, by design, not an oversight:
+    //   - shippingAddress has no lat/lng → skip entirely (an 'integration'-type order,
+    //     e.g. ticket booking, has nothing to physically deliver — see CreateOrderSchema).
+    //   - a store has no `location` yet (not geocoded — pre-dates the Places-backed
+    //     address flow, or the one-time backfill script hasn't run) → skip THAT store's
+    //     check rather than blocking every order from it; we simply can't vouch for a
+    //     distance we don't have the data to compute.
+    // Same env.SERVICEABLE_RADIUS_KM threshold as the home feed's nearby-vendor search
+    // (catalog.service.ts) — one radius, one meaning, enforced at both browse AND
+    // checkout time.
+    const destLat = input.shippingAddress?.lat;
+    const destLng = input.shippingAddress?.lng;
+    if (destLat != null && destLng != null) {
+      const dest = { lat: destLat, lng: destLng };
+      const stores = await Store.find({ _id: { $in: storeIds } }).select('name location').lean();
+      const tooFar = stores.filter((s) => {
+        const [lng, lat] = s.location?.coordinates ?? [];
+        if (lng == null || lat == null) return false; // not geocoded yet — can't vouch, don't block
+        const distanceKm = haversineKm(dest, { lat, lng });
+        return distanceKm > env.SERVICEABLE_RADIUS_KM;
+      });
+      if (tooFar.length) {
+        throw AppError.badRequest(
+          'OUT_OF_DELIVERY_RANGE',
+          `${tooFar.map((s) => s.name).join(', ')} ${tooFar.length > 1 ? "don't" : "doesn't"} deliver to your selected address`,
+        );
+      }
+    }
 
     // Coupon (optional) → tax → delivery. grandTotal = (items − discount) + tax + delivery.
     const settings = await getSettings();
