@@ -1,0 +1,18 @@
+# Self-hosted OSRM — free, no per-request billing, used for the live rider→destination
+# polyline (see backend/src/providers/routing/osrm.provider.ts). This is a one-time
+# data-prep + a long-running container, NOT something docker-compose up alone can do —
+# the .osm.pbf extract must be downloaded and preprocessed first. See README.md in this
+# directory for the full one-time setup; this file just runs the already-prepared data.
+services:
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: marketplace-osrm
+    restart: unless-stopped
+    ports:
+      - '5001:5000'
+    volumes:
+      - ./data:/data
+    # car.lua profile — matches a rider on a bike/scooter closely enough for ETA/route-shape
+    # purposes; OSRM ships bicycle.lua too if you want to switch profiles (re-run the
+    # extract/partition/customize steps in README.md with the new profile).
+    command: osrm-routed --algorithm mld /data/region.osrm

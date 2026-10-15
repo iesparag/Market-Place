@@ -52,7 +52,7 @@ export const authService = {
     input: RegisterInput & {
       storeName: string; vendorType?: string; gstin?: string; pan?: string;
       contactPhone?: string; contactEmail?: string;
-      address?: { line1?: string; city?: string; state?: string; pincode?: string };
+      address?: { line1?: string; city?: string; state?: string; pincode?: string; lat?: number; lng?: number };
     },
   ) {
     const exists = await User.findOne({ email: input.email }).lean();

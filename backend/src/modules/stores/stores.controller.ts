@@ -37,8 +37,17 @@ const BankAccountSchema = z.object({
     .or(z.literal('')),
 });
 
+const AddressSchema = z.object({
+  line1: z.string().optional(), city: z.string().optional(),
+  state: z.string().optional(), pincode: z.string().optional(),
+  // Resolved client-side via Places Details — typed explicitly so a malformed value
+  // (e.g. a string) fails validation loudly instead of silently being dropped by the
+  // typeof-number guard in stores.service.ts's updateProfile().
+  lat: z.number().optional(), lng: z.number().optional(),
+});
+
 const UpdateStoreSchema = z
-  .object({ bankAccount: BankAccountSchema.optional() })
+  .object({ bankAccount: BankAccountSchema.optional(), address: AddressSchema.optional() })
   .passthrough(); // other profile fields are allow-listed in the service
 
 export const storesController = {

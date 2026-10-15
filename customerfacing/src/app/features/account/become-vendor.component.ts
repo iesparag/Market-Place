@@ -2,12 +2,13 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
+import { PlacesAutocompleteComponent, type PickedPlace } from '../../shared/places-autocomplete.component';
 
 /** Public vendor self-registration → creates a seller account + store (pending admin approval). */
 @Component({
   selector: 'app-become-vendor',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, PlacesAutocompleteComponent],
   template: `
     <div class="wrap">
       @if (done()) {
@@ -40,9 +41,17 @@ import { ApiService } from '../../core/services/api.service';
               <select class="input" formControlName="vendorType"><option value="food">Food</option><option value="grocery">Grocery</option><option value="fashion">Fashion</option><option value="generic">Other</option></select>
             </div>
           </div>
+          <div><label class="label">GSTIN (optional)</label><input class="input" formControlName="gstin" /></div>
+
+          <h3>Store address</h3>
+          <app-places-autocomplete (picked)="onAddressPicked($event)" />
           <div class="two">
-            <div><label class="label">GSTIN (optional)</label><input class="input" formControlName="gstin" /></div>
+            <div><label class="label">Address line</label><input class="input" formControlName="line1" /></div>
             <div><label class="label">City</label><input class="input" formControlName="city" /></div>
+          </div>
+          <div class="two">
+            <div><label class="label">State</label><input class="input" formControlName="state" /></div>
+            <div><label class="label">Pincode</label><input class="input" formControlName="pincode" /></div>
           </div>
 
           <button class="btn btn-primary submit" [disabled]="form.invalid || saving()">{{ saving() ? 'Submitting…' : 'Create my store' }}</button>
@@ -80,8 +89,21 @@ export class BecomeVendorComponent {
     storeName: ['', Validators.required],
     vendorType: ['generic'],
     gstin: [''],
+    line1: [''],
     city: [''],
+    state: [''],
+    pincode: [''],
   });
+
+  private geo?: { lat: number; lng: number };
+
+  /** Autocomplete fills the fields below (still editable) and carries lat/lng, which
+   * backend/src/modules/stores/stores.service.ts turns into Store.location for the
+   * $geoNear nearby-vendor query — a city-only text field can't do that. */
+  onAddressPicked(p: PickedPlace): void {
+    this.form.patchValue({ line1: p.line1, city: p.city, state: p.state ?? '', pincode: p.pincode });
+    this.geo = { lat: p.lat, lng: p.lng };
+  }
 
   submit(): void {
     if (this.form.invalid) return;
@@ -90,7 +112,7 @@ export class BecomeVendorComponent {
     this.api.post('/auth/register-vendor', {
       name: v.name, email: v.email, password: v.password, phone: v.phone || undefined,
       storeName: v.storeName, vendorType: v.vendorType, gstin: v.gstin || undefined,
-      address: { city: v.city },
+      address: { line1: v.line1 || undefined, city: v.city || undefined, state: v.state || undefined, pincode: v.pincode || undefined, ...this.geo },
     }).subscribe({
       next: () => { this.storeName.set(v.storeName); this.done.set(true); this.saving.set(false); },
       error: (e) => { this.error.set(e?.error?.error?.message ?? e?.message ?? 'Registration failed'); this.saving.set(false); },

@@ -10,9 +10,11 @@ import '../../core/auth/auth_controller.dart';
 import '../../data/providers.dart';
 import '../shell/app_shell.dart';
 import '../cart/cart_controller.dart';
+import '../favourites/store_favourite_controller.dart';
 import '../../models/home.dart';
 import '../../models/store.dart';
 import '../../models/product.dart';
+import '../../shared/widgets/store_favourite_card.dart';
 import '../../models/festival.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/section_header.dart';
@@ -62,6 +64,12 @@ class HomeScreen extends ConsumerWidget {
                           data: (f) => f == null ? const SizedBox.shrink() : _FestivalBanner(festival: f),
                           orElse: () => const SizedBox.shrink(),
                         ),
+                        // Quick-reorder row: previously-ordered products + favourite stores, always
+                        // near the top (not buried in the wishlist screen / account menu) so a
+                        // returning customer can order again in one tap. Hidden entirely when a
+                        // guest or when there's nothing to show — no empty placeholder clutter.
+                        const _OrderAgainSection(),
+                        const _FavouriteStoresSection(),
                         // Every section is rendered dynamically in the EXACT order defined by the portal.
                         // If a section is disabled in the portal, the backend excludes it, so it will not appear here.
                         for (final s in sections) _renderSection(context, ref, s),
@@ -190,15 +198,20 @@ class _LocationBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final addresses = user == null ? null : ref.watch(addressesProvider);
+    final list = addresses?.asData?.value ?? const [];
 
     String title = 'Deliver to';
-    String subtitle = 'Ghatlodiya, Ahmedabad'; // Matching reference image
-    if (user != null) {
-      final list = addresses?.asData?.value ?? const [];
-      if (list.isNotEmpty) {
-        final a = list.firstWhere((x) => x.isDefault, orElse: () => list.first);
-        title = a.label.isNotEmpty ? a.label : 'Deliver to';
-        subtitle = [a.line1, a.city].where((s) => s.isNotEmpty).join(', ');
+    String subtitle = 'Ghatlodiya, Ahmedabad'; // final fallback when neither a saved address nor GPS is available
+    if (list.isNotEmpty) {
+      final a = list.firstWhere((x) => x.isDefault, orElse: () => list.first);
+      title = a.label.isNotEmpty ? a.label : 'Deliver to';
+      subtitle = [a.line1, a.city].where((s) => s.isNotEmpty).join(', ');
+    } else {
+      // No saved address — show the live device-GPS label instead of a static string.
+      final liveLabel = ref.watch(liveLocationLabelProvider).asData?.value;
+      if (liveLabel != null && liveLabel.isNotEmpty) {
+        title = 'Current location';
+        subtitle = liveLabel;
       }
     }
 
@@ -265,6 +278,72 @@ class _HeaderIcon extends StatelessWidget {
         onTap: onTap,
         child: SizedBox(width: 38, height: 38, child: Icon(icon, color: BrandColors.ink, size: 21)),
       ),
+    );
+  }
+}
+
+// ── 2.5 Order Again + Your Favourite Stores (quick reorder, always near top) ─
+class _OrderAgainSection extends ConsumerWidget {
+  const _OrderAgainSection();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+    if (user == null) return const SizedBox.shrink();
+    final products = ref.watch(recentProductsProvider).valueOrNull ?? [];
+    if (products.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Order Again', subtitle: 'Your previous picks, one tap away'),
+        SizedBox(
+          height: 240,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: products.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => SizedBox(width: 150, child: ProductCard(product: products[i])),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FavouriteStoresSection extends ConsumerWidget {
+  const _FavouriteStoresSection();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+    if (user == null) return const SizedBox.shrink();
+    final ids = ref.watch(favouriteStoresProvider);
+    if (ids.isEmpty) return const SizedBox.shrink();
+    final stores = (ref.watch(favouriteStoreVendorsProvider).valueOrNull ?? [])
+        .where((s) => ids.contains(s.id))
+        .toList();
+    if (stores.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Your Favourite Stores',
+          subtitle: 'Shops you\'ve saved for quick reordering',
+          actionLabel: 'View All ›',
+          onAction: () => context.push('/favourite-stores'),
+        ),
+        SizedBox(
+          height: 150,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: stores.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => StoreFavouriteCard(vendor: stores[i]),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -457,7 +536,6 @@ const _standardCategories = [
   _CategoryItem('Food & Snacks', '🍿', 'food-snacks', Color(0xFFFFEDD5)),
   _CategoryItem('Stationery', '📚', 'stationery', Color(0xFFE0F2FE)),
   _CategoryItem('Toys & Games', '🧸', 'toys-games', Color(0xFFF3E8FF)),
-  _CategoryItem('More', '⠇', '', Color(0xFFF1F5F9)),
 ];
 
 class _CategoryGridSection extends StatelessWidget {
@@ -491,11 +569,7 @@ class _CategoryGridSection extends StatelessWidget {
               final cat = _standardCategories[i];
               return GestureDetector(
                 onTap: () {
-                  if (cat.slug.isEmpty) {
-                    context.push('/categories');
-                  } else {
-                    context.push('/catalog?category=${cat.slug}&title=${Uri.encodeComponent(cat.name)}');
-                  }
+                  context.push('/catalog?category=${cat.slug}&title=${Uri.encodeComponent(cat.name)}');
                 },
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -539,6 +613,10 @@ class _ShopsNearYouSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // outOfServiceArea is only ever set when the backend actually geo-filtered (lat/lng
+    // was sent) and found zero stores in range — never as a fallback for "still loading"
+    // or a request error, so this message only shows when it's genuinely true.
+    if (section.outOfServiceArea) return const _OutOfServiceArea();
     if (section.vendors.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,14 +642,56 @@ class _ShopsNearYouSection extends StatelessWidget {
   }
 }
 
-class _NearbyStoreCard extends StatelessWidget {
+/// Blinkit-style "outside serviceable area" state — same visual language as
+/// cart_screen.dart's _EmptyCart, sized for inline placement in the home feed.
+class _OutOfServiceArea extends StatelessWidget {
+  const _OutOfServiceArea();
+  @override
+  Widget build(BuildContext context) {
+    final b = context.brand;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: BrandColors.border),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(color: b.soft, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const Text('📍', style: TextStyle(fontSize: 32)),
+            ),
+            const SizedBox(height: 14),
+            const Text('Delivery not available in your city',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+            const SizedBox(height: 4),
+            const Text('We\'ll be available soon. Thanks for your patience!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NearbyStoreCard extends ConsumerWidget {
   final Vendor vendor;
   const _NearbyStoreCard({required this.vendor});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final b = context.brand;
     final delivery = vendor.deliveryTime ?? '15–20 min';
+    final isFav = ref.watch(favouriteStoresProvider).contains(vendor.id);
 
     return GestureDetector(
       onTap: () => context.push('/store/${vendor.slug}'),
@@ -607,6 +727,22 @@ class _NearbyStoreCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: GestureDetector(
+                      onTap: () async {
+                        final ok = await ref.read(favouriteStoresProvider.notifier).toggle(vendor.id);
+                        if (!ok && context.mounted) context.push('/login');
+                      },
+                      child: Container(
+                        width: 26, height: 26,
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: Icon(isFav ? Icons.favorite : Icons.favorite_border_rounded,
+                            size: 15, color: isFav ? const Color(0xFFE11D48) : BrandColors.textMuted),
+                      ),
+                    ),
+                  ),
                   Positioned(
                     top: 6,
                     right: 6,
@@ -691,7 +827,7 @@ class _DealsOfTheDaySection extends StatelessWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF881337)),
               ),
               const SizedBox(width: 8),
-              const _CountdownTimer(initialHours: 10, initialMinutes: 18, initialSeconds: 24),
+              if (section.dealsTimer?.endsAt != null) _CountdownTimer(endsAt: section.dealsTimer!.endsAt!),
               const Spacer(),
               GestureDetector(
                 onTap: () => context.push('/catalog?sort=discount'),
@@ -717,8 +853,12 @@ class _DealsOfTheDaySection extends StatelessWidget {
 }
 
 class _CountdownTimer extends StatefulWidget {
-  final int initialHours, initialMinutes, initialSeconds;
-  const _CountdownTimer({this.initialHours = 10, this.initialMinutes = 18, this.initialSeconds = 24});
+  /// Real epoch-ms expiry of the soonest-ending active deal (see home.module.ts's
+  /// `secondsUntil`). Deriving remaining time from wall-clock `endsAt` on every tick —
+  /// rather than a client-seeded initial h/m/s that just decrements — keeps the
+  /// countdown correct even if the app was backgrounded for a while.
+  final int endsAt;
+  const _CountdownTimer({required this.endsAt});
 
   @override
   State<_CountdownTimer> createState() => _CountdownTimerState();
@@ -728,15 +868,15 @@ class _CountdownTimerState extends State<_CountdownTimer> {
   late int _totalSec;
   Timer? _timer;
 
+  int _remaining() => (widget.endsAt - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
+
   @override
   void initState() {
     super.initState();
-    _totalSec = widget.initialHours * 3600 + widget.initialMinutes * 60 + widget.initialSeconds;
+    _totalSec = _remaining().clamp(0, 1 << 31);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      if (_totalSec > 0) {
-        setState(() => _totalSec--);
-      }
+      setState(() => _totalSec = _remaining().clamp(0, 1 << 31));
     });
   }
 

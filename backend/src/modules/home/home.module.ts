@@ -9,7 +9,10 @@ import { AppError } from '../../common/AppError.js';
 import { Product } from '../products/product.model.js';
 import { Store } from '../stores/store.model.js';
 import { Banner } from '../banners/banners.module.js';
-import { catalogService } from '../catalog/catalog.service.js';
+import { catalogService, type GeoQuery } from '../catalog/catalog.service.js';
+import { env } from '../../config/env.js';
+import { etaLabel } from '../../common/geo.js';
+import { promotionsService } from '../promotions/promotions.module.js';
 
 /**
  * Admin-managed landing page. Each "section" is a heading + items,
@@ -49,8 +52,34 @@ interface SectionLike {
   order?: number;
 }
 
-async function resolveProducts(s: SectionLike): Promise<Record<string, unknown>[]> {
+/** hours/minutes/seconds kept for older clients; `endsAt` (epoch ms) is what a client
+ * should actually count down from — it stays correct across app backgrounding, unlike a
+ * client-side timer seeded once from h/m/s. */
+function secondsUntil(endsAtMs: number): { hours: number; minutes: number; seconds: number; endsAt: number } {
+  const totalSec = Math.max(0, Math.round((endsAtMs - Date.now()) / 1000));
+  return { hours: Math.floor(totalSec / 3600), minutes: Math.floor((totalSec % 3600) / 60), seconds: totalSec % 60, endsAt: endsAtMs };
+}
+
+async function resolveProducts(
+  s: SectionLike,
+): Promise<{ items: Record<string, unknown>[]; dealsEndsAt?: number }> {
   const isDeals = s.sort === 'discount' || s.title.toLowerCase().includes('deal');
+
+  // Deals of the Day pulls REAL scheduled Promotion docs (admin-managed at /deals) —
+  // no more fabricated round-robin discounts. No active promotions → empty section,
+  // same contract as every other "no items" case, never a fake fallback.
+  if (isDeals && s.source !== 'curated') {
+    const deals = await promotionsService.activeDeals(s.limit || 8);
+    if (!deals.length) return { items: [] };
+    const dealsEndsAt = Math.min(...deals.map((d) => d.validTo.getTime()));
+    const items = deals.map((d) => ({
+      ...d.product,
+      discountPercent: d.discountPercent,
+      originalPrice: d.originalPrice,
+    }));
+    return { items, dealsEndsAt };
+  }
+
   let prods: Record<string, unknown>[] = [];
 
   if (s.source === 'curated' && s.productIds?.length) {
@@ -74,23 +103,19 @@ async function resolveProducts(s: SectionLike): Promise<Record<string, unknown>[
     prods = rows as unknown as Record<string, unknown>[];
   }
 
-  // Enrich with discount percentage and original MRP for Deals of the Day and promo display
-  return prods.map((p, idx) => {
-    const minPrice = Number(p['minPrice'] || 0);
-    const mockDiscounts = [23, 11, 40, 33, 20, 15, 30, 25];
-    const discountPercent = isDeals ? (mockDiscounts[idx % mockDiscounts.length] ?? 20) : 0;
-    const originalPrice = discountPercent > 0 ? Math.round(minPrice / (1 - discountPercent / 100)) : minPrice;
-
-    return {
-      ...p,
-      discountPercent: discountPercent > 0 ? discountPercent : undefined,
-      originalPrice: discountPercent > 0 ? originalPrice : undefined,
-    };
-  });
+  // Non-deals sections (or a curated section that happens to have "deal" in its title —
+  // curated deal sections aren't used by the default seeded sections, but handled here
+  // rather than fabricating a discount for them): no discount fields, real price only.
+  return { items: prods };
 }
 
-async function resolveVendors(s: SectionLike): Promise<Record<string, unknown>[]> {
-  const all = (await catalogService.listStores()) as unknown as Record<string, unknown>[];
+async function resolveVendors(
+  s: SectionLike,
+  geo?: GeoQuery,
+): Promise<{ items: Record<string, unknown>[]; outOfServiceArea: boolean }> {
+  const isNearby = s.sort === 'nearby';
+  const useGeo = isNearby && geo?.lat != null && geo?.lng != null;
+  const all = (await catalogService.listStores(useGeo ? geo : {})) as unknown as Record<string, unknown>[];
 
   let list: Record<string, unknown>[] = [];
   if (s.source === 'curated' && s.storeIds?.length) {
@@ -99,20 +124,30 @@ async function resolveVendors(s: SectionLike): Promise<Record<string, unknown>[]
   } else if (s.sort === 'rating') {
     list = [...all].sort((a, b) => (Number(b['ratingAvg'] || 4.5) - Number(a['ratingAvg'] || 4.5)));
   } else {
-    // Default nearby / active order
+    // $geoNear (when useGeo) already sorted nearest-first; otherwise insertion order.
     list = all;
   }
 
-  // Delivery time presets matching local store distances
+  // Fallback mock — only used when a store has no real distance yet (curated sections,
+  // non-nearby sorts, or pre-migration stores without resolved coordinates).
   const deliveryTimes = ['15–20 min', '20–30 min', '15–25 min', '25–35 min'];
 
-  return list.slice(0, s.limit || 8).map((st, idx) => ({
-    ...st,
-    deliveryTime: deliveryTimes[idx % deliveryTimes.length],
-    ratingAvg: Number(st['ratingAvg'] || (4.3 + (idx % 4) * 0.1)).toFixed(1),
-    ratingCount: Number(st['ratingCount'] || (45 + idx * 28)),
-    category: st['vendorType'] || 'Grocery',
-  }));
+  const items = list.slice(0, s.limit || 8).map((st, idx) => {
+    const distanceMeters = st['distanceMeters'];
+    const deliveryTime =
+      typeof distanceMeters === 'number'
+        ? etaLabel(distanceMeters / 1000, { baseMinutes: env.DELIVERY_BASE_MINUTES, avgSpeedKmh: env.DELIVERY_AVG_SPEED_KMH })
+        : deliveryTimes[idx % deliveryTimes.length];
+    return {
+      ...st,
+      deliveryTime,
+      ratingAvg: Number(st['ratingAvg'] || (4.3 + (idx % 4) * 0.1)).toFixed(1),
+      ratingCount: Number(st['ratingCount'] || (45 + idx * 28)),
+      category: st['vendorType'] || 'Grocery',
+    };
+  });
+
+  return { items, outOfServiceArea: useGeo && items.length === 0 };
 }
 
 async function resolveBanners(): Promise<unknown[]> {
@@ -217,8 +252,10 @@ export const homeService = {
     await HomeSection.insertMany(DEFAULT_HOMEPAGE_SECTIONS);
     return { seeded: true, count: DEFAULT_HOMEPAGE_SECTIONS.length };
   },
-  /** Public: enabled sections in exact portal order, each with its resolved live items. */
-  async getHome() {
+  /** Public: enabled sections in exact portal order, each with its resolved live items.
+   * `geo`, when given, drives the "Shops Near You" section's real $geoNear ordering,
+   * real ETA, and the outOfServiceArea flag below. */
+  async getHome(geo?: GeoQuery) {
     let configured = (await HomeSection.find({ enabled: true }).sort({ order: 1 }).lean()) as unknown as SectionLike[];
     if (!configured.length) {
       const count = await HomeSection.countDocuments();
@@ -233,16 +270,21 @@ export const homeService = {
     const out = [];
     for (const s of configured) {
       let items: unknown[] = [];
-      const isDeals = s.type === 'products' && (s.sort === 'discount' || s.title.toLowerCase().includes('deal'));
+      let outOfServiceArea = false;
+      let dealsEndsAt: number | undefined;
 
       if (s.type === 'banners') {
         items = await resolveBanners();
       } else if (s.type === 'categories') {
         items = await resolveCategories();
       } else if (s.type === 'vendors') {
-        items = await resolveVendors(s);
+        const resolved = await resolveVendors(s, geo);
+        items = resolved.items;
+        outOfServiceArea = resolved.outOfServiceArea;
       } else {
-        items = await resolveProducts(s);
+        const resolved = await resolveProducts(s);
+        items = resolved.items;
+        dealsEndsAt = resolved.dealsEndsAt;
       }
 
       out.push({
@@ -254,7 +296,11 @@ export const homeService = {
         sort: s.sort ?? '',
         category: s.category ?? '',
         items,
-        dealsTimer: isDeals ? { hours: 10, minutes: 18, seconds: 24, endsAt: Date.now() + 37104000 } : undefined,
+        outOfServiceArea: s.sort === 'nearby' ? outOfServiceArea : undefined,
+        // Real, persisted expiry (soonest-ending active Promotion) — no longer a fresh
+        // "now + ~10h" fabrication on every request. Absent entirely when there are no
+        // live deals, so the client shows no countdown instead of a dishonest one.
+        dealsTimer: dealsEndsAt != null ? secondsUntil(dealsEndsAt) : undefined,
       });
     }
     return out;

@@ -8,7 +8,7 @@ import '../../data/providers.dart';
 import '../../models/address.dart';
 import '../../data/payment_repository.dart';
 import '../cart/cart_controller.dart';
-import 'address_search_field.dart';
+import 'places_search_field.dart';
 import 'payment_controller.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -399,7 +399,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             children: [
               const Text('Add address', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
               const SizedBox(height: 14),
-              AddressSearchField(onPicked: (r) {
+              PlacesSearchField(onPicked: (r) {
                 line1.text = r.line1;
                 city.text = r.city;
                 if (r.pincode != null && r.pincode!.isNotEmpty) pincode.text = r.pincode!;

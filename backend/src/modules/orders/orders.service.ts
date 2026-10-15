@@ -27,7 +27,7 @@ export interface CreateOrderInput {
   items: OrderItemInput[];
   couponCode?: string;
   contact?: { name?: string; phone?: string; email?: string };
-  shippingAddress?: { line1?: string; city?: string; pincode?: string };
+  shippingAddress?: { line1?: string; city?: string; pincode?: string; lat?: number; lng?: number };
 }
 
 function orderNumber(): string {
@@ -277,6 +277,44 @@ export const ordersService = {
 
   async listByCustomer(customerId: string) {
     return Order.find({ customerId }).sort({ createdAt: -1 }).lean();
+  },
+
+  /** "Order again" home-screen tile: distinct products this customer has bought before,
+   * most-recently-ordered first, resolved against the LIVE product doc (current price,
+   * slug, availability) rather than the order-time snapshot — so a reorder tap always
+   * reflects today's price/stock. A product that's since been deleted/archived is
+   * silently skipped rather than showing a broken/stale card. */
+  async recentProducts(customerId: string, limit = 10) {
+    const orders = await Order.find({ customerId, status: { $in: ['paid', 'fulfilled'] } })
+      .sort({ createdAt: -1 })
+      .limit(40) // enough orders to likely surface `limit` distinct products
+      .select('items')
+      .lean();
+    const seen = new Set<string>();
+    const productIds: string[] = [];
+    for (const order of orders) {
+      for (const item of order.items) {
+        const id = String(item.productId);
+        if (!seen.has(id)) { seen.add(id); productIds.push(id); }
+      }
+      if (productIds.length >= limit) break;
+    }
+    if (!productIds.length) return [];
+
+    const products = await Product.find({ _id: { $in: productIds }, status: 'active', visibility: 'public' })
+      .select('title slug variants images ratingAvg ratingCount storeId minPrice foodType attributes')
+      .lean();
+    const byId = new Map(products.map((p) => [String(p._id), p]));
+    const stores = await Store.find({ _id: { $in: products.map((p) => p.storeId) }, status: 'approved' })
+      .select('name slug')
+      .lean();
+    const storeMap = new Map(stores.map((s) => [String(s._id), s]));
+
+    return productIds
+      .map((id) => byId.get(id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p) && storeMap.has(String(p!.storeId)))
+      .slice(0, limit)
+      .map((p) => ({ ...p, store: storeMap.get(String(p.storeId)) ?? null }));
   },
 
   async listByStore(storeId: string) {

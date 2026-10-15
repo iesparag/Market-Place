@@ -4,6 +4,8 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Used for voice search so you can search products by speaking.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Used to show shops near you and a real delivery time estimate.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Used to convert your speech to text for voice search.</string>
 	<key>CFBundleDevelopmentRegion</key>

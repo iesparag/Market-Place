@@ -70,7 +70,9 @@ const orderSchema = new Schema(
       },
     ],
     contact: { name: String, phone: String, email: String },
-    shippingAddress: { line1: String, city: String, pincode: String },
+    // lat/lng (from the customer's saved Address) feed DeliveryTask.dropAddress, which
+    // in turn drives the live rider→destination polyline — see delivery-tasks.service.ts.
+    shippingAddress: { line1: String, city: String, pincode: String, lat: Number, lng: Number },
   },
   { timestamps: true },
 );

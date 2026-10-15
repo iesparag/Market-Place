@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
-import 'address_search_field.dart';
+import 'places_search_field.dart';
 
 class AddressesScreen extends ConsumerWidget {
   const AddressesScreen({super.key});
@@ -90,7 +90,7 @@ class AddressesScreen extends ConsumerWidget {
           children: [
             const Text('Add address', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             const SizedBox(height: 14),
-            AddressSearchField(onPicked: (r) {
+            PlacesSearchField(onPicked: (r) {
               line1.text = r.line1;
               city.text = r.city;
               if (r.pincode != null && r.pincode!.isNotEmpty) pincode.text = r.pincode!;

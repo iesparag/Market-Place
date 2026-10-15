@@ -34,6 +34,15 @@ const storeSchema = new Schema(
       state: String,
       pincode: String,
     },
+    /**
+     * GeoJSON point resolved from `address` via Places/geocoding at registration or edit time.
+     * Deliberately left absent (not [0,0]) when unresolved, so $geoNear/$near correctly
+     * exclude unresolved stores instead of placing them at the Gulf of Guinea.
+     */
+    location: {
+      type: { type: String, enum: ['Point'] },
+      coordinates: { type: [Number], default: undefined },
+    },
     social: {
       instagram: String,
       facebook: String,
@@ -57,6 +66,8 @@ const storeSchema = new Schema(
   },
   { timestamps: true },
 );
+
+storeSchema.index({ location: '2dsphere' });
 
 export type StoreDoc = InferSchemaType<typeof storeSchema>;
 export const Store = model('Store', storeSchema);

@@ -102,6 +102,8 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   late final OrderSocketService _socket = OrderSocketService(ref.read(tokenStoreProvider));
   ll.LatLng? _riderLatLng;
+  List<ll.LatLng>? _routePoints;
+  ll.LatLng? _routeFetchedFor; // guards against refetching the same rider position repeatedly
 
   @override
   void initState() {
@@ -277,6 +279,21 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         ]),
       );
     }
+    // Destination known → fetch (and cache-by-position) the road-following route from
+    // the backend's /routing (self-hosted OSRM). Null result (OSRM not configured, or a
+    // transient failure) just means no polyline is drawn — the marker still works fine
+    // on its own, so this never blocks the live-tracking UI.
+    final dropLat = task.dropLat, dropLng = task.dropLng;
+    if (dropLat != null && dropLng != null && _routeFetchedFor != position) {
+      _routeFetchedFor = position;
+      ref.read(routingRepoProvider).route(from: position, to: ll.LatLng(dropLat, dropLng)).then((pts) {
+        if (mounted) setState(() => _routePoints = pts);
+      });
+    }
+
+    final destination = (dropLat != null && dropLng != null) ? ll.LatLng(dropLat, dropLng) : null;
+    final bounds = destination != null ? LatLngBounds.fromPoints([position, destination]) : null;
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (task.rider != null)
         Padding(
@@ -288,12 +305,18 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         child: SizedBox(
           height: 200,
           child: FlutterMap(
-            options: MapOptions(initialCenter: position, initialZoom: 15),
+            options: bounds != null
+                ? MapOptions(initialCameraFit: CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)))
+                : MapOptions(initialCenter: position, initialZoom: 15),
             children: [
               TileLayer(
                 urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.customer_app',
               ),
+              if (_routePoints != null)
+                PolylineLayer(polylines: [
+                  Polyline(points: _routePoints!, strokeWidth: 4, color: context.brand.primary),
+                ]),
               MarkerLayer(markers: [
                 Marker(
                   point: position,
@@ -301,6 +324,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   height: 40,
                   child: Icon(Icons.two_wheeler, color: context.brand.primary, size: 32),
                 ),
+                if (destination != null)
+                  Marker(
+                    point: destination,
+                    width: 34,
+                    height: 34,
+                    child: const Icon(Icons.location_on_rounded, color: Color(0xFFE11D48), size: 30),
+                  ),
               ]),
             ],
           ),

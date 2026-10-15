@@ -23,10 +23,10 @@ const priceEnding99 = (min: number, max: number) => Math.floor(rand(min, max) / 
 const shuffle = <T>(a: T[]) => [...a].sort(() => Math.random() - 0.5);
 const cartesian = (lists: string[][]): string[][] => lists.reduce<string[][]>((acc, l) => acc.flatMap((c) => l.map((v) => [...c, v])), [[]]);
 function lockNum(s: string): number { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000; return h; }
+// Deterministic placeholder images via picsum.photos (reliable, no keyword matching — loremflickr's redirector went down).
 const imgs = (keyword: string, color: string, seed: string) => {
-  const kw = color ? `${keyword},${color.toLowerCase()}` : keyword;
-  const base = lockNum(seed);
-  return [0, 1, 2].map((n) => `https://loremflickr.com/600/700/${encodeURIComponent(kw)}?lock=${base + n}`);
+  const base = lockNum(`${seed}-${keyword}-${color}`);
+  return [0, 1, 2].map((n) => `https://picsum.photos/seed/${base + n}/600/700`);
 };
 
 function axisPool(axis: string, catName: string): string[] {

@@ -49,5 +49,14 @@
 	<string>Rider App shares your location with customers while you're delivering their order.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Rider App shares your location with customers while you're delivering their order, even when the app is in the background.</string>
+	<!-- Lets core/location/background_location_service.dart keep pushing GPS fixes while
+	     backgrounded. Apple App Review requires this usage to be clearly tied to an
+	     active, rider-initiated delivery session (not always-on tracking) — the service
+	     is only ever started from LocationService.start(), itself only called when the
+	     rider taps "Go online", and stopped the moment they go offline. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>

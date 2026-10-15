@@ -3,12 +3,13 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { PlacesAutocompleteComponent, type PickedPlace } from '../../shared/places-autocomplete.component';
 
 /** Super-admin / vendor: full storefront + business (KYC) profile — the customer store page renders from this. */
 @Component({
   selector: 'app-store-edit',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, PlacesAutocompleteComponent],
   template: `
     <header class="head">
       <div>
@@ -88,12 +89,17 @@ import { NotificationService } from '../../core/services/notification.service';
 
       <div class="card" formGroupName="address">
         <h3>Registered address</h3>
+        <label class="label">Search address</label>
+        <app-places-autocomplete (picked)="onAddressPicked($event)" />
         <label class="label">Address line</label><input class="input" formControlName="line1" />
         <div class="three">
           <div><label class="label">City</label><input class="input" formControlName="city" /></div>
           <div><label class="label">State</label><input class="input" formControlName="state" /></div>
           <div><label class="label">Pincode</label><input class="input" formControlName="pincode" /></div>
         </div>
+        @if (form.controls.address.controls.lat.value) {
+          <p class="muted small">📍 Pin confirmed — this store will appear in nearby-vendor search. Re-run the search above if you change the address text.</p>
+        }
       </div>
 
       <div class="card" formGroupName="social">
@@ -145,7 +151,12 @@ export class StoreEditPage implements OnInit {
     name: [''], vendorType: ['generic'], establishedYear: [null as number | null], description: [''],
     logo: [''], legalName: [''], gstin: [''], pan: [''], website: [''], contactEmail: [''], contactPhone: [''],
     bankAccount: this.fb.group({ accountName: [''], accountNumber: [''], ifsc: [''], upiId: [''] }),
-    address: this.fb.group({ line1: [''], city: [''], state: [''], pincode: [''] }),
+    address: this.fb.group({
+      line1: [''], city: [''], state: [''], pincode: [''],
+      // Resolved via Places Autocomplete+Details — drives Store.location for the
+      // $geoNear nearby-vendor query. See onAddressPicked() below.
+      lat: [null as number | null], lng: [null as number | null],
+    }),
     social: this.fb.group({ instagram: [''], facebook: [''], twitter: [''] }),
   });
 
@@ -168,6 +179,10 @@ export class StoreEditPage implements OnInit {
 
   private loadInto(s: Record<string, unknown>): void {
     this.covers.set((s['coverImages'] as string[]) ?? []);
+    // location.coordinates is GeoJSON [lng, lat]; surface it onto the address group so
+    // the "pin confirmed" hint reflects reality for stores geocoded before this screen existed.
+    const loc = s['location'] as { coordinates?: [number, number] } | undefined;
+    const existingAddress = (s['address'] as Record<string, unknown>) ?? {};
     this.form.patchValue({
       name: (s['name'] as string) ?? '', vendorType: (s['vendorType'] as string) ?? 'generic',
       establishedYear: (s['establishedYear'] as number) ?? null, description: (s['description'] as string) ?? '',
@@ -175,8 +190,19 @@ export class StoreEditPage implements OnInit {
       gstin: (s['gstin'] as string) ?? '', pan: (s['pan'] as string) ?? '', website: (s['website'] as string) ?? '',
       contactEmail: (s['contactEmail'] as string) ?? '', contactPhone: (s['contactPhone'] as string) ?? '',
       bankAccount: (s['bankAccount'] as never) ?? {},
-      address: (s['address'] as never) ?? {}, social: (s['social'] as never) ?? {},
+      address: {
+        ...existingAddress,
+        lat: loc?.coordinates?.[1] ?? null,
+        lng: loc?.coordinates?.[0] ?? null,
+      } as never,
+      social: (s['social'] as never) ?? {},
     });
+  }
+
+  /** Fills the still-editable address fields and the hidden lat/lng controls — see
+   * stores.service.ts's updateProfile(), which turns address.lat/lng into Store.location. */
+  onAddressPicked(p: PickedPlace): void {
+    this.form.controls.address.patchValue({ line1: p.line1, city: p.city, state: p.state ?? '', pincode: p.pincode, lat: p.lat, lng: p.lng });
   }
 
   onFile(e: Event, kind: 'logo' | 'cover'): void {

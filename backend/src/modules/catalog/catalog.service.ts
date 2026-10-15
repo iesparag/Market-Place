@@ -1,7 +1,13 @@
 import { AppError } from '../../common/AppError.js';
+import { env } from '../../config/env.js';
 import { Product } from '../products/product.model.js';
 import { Category } from '../categories/category.model.js';
 import { Store } from '../stores/store.model.js';
+
+export interface GeoQuery {
+  lat?: number;
+  lng?: number;
+}
 
 /** IDs of stores customers may buy from. Suspended/pending/rejected vendors are excluded. */
 async function approvedStoreIds() {
@@ -108,12 +114,47 @@ export const catalogService = {
     );
   },
 
-  /** All approved vendors (for the customer "Stores" page), with live product counts. */
-  async listStores() {
-    const stores = await Store.find({ status: 'approved' })
-      .select('name slug description vendorType logo banner ratingAvg ratingCount')
-      .sort({ createdAt: -1 })
-      .lean();
+  /**
+   * All approved vendors (for the customer "Stores" page / home feed), with live product
+   * counts. When lat/lng are given, runs a $geoNear aggregation against Store.location
+   * instead — sorted nearest-first, capped to env.SERVICEABLE_RADIUS_KM, and carrying a
+   * real `distanceMeters` per store (used to compute a real ETA, not a mock). $geoNear
+   * implicitly excludes stores with no resolved `location` (pre-migration / unregistered
+   * via Places yet) rather than falsely placing them at [0,0].
+   */
+  async listStores(geo: GeoQuery = {}) {
+    let stores: Record<string, unknown>[];
+    if (geo.lat != null && geo.lng != null) {
+      stores = await Store.aggregate([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [geo.lng, geo.lat] },
+            distanceField: 'distanceMeters',
+            spherical: true,
+            maxDistance: env.SERVICEABLE_RADIUS_KM * 1000,
+            query: { status: 'approved' },
+          },
+        },
+        {
+          $project: {
+            name: 1,
+            slug: 1,
+            description: 1,
+            vendorType: 1,
+            logo: 1,
+            banner: 1,
+            ratingAvg: 1,
+            ratingCount: 1,
+            distanceMeters: 1,
+          },
+        },
+      ]);
+    } else {
+      stores = await Store.find({ status: 'approved' })
+        .select('name slug description vendorType logo banner ratingAvg ratingCount')
+        .sort({ createdAt: -1 })
+        .lean();
+    }
     const counts = await Product.aggregate<{ _id: string; n: number }>([
       {
         $match: {

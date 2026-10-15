@@ -6,7 +6,7 @@ import type { AuthUser } from '../common/types.js';
 import type { RiderAuthPayload } from '../modules/riders/rider.types.js';
 import { socketAuth } from './socket.auth.js';
 import { rooms } from './rooms.js';
-import { Role } from '@app/shared';
+import { Role, SOCKET_EVENTS } from '@app/shared';
 
 let io: IOServer | null = null;
 
@@ -26,6 +26,20 @@ export function initSocket(server: HttpServer): IOServer {
       logger.debug({ riderId: data.rider.riderId }, 'rider socket connected');
       socket.on('order:join', (orderId: string) => socket.join(rooms.order(orderId)));
       socket.on('order:leave', (orderId: string) => socket.leave(rooms.order(orderId)));
+      // Socket-pushed GPS fix — lower latency than the HTTP POST fallback
+      // (riders.routes.ts's POST /riders/me/location), same underlying update+broadcast.
+      // Lazy import avoids a circular import (riders.service.ts pulls in
+      // realtime/emitters.ts, which pulls in this file for getIO()).
+      socket.on(SOCKET_EVENTS.RIDER_LOCATION, async (payload: { lat?: number; lng?: number }) => {
+        const { lat, lng } = payload ?? {};
+        if (typeof lat !== 'number' || typeof lng !== 'number') return;
+        try {
+          const { ridersService } = await import('../modules/riders/riders.service.js');
+          await ridersService.updateLocation(data.rider!.riderId, lat, lng);
+        } catch (err) {
+          logger.warn({ err }, 'socket rider:location update failed');
+        }
+      });
       return;
     }
 

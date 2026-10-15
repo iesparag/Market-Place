@@ -42,7 +42,13 @@ class CheckoutRepository {
     final data = await api.post('/orders', body: {
       'items': items,
       if (address != null)
-        'shippingAddress': {'line1': address.line1, 'city': address.city, if (address.pincode != null) 'pincode': address.pincode},
+        'shippingAddress': {
+          'line1': address.line1, 'city': address.city,
+          if (address.pincode != null) 'pincode': address.pincode,
+          // Feeds DeliveryTask.dropAddress → the live rider→destination polyline.
+          if (address.lat != null) 'lat': address.lat,
+          if (address.lng != null) 'lng': address.lng,
+        },
       if (address?.phone != null) 'contact': {'phone': address!.phone},
     }) as Map<String, dynamic>;
     return OrderModel.fromJson(data);

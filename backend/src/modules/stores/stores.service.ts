@@ -45,13 +45,15 @@ export const storesService = {
       name: string; vendorType?: string; description?: string;
       legalName?: string; gstin?: string; pan?: string;
       contactEmail?: string; contactPhone?: string;
-      address?: { line1?: string; city?: string; state?: string; pincode?: string };
+      address?: { line1?: string; city?: string; state?: string; pincode?: string; lat?: number; lng?: number };
     },
   ) {
     const existing = await Store.findOne({ ownerId });
     if (existing) throw AppError.conflict('You already own a store');
     let slug = slugify(input.name);
     if (await Store.findOne({ slug })) slug = `${slug}-${Date.now().toString(36)}`;
+    const { lat, lng, ...address } = input.address ?? {};
+    const location = lat != null && lng != null ? { type: 'Point' as const, coordinates: [lng, lat] } : undefined;
     return Store.create({
       ownerId,
       name: input.name,
@@ -63,7 +65,8 @@ export const storesService = {
       pan: input.pan,
       contactEmail: input.contactEmail,
       contactPhone: input.contactPhone,
-      address: input.address,
+      address,
+      location,
       status: 'pending',
     });
   },
@@ -80,6 +83,18 @@ export const storesService = {
       'website', 'address', 'social',
     ] as const;
     for (const k of editable) if (k in fields) store.set(k, (fields as Record<string, unknown>)[k]);
+
+    // address.lat/lng (resolved client-side via Places) drives Store.location, the field
+    // the $geoNear nearby-vendor query actually reads — address itself has no geo index.
+    // An address edit submitted WITHOUT lat/lng (i.e. someone bypassed the Places picker
+    // and hand-edited text) unsets location rather than keeping a now-unconfirmed pin:
+    // a stale-but-confident GPS point is worse than the vendor needing to re-confirm it.
+    if ('address' in fields) {
+      const addr = (fields as Record<string, unknown>).address as Record<string, unknown> | undefined;
+      const lat = typeof addr?.lat === 'number' ? addr.lat : undefined;
+      const lng = typeof addr?.lng === 'number' ? addr.lng : undefined;
+      store.set('location', lat != null && lng != null ? { type: 'Point', coordinates: [lng, lat] } : undefined);
+    }
 
     // Payout details are handled apart from the rest: changing where money goes
     // always drops the verified flag, so an admin has to look at it again.

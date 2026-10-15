@@ -17,6 +17,12 @@ export const SOCKET_EVENTS = {
   ORDER_STATUS_UPDATED: 'order:status_updated',
   SUBORDER_NEW: 'suborder:new',
   DELIVERY_LOCATION: 'delivery:location',
+  /** Inbound only (rider app → server): a GPS fix pushed over the socket instead of
+   *  HTTP POST /riders/me/location — lower latency, no per-fix auth/HTTP overhead.
+   *  Both paths call the exact same ridersService.updateLocation() and broadcast the
+   *  same DELIVERY_LOCATION event, so either one works; the HTTP route stays as a
+   *  fallback for whenever the rider app's socket is reconnecting. */
+  RIDER_LOCATION: 'rider:location',
   /** A task was offered/assigned/unassigned — sent to the `admin` room (every admin
    *  dashboard, for the alert sound) and, when there's a specific rider, their
    *  `rider:{id}` room too (the rider app's push-free live nudge). */
@@ -132,6 +138,10 @@ export interface SocketEventPayloads {
   [SOCKET_EVENTS.ORDER_STATUS_UPDATED]: OrderStatusUpdated;
   [SOCKET_EVENTS.SUBORDER_NEW]: SubOrderNew;
   [SOCKET_EVENTS.DELIVERY_LOCATION]: DeliveryLocation;
+  // Inbound-only (rider app → server, handled directly in realtime/index.ts, never
+  // emitted via the emitToX() helpers) — still needs an entry here for SocketEvent's
+  // exhaustive key indexing.
+  [SOCKET_EVENTS.RIDER_LOCATION]: { lat: number; lng: number };
   [SOCKET_EVENTS.DELIVERY_TASK_EVENT]: DeliveryTaskEvent;
   [SOCKET_EVENTS.INVENTORY_CHANGED]: InventoryChanged;
   [SOCKET_EVENTS.NOTIFICATION_NEW]: NotificationNew;

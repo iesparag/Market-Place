@@ -22,7 +22,10 @@ const CreateOrderSchema = z.object({
     .object({ name: z.string().optional(), phone: z.string().optional(), email: z.string().optional() })
     .optional(),
   shippingAddress: z
-    .object({ line1: z.string().optional(), city: z.string().optional(), pincode: z.string().optional() })
+    .object({
+      line1: z.string().optional(), city: z.string().optional(), pincode: z.string().optional(),
+      lat: z.number().optional(), lng: z.number().optional(),
+    })
     .optional(),
 });
 
@@ -40,6 +43,12 @@ export const ordersController = {
     if ((user.role === Role.VENDOR || user.role === Role.VENDOR_STAFF) && user.storeId)
       return void ok(res, await ordersService.listByStore(user.storeId));
     ok(res, await ordersService.listAll());
+  },
+
+  /** "Order again" home-screen tile. Customer-only (recent purchase history is theirs alone). */
+  async recentProducts(req: Request, res: Response) {
+    if (!req.user) throw AppError.unauthenticated();
+    ok(res, await ordersService.recentProducts(req.user.id));
   },
 
   async get(req: Request, res: Response) {

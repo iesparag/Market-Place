@@ -128,6 +128,9 @@ class DeliveryTaskInfo {
   final String fulfillmentSource; // own_fleet | third_party
   final String? trackingUrl;
   final DeliveryRider? rider;
+  /// Delivery destination — feeds the live rider→destination polyline on the tracking map.
+  final double? dropLat;
+  final double? dropLng;
 
   DeliveryTaskInfo({
     required this.id,
@@ -137,6 +140,8 @@ class DeliveryTaskInfo {
     required this.fulfillmentSource,
     this.trackingUrl,
     this.rider,
+    this.dropLat,
+    this.dropLng,
   });
 
   /// True while the rider is actively on the move (not just assigned-and-waiting,
@@ -165,6 +170,8 @@ class DeliveryTaskInfo {
       fulfillmentSource: (j['fulfillmentSource'] ?? 'own_fleet').toString(),
       trackingUrl: j['trackingUrl']?.toString(),
       rider: riderJson != null ? DeliveryRider.fromJson(riderJson) : null,
+      dropLat: (j['dropLat'] as num?)?.toDouble(),
+      dropLng: (j['dropLng'] as num?)?.toDouble(),
     );
   }
 }

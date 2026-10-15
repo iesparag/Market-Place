@@ -37,4 +37,15 @@ class RiderSocketService {
     _socket?.dispose();
     _socket = null;
   }
+
+  bool get isConnected => _socket?.connected ?? false;
+
+  /// Push a GPS fix over the socket — lower latency than HTTP POST (no per-fix
+  /// auth/connection overhead), same server-side effect either way (see
+  /// backend/src/realtime/index.ts's 'rider:location' handler, which calls the exact
+  /// same ridersService.updateLocation() the HTTP route does). Event name mirrors
+  /// backend/src/shared/events/index.ts's SOCKET_EVENTS.RIDER_LOCATION.
+  void emitLocation(double lat, double lng) {
+    _socket?.emit('rider:location', {'lat': lat, 'lng': lng});
+  }
 }

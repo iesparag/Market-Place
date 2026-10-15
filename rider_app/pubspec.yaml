@@ -21,11 +21,26 @@ dependencies:
   permission_handler: ^11.3.1    # POST_NOTIFICATIONS (Android 13+) for alerts
   firebase_core: ^3.8.0          # required before any other Firebase plugin
   firebase_messaging: ^15.1.5    # push notifications (new task offer/assignment)
+  flutter_background_service: ^5.1.0  # keeps location pings flowing while the app is backgrounded
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1  # generates the launcher icon for all densities
+
+# Launcher icon: same orange family as customer_app, delivery-scooter glyph to stay
+# visually distinct on a home screen with both apps installed. Run after changing:
+# dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#EA580C"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/

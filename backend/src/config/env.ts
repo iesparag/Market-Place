@@ -19,6 +19,14 @@ const EnvSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  // Every uploaded image is resized + re-encoded to WebP before it's stored (local or
+  // Cloudinary) — see media.module.ts. MEDIA_WEBP_MAX_BYTES is a target, not a hard wall:
+  // quality steps down toward MEDIA_WEBP_QUALITY_MIN trying to hit it, but a very busy
+  // image at the quality floor is still accepted rather than rejecting the upload.
+  MEDIA_MAX_DIMENSION_PX: z.coerce.number().default(1600),
+  MEDIA_WEBP_MAX_BYTES: z.coerce.number().default(180_000), // ~180KB ceiling
+  MEDIA_WEBP_QUALITY_START: z.coerce.number().default(80),
+  MEDIA_WEBP_QUALITY_MIN: z.coerce.number().default(40),
   // Email. Preferred: RESEND_API_KEY (plain HTTPS — works on hosts like Railway that
   // block outbound SMTP ports 25/465/587). Falls back to SMTP, then to console logging.
   RESEND_API_KEY: z.string().optional(),
@@ -69,6 +77,26 @@ const EnvSchema = z.object({
   GEOCODE_USER_AGENT: z.string().default('MarketplaceApp/1.0 (ops@yourdomain.example)'),
   GEOCODE_CACHE_TTL_SECONDS: z.coerce.number().default(2592000), // 30 days — addresses rarely move
   LOCATIONIQ_API_KEY: z.string().optional(),
+  // ── Google Places (address autocomplete + place details) ───────────────────
+  // Backend-proxied only — the key NEVER goes to any client (Flutter/Angular). This is
+  // both the secure answer and the only way the Redis cache below actually works (a
+  // client-embedded key would let the client call Google directly and bypass it).
+  // Unset: autocomplete/details return empty/null everywhere, keyless-safe like every
+  // other provider in this file.
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
+  PLACES_COUNTRY_RESTRICTION: z.string().default('in'),
+  PLACES_AUTOCOMPLETE_CACHE_TTL_SECONDS: z.coerce.number().default(86400), // 1 day — input text → predictions
+  PLACES_DETAILS_CACHE_TTL_SECONDS: z.coerce.number().default(7776000), // 90 days — place_id → lat/lng rarely changes
+  // ── Nearby-vendor search + delivery ETA ─────────────────────────────────────
+  SERVICEABLE_RADIUS_KM: z.coerce.number().default(10),
+  // Self-hosted OSRM for the live rider→destination polyline (free, no per-request
+  // billing — deliberately NOT the public router.project-osrm.org demo server, whose
+  // own usage policy says it isn't for production traffic). See docker/osrm/README.md.
+  // Unset: /routing returns null everywhere, customer_app falls back to a plain marker.
+  OSRM_BASE_URL: z.string().optional(),
+  ROUTE_CACHE_TTL_SECONDS: z.coerce.number().default(15),
+  DELIVERY_BASE_MINUTES: z.coerce.number().default(12), // prep + dispatch overhead
+  DELIVERY_AVG_SPEED_KMH: z.coerce.number().default(18), // conservative urban avg incl. traffic/stops
   // Third-party logistics (orders outside our own rider-covered cities). Keyless mock in
   // dev, same auto-fallback shape as PAYMENT_PROVIDER — see providers/logistics/index.ts.
   LOGISTICS_PROVIDER: z.enum(['mock']).default('mock'),

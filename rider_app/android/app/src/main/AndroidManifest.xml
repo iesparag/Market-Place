@@ -6,6 +6,14 @@
          notification/alert (including the spoken task-assigned alert's future push
          counterpart) — see core/alert/alert_service.dart. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Foreground service that keeps pushing GPS fixes while the app is backgrounded
+         (core/location/background_location_service.dart). Standard, Play-Store-permitted
+         pattern for delivery/logistics apps — runs only while the rider is online, shows
+         a persistent notification the whole time, and is started only from a foreground
+         user action (tapping "Go online"), so it does NOT need ACCESS_BACKGROUND_LOCATION. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
         android:label="rider_app"
         android:name="${applicationName}"

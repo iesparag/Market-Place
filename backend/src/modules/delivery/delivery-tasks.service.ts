@@ -17,7 +17,7 @@ export interface OrderForDeliveryTasks {
   customerId: unknown;
   storeIds?: unknown[];
   items: { productId: unknown; storeId: unknown; title?: string | null; image?: string | null; qty: number }[];
-  shippingAddress?: { line1?: string | null; city?: string | null; pincode?: string | null } | null;
+  shippingAddress?: { line1?: string | null; city?: string | null; pincode?: string | null; lat?: number | null; lng?: number | null } | null;
 }
 
 const STATUS_FLOW = [
@@ -72,7 +72,7 @@ export const deliveryTasksService = {
    */
   async createForOrder(order: OrderForDeliveryTasks) {
     const storeIds = order.storeIds?.length ? order.storeIds : [...new Set(order.items.map((i) => String(i.storeId)))];
-    const stores = await Store.find({ _id: { $in: storeIds } }).select('address').lean();
+    const stores = await Store.find({ _id: { $in: storeIds } }).select('address location').lean();
     const storeById = new Map(stores.map((s) => [String(s._id), s]));
     const settings = await getDeliverySettings();
     const serviceableCities = new Set(settings.serviceableCities.map((c) => c.toLowerCase().trim()));
@@ -91,12 +91,22 @@ export const deliveryTasksService = {
         .map((i) => ({ productId: i.productId, title: i.title, qty: i.qty, image: i.image }));
       if (!items.length) continue;
       const store = storeById.get(storeIdStr);
-      const pickupAddress = store?.address ? { line1: store.address.line1, city: store.address.city } : undefined;
+      const storeCoords = store?.location?.coordinates; // GeoJSON [lng, lat]
+      const pickupAddress = store?.address
+        ? {
+            line1: store.address.line1,
+            city: store.address.city,
+            lat: storeCoords?.[1],
+            lng: storeCoords?.[0],
+          }
+        : undefined;
       const dropAddress = order.shippingAddress
         ? {
             line1: order.shippingAddress.line1,
             city: order.shippingAddress.city,
             pincode: order.shippingAddress.pincode,
+            lat: order.shippingAddress.lat,
+            lng: order.shippingAddress.lng,
           }
         : undefined;
 
@@ -204,6 +214,9 @@ export const deliveryTasksService = {
         statusHistory: t.statusHistory ?? [],
         fulfillmentSource: t.fulfillmentSource,
         trackingUrl: t.thirdParty?.trackingUrl,
+        // Destination for the live rider→drop polyline (customer_app's order-tracking map).
+        dropLat: t.dropAddress?.lat,
+        dropLng: t.dropAddress?.lng,
         rider: rider
           ? { name: rider.name, vehicleType: rider.vehicleType, lastKnownLocation: rider.currentLocation }
           : undefined,

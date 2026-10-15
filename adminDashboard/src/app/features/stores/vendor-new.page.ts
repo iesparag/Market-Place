@@ -3,12 +3,13 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { PlacesAutocompleteComponent, type PickedPlace } from '../../shared/places-autocomplete.component';
 
 /** Super-admin onboards a vendor on their behalf — creates the seller account + store. */
 @Component({
   selector: 'app-vendor-new',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, PlacesAutocompleteComponent],
   template: `
     <header class="head">
       <div><h1>Add vendor</h1><p class="muted">Create a seller account + store</p></div>
@@ -40,6 +41,8 @@ import { NotificationService } from '../../core/services/notification.service';
           <div><label class="label">GSTIN</label><input class="input" formControlName="gstin" /></div>
           <div><label class="label">PAN</label><input class="input" formControlName="pan" /></div>
         </div>
+        <label class="label">Search address</label>
+        <app-places-autocomplete (picked)="onAddressPicked($event)" />
         <label class="label">Address line</label><input class="input" formControlName="line1" />
         <div class="three">
           <div><label class="label">City</label><input class="input" formControlName="city" /></div>
@@ -86,6 +89,15 @@ export class VendorNewPage {
     line1: [''], city: [''], state: [''], pincode: [''],
   });
 
+  private geo?: { lat: number; lng: number };
+
+  /** Fills the still-editable fields below and carries lat/lng through to
+   * Store.location (see stores.service.ts) for $geoNear nearby-vendor search. */
+  onAddressPicked(p: PickedPlace): void {
+    this.form.patchValue({ line1: p.line1, city: p.city, state: p.state ?? '', pincode: p.pincode });
+    this.geo = { lat: p.lat, lng: p.lng };
+  }
+
   submit(): void {
     if (this.form.invalid) return;
     this.saving.set(true); this.error.set(null);
@@ -93,7 +105,7 @@ export class VendorNewPage {
     this.api.post('/auth/register-vendor', {
       name: v.name, email: v.email, password: v.password, phone: v.phone || undefined,
       storeName: v.storeName, vendorType: v.vendorType, gstin: v.gstin || undefined, pan: v.pan || undefined,
-      address: { line1: v.line1, city: v.city, state: v.state, pincode: v.pincode },
+      address: { line1: v.line1, city: v.city, state: v.state, pincode: v.pincode, ...this.geo },
     }).subscribe({
       next: () => { this.notify.push('Vendor created', v.storeName, 'success'); void this.router.navigate(['/stores']); },
       error: (e) => { this.error.set(e?.message ?? 'Failed to create vendor'); this.saving.set(false); },

@@ -19,6 +19,9 @@ const RegisterVendorSchema = RegisterSchema.extend({
   address: z.object({
     line1: z.string().optional(), city: z.string().optional(),
     state: z.string().optional(), pincode: z.string().optional(),
+    // Resolved client-side via the Places Autocomplete+Details flow — avoids a redundant
+    // backend geocode call for an address the client already resolved.
+    lat: z.number().optional(), lng: z.number().optional(),
   }).optional(),
 });
 const ChangePasswordSchema = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8) });

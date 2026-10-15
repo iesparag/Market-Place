@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
+import '../shell/app_shell.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -52,8 +53,11 @@ class AccountScreen extends ConsumerWidget {
             ]),
           ),
           const SizedBox(height: 8),
+          // Same destination as the bottom-nav Orders tab (index 3 in app_shell.dart) —
+          // switch the shared tab index instead of pushing a second /orders route, so
+          // there's one consistent way to get there, not two with different back behavior.
           _tile(Icons.receipt_long_rounded, 'Your orders',
-              () => context.push('/orders')),
+              () => ref.read(shellTabProvider.notifier).state = 3),
           _tile(Icons.location_on_outlined, 'Addresses',
               () => context.push('/addresses')),
           _tile(Icons.storefront_outlined, 'Become a vendor',

@@ -18,8 +18,9 @@ class CatalogRepository {
   final ApiClient api;
   CatalogRepository(this.api);
 
-  Future<List<HomeSection>> home() async {
-    final data = await api.get('/catalog/home') as List;
+  Future<List<HomeSection>> home({double? lat, double? lng}) async {
+    final query = (lat != null && lng != null) ? {'lat': lat, 'lng': lng} : null;
+    final data = await api.get('/catalog/home', query: query) as List;
     return data.map((e) => HomeSection.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -75,8 +76,9 @@ class CatalogRepository {
     );
   }
 
-  Future<List<Vendor>> stores() async {
-    final data = await api.get('/catalog/stores') as List;
+  Future<List<Vendor>> stores({double? lat, double? lng}) async {
+    final query = (lat != null && lng != null) ? {'lat': lat, 'lng': lng} : null;
+    final data = await api.get('/catalog/stores', query: query) as List;
     return data.map((e) => Vendor.fromJson(e as Map<String, dynamic>)).toList();
   }
 

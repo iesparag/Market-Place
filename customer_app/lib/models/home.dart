@@ -46,6 +46,7 @@ class HomeSection {
   final String? sort;
   final String? category;
   final DealsTimer? dealsTimer;
+  final bool outOfServiceArea;
   final List<PromoBanner> banners;
   final List<CatNode> categories;
   final List<Product> products;
@@ -60,6 +61,7 @@ class HomeSection {
     this.sort,
     this.category,
     this.dealsTimer,
+    this.outOfServiceArea = false,
     required this.banners,
     required this.categories,
     required this.products,
@@ -78,6 +80,7 @@ class HomeSection {
       sort: j['sort']?.toString(),
       category: j['category']?.toString(),
       dealsTimer: j['dealsTimer'] is Map ? DealsTimer.fromJson(j['dealsTimer'] as Map<String, dynamic>) : null,
+      outOfServiceArea: j['outOfServiceArea'] == true,
       banners: type == 'banners' ? items.map((e) => PromoBanner.fromJson(e as Map<String, dynamic>)).toList() : [],
       categories: type == 'categories' ? items.map((e) => CatNode.fromJson(e as Map<String, dynamic>)).toList() : [],
       products: type == 'products' ? items.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList() : [],

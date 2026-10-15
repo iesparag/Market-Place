@@ -105,6 +105,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/coupons/coupons.page').then((m) => m.CouponsPage),
       },
       {
+        path: 'deals',
+        canMatch: [permissionGuard('promo:manage')],
+        loadComponent: () => import('./features/deals/deals.page').then((m) => m.DealsPage),
+      },
+      {
         path: 'home',
         canMatch: [permissionGuard('banner:manage')],
         loadComponent: () => import('./features/home/home.page').then((m) => m.HomeAdminPage),

@@ -26,6 +26,7 @@ dependencies:
   lottie: ^3.1.2                 # festival greeting animations (admin-configured)
   firebase_core: ^3.8.0          # required before any other Firebase plugin
   firebase_messaging: ^15.1.5    # push notifications (order/payment/delivery/promo/cart)
+  geolocator: ^13.0.1            # device GPS for "Shops near you" + live location bar
 
 dev_dependencies:
   flutter_lints: ^4.0.0
