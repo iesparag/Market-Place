@@ -7,14 +7,20 @@ says it isn't meant for production traffic, so "free" only actually holds if you
 
 ## One-time setup
 
-1. **Download the OSM extract.** Geofabrik does NOT publish per-state/per-city files for
-   India — only a single whole-country file (~1.7GB). This setup covers all of India.
+1. **Download + clip the OSM extract.** Geofabrik does NOT publish per-state/per-city
+   files for India — only a single whole-country file (~1.7GB). `Dockerfile` downloads
+   that once, clips it down to 9 metro bounding boxes — Ahmedabad, Delhi NCR (covers
+   Gurgaon/Noida too), Mumbai, Pune, Bangalore, Hyderabad, Indore, Bhopal, Surat — with
+   `osmium extract`, and merges those into one file. Whole-India preprocessing needs
+   15-30GB peak RAM, which doesn't fit a Hobby-tier plan's billing; clipping first cuts
+   that down drastically. Each city stays its own disconnected patch of road network —
+   routing works fine *within* a city (exactly what delivery needs), but there's no
+   route *between* cities, by design.
 
-   ```bash
-   cd docker/osrm
-   mkdir -p data
-   curl -L -o data/region.osm.pbf https://download.geofabrik.de/asia/india-latest.osm.pbf
-   ```
+   To do this manually instead of via the Dockerfile (e.g. for local testing), see the
+   `BBOX_*` args at the top of `Dockerfile` for every city's exact box, then run the
+   same `osmium extract` + `osmium merge` sequence against a downloaded
+   `india-latest.osm.pbf` the Dockerfile itself runs.
 
 2. **Preprocess it** (extract → partition → customize — OSRM's MLD pipeline, run once;
    only needs re-running if you swap the region or profile). Whole-India preprocessing
@@ -63,13 +69,17 @@ image.
    service, separate from your backend — do NOT point your existing backend service at
    this folder).
 2. Connect it to this same GitHub repo, and set its **root directory** to `docker/osrm`.
-3. Railway will find `Dockerfile` automatically — it downloads all of India
-   (`OSM_SOURCE_URL` build arg, defaults to Geofabrik's `india-latest.osm.pbf`) and
-   preprocesses it.
-4. Deploy. This build is HEAVY — whole-India `osrm-extract`/`partition`/`customize`
-   needs several GB of RAM and can take a long while. If the build OOMs or times out on
-   your Railway plan, that's this step; you'd need a bigger build-resource tier, or ask
-   to scope this down to one region's bounding box instead (much lighter, faster build).
+3. Railway will find `Dockerfile` automatically — it downloads India once, clips it to
+   the 4 metro bounding boxes (`BBOX_AHMEDABAD`/`BBOX_DELHI`/`BBOX_MUMBAI`/`BBOX_PUNE`
+   build args — override any of them in Railway's service settings if a city's
+   coverage feels too tight, or to swap in a different city entirely), and preprocesses
+   just that merged, much-smaller file.
+4. Deploy. The one-time ~1.7GB India download still happens during the build, but
+   `osrm-extract`/`partition`/`customize` only run over the 4 clipped cities — far
+   lighter than whole-India, and should fit a Hobby-tier plan's resources.
+5. **If you already deployed the whole-India version from earlier**: delete that
+   Railway service (or redeploy this one in its place) — the old one keeps costing
+   usage credits for as long as it keeps running, this change alone doesn't stop it.
 5. Once it's up, open this OSRM service's **Settings → Networking** and note its
    internal URL (something like `osrm.railway.internal`, or use the public domain if you
    generated one). Internal is enough — only your backend needs to reach it.
