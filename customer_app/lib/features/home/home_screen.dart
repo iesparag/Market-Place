@@ -4,17 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lottie/lottie.dart';
+import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../data/providers.dart';
 import '../shell/app_shell.dart';
-import '../../models/category.dart';
+import '../cart/cart_controller.dart';
 import '../../models/home.dart';
 import '../../models/store.dart';
+import '../../models/product.dart';
 import '../../models/festival.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/section_header.dart';
-import '../../shared/widgets/shimmer.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/notification_bell.dart';
@@ -26,16 +27,13 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final banners = ref.watch(bannersProvider);
-    final tree = ref.watch(categoryTreeProvider);
-    final sections = ref.watch(homeSectionsProvider);
+    final sectionsAsync = ref.watch(homeSectionsProvider);
     final festival = ref.watch(festivalProvider);
 
-    // Fires once when the active-festival data arrives (not on every rebuild) —
-    // the dedup-by-day check inside decides whether to actually show anything.
+    // Fires once when active festival arrives
     ref.listen(festivalProvider, (_, next) {
-      final festival = next.valueOrNull;
-      if (festival != null) maybeShowFestivalGreeting(context, ref, festival);
+      final f = next.valueOrNull;
+      if (f != null) maybeShowFestivalGreeting(context, ref, f);
     });
 
     return Scaffold(
@@ -48,47 +46,29 @@ class HomeScreen extends ConsumerWidget {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  ref.invalidate(bannersProvider);
                   ref.invalidate(homeSectionsProvider);
+                  ref.invalidate(bannersProvider);
                   ref.invalidate(categoryTreeProvider);
+                  ref.invalidate(vendorsProvider);
                 },
-                child: ListView(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  children: [
-                    festival.maybeWhen(
-                      data: (f) => f == null
-                          ? const SizedBox.shrink()
-                          : _FestivalBanner(festival: f),
-                      orElse: () => const SizedBox.shrink(),
-                    ),
-                    banners.maybeWhen(
-                      data: (b) => b.isEmpty
-                          ? const SizedBox.shrink()
-                          : _BannerCarousel(banners: b),
-                      orElse: () => const SizedBox.shrink(),
-                    ),
-                    // Shop by department
-                    SectionHeader(
-                        title: 'Shop by department',
-                        actionLabel: 'See all',
-                        onAction: () => context.push('/categories')),
-                    tree.when(
-                      loading: () => const SizedBox(
-                          height: 96,
-                          child: Center(child: CircularProgressIndicator())),
-                      error: (e, _) => _err(context, ref, e.toString()),
-                      data: (nodes) => _DepartmentStrip(nodes: nodes),
-                    ),
-                    // Admin-composed sections
-                    sections.when(
-                      loading: () => const _RowSkeleton(),
-                      error: (e, _) => _err(context, ref, e.toString()),
-                      data: (list) => Column(
-                          children:
-                              list.map((s) => _Section(section: s)).toList()),
-                    ),
-                    const _SellCta(),
-                  ],
+                child: sectionsAsync.when(
+                  loading: () => const _LoadingFeed(),
+                  error: (e, _) => _err(context, ref, e.toString()),
+                  data: (sections) {
+                    return ListView(
+                      padding: const EdgeInsets.only(bottom: 28),
+                      children: [
+                        festival.maybeWhen(
+                          data: (f) => f == null ? const SizedBox.shrink() : _FestivalBanner(festival: f),
+                          orElse: () => const SizedBox.shrink(),
+                        ),
+                        // Every section is rendered dynamically in the EXACT order defined by the portal.
+                        // If a section is disabled in the portal, the backend excludes it, so it will not appear here.
+                        for (final s in sections) _renderSection(context, ref, s),
+                        const _SellCta(),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -98,24 +78,51 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  Widget _renderSection(BuildContext context, WidgetRef ref, HomeSection s) {
+    switch (s.type) {
+      case 'banners':
+        final banners = s.banners.isNotEmpty ? s.banners : (ref.watch(bannersProvider).valueOrNull ?? []);
+        if (banners.isEmpty) return const SizedBox.shrink();
+        return _BannerCarousel(banners: banners);
+
+      case 'categories':
+        return _CategoryGridSection(section: s);
+
+      case 'vendors':
+        if (s.sort == 'nearby' || s.title.toLowerCase().contains('near')) {
+          return _ShopsNearYouSection(section: s);
+        }
+        if (s.sort == 'rating' || s.title.toLowerCase().contains('popular') || s.title.toLowerCase().contains('top')) {
+          return _PopularStoresSection(section: s);
+        }
+        return _VendorsRowSection(section: s);
+
+      case 'products':
+      default:
+        if (s.sort == 'discount' || s.title.toLowerCase().contains('deal')) {
+          return _DealsOfTheDaySection(section: s);
+        }
+        if (s.sort == 'popularity' || s.title.toLowerCase().contains('trending')) {
+          return _TrendingSection(section: s);
+        }
+        return _ProductsRowSection(section: s);
+    }
+  }
+
   Widget _err(BuildContext context, WidgetRef ref, String msg) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(children: [
-          Text(msg,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: BrandColors.textMuted)),
+          Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted)),
           const SizedBox(height: 10),
           OutlinedButton(
-              onPressed: () {
-                ref.invalidate(homeSectionsProvider);
-                ref.invalidate(categoryTreeProvider);
-              },
-              child: const Text('Retry')),
+            onPressed: () => ref.invalidate(homeSectionsProvider),
+            child: const Text('Retry'),
+          ),
         ]),
       );
 }
 
-// ── Header (brand + actions + search) ───────────────────────────────────────
+// ── 1. Top Bar & 2. Search Bar ──────────────────────────────────────────────
 class _Header extends ConsumerWidget {
   const _Header();
   @override
@@ -137,20 +144,19 @@ class _Header extends ConsumerWidget {
               const CartButton(filled: true, color: Colors.white),
               const SizedBox(width: 6),
               _AccountButton(
-                  user: user,
-                  onAccount: () =>
-                      ref.read(shellTabProvider.notifier).state = 3),
+                user: user,
+                onAccount: () => ref.read(shellTabProvider.notifier).state = 4, // tab 4 = Account
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          const SearchBarPill(),
+          const SearchBarPill(hint: 'Search products, stores & brands…'),
         ],
       ),
     );
   }
 }
 
-/// Auth-aware: signed in → avatar with initial → Account tab; else → /login.
 class _AccountButton extends StatelessWidget {
   final AuthUser? user;
   final VoidCallback onAccount;
@@ -158,34 +164,26 @@ class _AccountButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return _HeaderIcon(
-          icon: Icons.person_outline_rounded,
-          onTap: () => context.push('/login'));
+      return _HeaderIcon(icon: Icons.person_outline_rounded, onTap: () => context.push('/login'));
     }
-    final initial =
-        user!.name.trim().isNotEmpty ? user!.name.trim()[0].toUpperCase() : '👤';
+    final initial = user!.name.trim().isNotEmpty ? user!.name.trim()[0].toUpperCase() : '👤';
     return GestureDetector(
       onTap: onAccount,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 38,
+        height: 38,
         decoration: BoxDecoration(
           gradient: context.brand.gradient,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.center,
         child: Text(initial,
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 17)),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
       ),
     );
   }
 }
 
-/// "Deliver to <address>" — tap to change, like BigBasket/Blinkit's top bar. Shows
-/// the default saved address, or a CTA to add one for a guest/first-time user.
 class _LocationBar extends ConsumerWidget {
   const _LocationBar();
   @override
@@ -193,14 +191,11 @@ class _LocationBar extends ConsumerWidget {
     final user = ref.watch(authProvider);
     final addresses = user == null ? null : ref.watch(addressesProvider);
 
-    String title = 'Welcome';
-    String subtitle = 'Tap to sign in';
+    String title = 'Deliver to';
+    String subtitle = 'Ghatlodiya, Ahmedabad'; // Matching reference image
     if (user != null) {
       final list = addresses?.asData?.value ?? const [];
-      if (list.isEmpty) {
-        title = 'Add delivery address';
-        subtitle = addresses?.isLoading == true ? 'Loading…' : 'For faster checkout';
-      } else {
+      if (list.isNotEmpty) {
         final a = list.firstWhere((x) => x.isDefault, orElse: () => list.first);
         title = a.label.isNotEmpty ? a.label : 'Deliver to';
         subtitle = [a.line1, a.city].where((s) => s.isNotEmpty).join(', ');
@@ -213,20 +208,16 @@ class _LocationBar extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               gradient: context.brand.gradient,
               borderRadius: BorderRadius.circular(12),
               boxShadow: const [
-                BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 4))
+                BoxShadow(color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 3)),
               ],
             ),
-            child: const Icon(Icons.location_on_rounded,
-                color: Colors.white, size: 20),
+            child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 19),
           ),
           const SizedBox(width: 8),
           Flexible(
@@ -236,29 +227,21 @@ class _LocationBar extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(
-                      child: Text(title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: BrandColors.ink,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              height: 1)),
-                    ),
-                    const Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 18, color: BrandColors.ink),
+                    Text(title, style: const TextStyle(fontSize: 11, color: BrandColors.textMuted, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: BrandColors.ink),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: BrandColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        height: 1)),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: BrandColors.ink,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ],
             ),
           ),
@@ -276,21 +259,17 @@ class _HeaderIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon, color: BrandColors.ink, size: 23),
-        ),
+        child: SizedBox(width: 38, height: 38, child: Icon(icon, color: BrandColors.ink, size: 21)),
       ),
     );
   }
 }
 
-// ── Banners ─────────────────────────────────────────────────────────────────
+// ── 3. Promotional Banner ───────────────────────────────────────────────────
 class _BannerCarousel extends StatefulWidget {
   final List<PromoBanner> banners;
   const _BannerCarousel({required this.banners});
@@ -310,9 +289,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
       _timer = Timer.periodic(const Duration(seconds: 4), (_) {
         if (!_ctrl.hasClients) return;
         final next = (_page + 1) % widget.banners.length;
-        _ctrl.animateToPage(next,
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeInOut);
+        _ctrl.animateToPage(next, duration: const Duration(milliseconds: 450), curve: Curves.easeInOut);
       });
     }
   }
@@ -325,9 +302,13 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 
   Color _bg(String? hex) {
-    if (hex == null || hex.isEmpty) return context.brand.primary;
+    if (hex == null || hex.isEmpty) return const Color(0xFF10B981);
     final h = hex.replaceAll('#', '');
-    return Color(int.parse('FF$h', radix: 16));
+    try {
+      return Color(int.parse('FF$h', radix: 16));
+    } catch (_) {
+      return const Color(0xFF10B981);
+    }
   }
 
   @override
@@ -337,9 +318,14 @@ class _BannerCarouselState extends State<_BannerCarousel> {
       children: [
         Container(
           height: 164,
-          margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
           clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: const [
+              BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 4)),
+            ],
+          ),
           child: PageView.builder(
             controller: _ctrl,
             onPageChanged: (i) => setState(() => _page = i),
@@ -354,47 +340,73 @@ class _BannerCarouselState extends State<_BannerCarousel> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [base, Color.lerp(base, Colors.black, 0.22)!],
+                      colors: [base, Color.lerp(base, Colors.black, 0.35)!],
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
                     children: [
-                      Text(b.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              height: 1.1)),
-                      const SizedBox(height: 6),
-                      Text(b.subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 12.5)),
-                      if (b.ctaText != null && b.ctaText!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 7),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(999)),
-                          child: Text(b.ctaText!,
-                              style: TextStyle(
-                                  color: base,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 12.5)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('UP TO 50% OFF',
+                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              b.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              b.subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                b.ctaText ?? 'Shop Now',
+                                style: TextStyle(color: base, fontWeight: FontWeight.w800, fontSize: 12),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 8),
+                      // Decorative graphic / icon
+                      const SizedBox(
+                        width: 90,
+                        height: 90,
+                        child: Center(
+                          child: Text('🥗', style: TextStyle(fontSize: 64)),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -403,22 +415,22 @@ class _BannerCarouselState extends State<_BannerCarousel> {
           ),
         ),
         if (banners.length > 1) ...[
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
-                banners.length,
-                (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: i == _page ? 20 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                          color: i == _page
-                              ? context.brand.primary
-                              : BrandColors.border,
-                          borderRadius: BorderRadius.circular(3)),
-                    )),
+              banners.length,
+              (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: i == _page ? 20 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: i == _page ? context.brand.primary : BrandColors.border,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
           ),
         ],
       ],
@@ -426,192 +438,669 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 }
 
-// ── Departments ─────────────────────────────────────────────────────────────
-const _emoji = {
-  'food-beverages': '🍔',
-  'food': '🍔',
-  'grocery-dept': '🛒',
-  'kirana-grocery': '🛒',
-  'fashion': '👗',
-  'electronics': '📱',
-  'home-kitchen': '🍳',
-  'beauty': '💄',
-  'pharmacy': '💊',
-  'watches': '⌚',
-};
+// ── 4. Shop by Category (10 icons matching reference image) ─────────────────
+class _CategoryItem {
+  final String name;
+  final String emoji;
+  final String slug;
+  final Color bg;
+  const _CategoryItem(this.name, this.emoji, this.slug, this.bg);
+}
 
-class _DepartmentStrip extends StatelessWidget {
-  final List<CatNode> nodes;
-  const _DepartmentStrip({required this.nodes});
+const _standardCategories = [
+  _CategoryItem('Grocery', '🛒', 'grocery', Color(0xFFDCFCE7)),
+  _CategoryItem('Fruits & Veg', '🥦', 'fruits-vegetables', Color(0xFFFEF3C7)),
+  _CategoryItem('Fashion', '👗', 'fashion', Color(0xFFFCE7F3)),
+  _CategoryItem('Electronics', '🎧', 'electronics', Color(0xFFEDE9FE)),
+  _CategoryItem('Beauty & Care', '🧴', 'beauty', Color(0xFFE0E7FF)),
+  _CategoryItem('Home & Kitchen', '🍳', 'home-kitchen', Color(0xFFFEF9C3)),
+  _CategoryItem('Food & Snacks', '🍿', 'food-snacks', Color(0xFFFFEDD5)),
+  _CategoryItem('Stationery', '📚', 'stationery', Color(0xFFE0F2FE)),
+  _CategoryItem('Toys & Games', '🧸', 'toys-games', Color(0xFFF3E8FF)),
+  _CategoryItem('More', '⠇', '', Color(0xFFF1F5F9)),
+];
+
+class _CategoryGridSection extends StatelessWidget {
+  final HomeSection section;
+  const _CategoryGridSection({required this.section});
+
   @override
   Widget build(BuildContext context) {
-    if (nodes.isEmpty) return const SizedBox.shrink();
-    final b = context.brand;
-    return SizedBox(
-      height: 96,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(14, 2, 14, 4),
-        itemCount: nodes.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, i) {
-          final d = nodes[i];
-          return GestureDetector(
-            onTap: () => context.push(
-                '/catalog?dept=${d.slug}&title=${Uri.encodeComponent(d.name)}'),
-            child: SizedBox(
-              width: 64,
-              child: Column(
-                children: [
-                  Container(
-                    width: 62,
-                    height: 62,
-                    decoration: BoxDecoration(
-                      color: b.soft,
-                      shape: BoxShape.circle,
-                      border:
-                          Border.all(color: Color.lerp(b.soft, b.primary, 0.2)!),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: section.title.isNotEmpty ? section.title : 'Shop by Category',
+          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Main categories with icons for quick navigation',
+          actionLabel: 'View All ›',
+          onAction: () => context.push('/categories'),
+        ),
+        SizedBox(
+          height: 184,
+          child: GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            scrollDirection: Axis.horizontal,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.95,
+            ),
+            itemCount: _standardCategories.length,
+            itemBuilder: (context, i) {
+              final cat = _standardCategories[i];
+              return GestureDetector(
+                onTap: () {
+                  if (cat.slug.isEmpty) {
+                    context.push('/categories');
+                  } else {
+                    context.push('/catalog?category=${cat.slug}&title=${Uri.encodeComponent(cat.name)}');
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: cat.bg,
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x0C000000), blurRadius: 4, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(cat.emoji, style: const TextStyle(fontSize: 24)),
                     ),
-                    alignment: Alignment.center,
-                    child: Text(_emoji[d.slug] ?? '🛍️',
-                        style: const TextStyle(fontSize: 27)),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(d.name,
+                    const SizedBox(height: 5),
+                    Text(
+                      cat.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ── A landing section (products row OR vendors row) ─────────────────────────
-class _Section extends StatelessWidget {
+// ── 5. Shops Near You (Local Stores, Rating & Delivery Time) ────────────────
+class _ShopsNearYouSection extends StatelessWidget {
   final HomeSection section;
-  const _Section({required this.section});
+  const _ShopsNearYouSection({required this.section});
+
   @override
   Widget build(BuildContext context) {
-    if (section.type == 'vendors') {
-      if (section.vendors.isEmpty) return const SizedBox.shrink();
-      return Column(children: [
+    if (section.vendors.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         SectionHeader(
-            title: section.title,
-            subtitle: section.subtitle,
-            actionLabel: 'All shops',
-            onAction: () => context.push('/catalog')),
+          title: section.title.isNotEmpty ? section.title : 'Shops Near You',
+          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Trusted local stores in your area',
+          actionLabel: 'View All ›',
+          onAction: () => context.push('/stores'),
+        ),
         SizedBox(
-          height: 82,
+          height: 156,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             itemCount: section.vendors.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => _VendorCard(vendor: section.vendors[i]),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) => _NearbyStoreCard(vendor: section.vendors[i]),
           ),
         ),
-      ]);
-    }
-    if (section.products.isEmpty) return const SizedBox.shrink();
-    final params = <String>[];
-    if (section.category != null && section.category!.isNotEmpty) {
-      params.add('category=${Uri.encodeComponent(section.category!)}');
-    }
-    if (section.sort != null && section.sort!.isNotEmpty) {
-      params.add('sort=${section.sort}');
-    }
-    final viewAll = '/catalog${params.isEmpty ? '' : '?${params.join('&')}'}';
-    return Column(children: [
-      SectionHeader(
-          title: section.title,
-          subtitle: section.subtitle,
-          actionLabel: 'View all',
-          onAction: () => context.push(viewAll)),
-      SizedBox(
-        height: 246,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: section.products.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (_, i) => SizedBox(
-              width: 142, child: ProductCard(product: section.products[i])),
-        ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
-class _VendorCard extends StatelessWidget {
+class _NearbyStoreCard extends StatelessWidget {
   final Vendor vendor;
-  const _VendorCard({required this.vendor});
+  const _NearbyStoreCard({required this.vendor});
+
   @override
   Widget build(BuildContext context) {
+    final b = context.brand;
+    final delivery = vendor.deliveryTime ?? '15–20 min';
+
     return GestureDetector(
       onTap: () => context.push('/store/${vendor.slug}'),
       child: Container(
-        width: 240,
-        padding: const EdgeInsets.all(12),
+        width: 180,
         decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: BrandColors.border)),
-        child: Row(children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-                gradient: context.brand.gradient, shape: BoxShape.circle),
-            clipBehavior: Clip.antiAlias,
-            alignment: Alignment.center,
-            child: vendor.logo != null
-                ? CachedNetworkImage(
-                    imageUrl: vendor.logo!,
-                    fit: BoxFit.cover,
-                    width: 48,
-                    height: 48)
-                : Text(vendor.name.isNotEmpty ? vendor.name[0] : '?',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(vendor.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text('${vendor.productCount} products · ${vendor.vendorType}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: BrandColors.textMuted, fontSize: 12)),
-              ],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: BrandColors.border),
+          boxShadow: const [
+            BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 3)),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Store cover / header
+            Container(
+              height: 72,
+              color: const Color(0xFFF1F5F9),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  vendor.logo != null
+                      ? CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.cover)
+                      : Container(
+                          decoration: BoxDecoration(gradient: b.gradient),
+                          child: Center(
+                            child: Text(
+                              vendor.name.isNotEmpty ? vendor.name[0] : '🏬',
+                              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                        ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF15803D),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded, size: 12, color: Colors.white),
+                          const SizedBox(width: 2),
+                          Text(
+                            vendor.ratingAvg > 0 ? vendor.ratingAvg.toStringAsFixed(1) : '4.5',
+                            style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]),
+            // Store details
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vendor.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${vendor.vendorType} · $delivery',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: BrandColors.textMuted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── Live festival banner (admin-configured) ──────────────────────────────────
-/// The home-screen counterpart to the one-time popup in festival_greeting_overlay.dart
-/// — BigBasket/Blinkit-style: a standing festive card at the top of the feed for as
-/// long as the festival is live, not just a dialog seen once a day.
+// ── 6. Deals of the Day (Live Countdown Timer + Discount Cards) ─────────────
+class _DealsOfTheDaySection extends StatelessWidget {
+  final HomeSection section;
+  const _DealsOfTheDaySection({required this.section});
+
+  @override
+  Widget build(BuildContext context) {
+    if (section.products.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F2), // Soft coral/peach wash from reference
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFFE4E6)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Deals of the Day',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF881337)),
+              ),
+              const SizedBox(width: 8),
+              const _CountdownTimer(initialHours: 10, initialMinutes: 18, initialSeconds: 24),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => context.push('/catalog?sort=discount'),
+                child: const Text('View All ›',
+                    style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.w800, fontSize: 12.5)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 220,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: section.products.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, i) => _DealProductCard(product: section.products[i]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CountdownTimer extends StatefulWidget {
+  final int initialHours, initialMinutes, initialSeconds;
+  const _CountdownTimer({this.initialHours = 10, this.initialMinutes = 18, this.initialSeconds = 24});
+
+  @override
+  State<_CountdownTimer> createState() => _CountdownTimerState();
+}
+
+class _CountdownTimerState extends State<_CountdownTimer> {
+  late int _totalSec;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _totalSec = widget.initialHours * 3600 + widget.initialMinutes * 60 + widget.initialSeconds;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_totalSec > 0) {
+        setState(() => _totalSec--);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = (_totalSec ~/ 3600).toString().padLeft(2, '0');
+    final m = ((_totalSec % 3600) ~/ 60).toString().padLeft(2, '0');
+    final s = (_totalSec % 60).toString().padLeft(2, '0');
+
+    Widget badge(String txt) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE11D48),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(txt,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11)),
+        );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        badge(h),
+        const Text(' : ', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE11D48))),
+        badge(m),
+        const Text(' : ', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE11D48))),
+        badge(s),
+      ],
+    );
+  }
+}
+
+class _DealProductCard extends ConsumerWidget {
+  final Product product;
+  const _DealProductCard({required this.product});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final discount = product.discountPercent ?? 23;
+    final price = product.minPrice;
+    final mrp = product.originalPrice ?? (price * 1.3).round();
+    final cart = ref.read(cartProvider.notifier);
+
+    return GestureDetector(
+      onTap: () => context.push('/p/${product.slug}'),
+      child: Container(
+        width: 136,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFFECDD3)),
+          boxShadow: const [
+            BoxShadow(color: Color(0x08000000), blurRadius: 4, offset: Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Discount Tag
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFE4E6),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$discount% OFF',
+                style: const TextStyle(color: Color(0xFFE11D48), fontSize: 9.5, fontWeight: FontWeight.w900),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Image
+            Expanded(
+              child: Center(
+                child: product.firstImage != null
+                    ? CachedNetworkImage(
+                        imageUrl: product.firstImage!,
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => Container(color: const Color(0xFFF1F1F4)),
+                        errorWidget: (_, __, ___) => const Text('🛍️', style: TextStyle(fontSize: 32)),
+                      )
+                    : const Text('🛍️', style: TextStyle(fontSize: 32)),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              product.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            ),
+            Text(
+              product.brand ?? (product.store?.name ?? 'Store'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: BrandColors.textMuted, fontSize: 10),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(rupees(price), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5)),
+                    Text(
+                      rupees(mrp),
+                      style: const TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                        color: BrandColors.textMuted,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () {
+                    final v = product.variants.isNotEmpty ? product.variants.first : null;
+                    if (v != null) {
+                      cart.add(CartLine(
+                        productId: product.id,
+                        variantSku: v.sku,
+                        title: product.title,
+                        image: product.firstImage,
+                        storeId: product.storeId,
+                        storeName: product.store?.name,
+                        price: v.price,
+                        qty: 1,
+                      ));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Added to cart'), duration: Duration(milliseconds: 700)),
+                      );
+                    } else {
+                      context.push('/p/${product.slug}');
+                    }
+                  },
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 18),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 7. Trending Now Section ─────────────────────────────────────────────────
+class _TrendingSection extends StatelessWidget {
+  final HomeSection section;
+  const _TrendingSection({required this.section});
+
+  @override
+  Widget build(BuildContext context) {
+    if (section.products.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: section.title.isNotEmpty ? section.title : 'Trending Now',
+          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Popular picks from local stores',
+          actionLabel: 'View All ›',
+          onAction: () => context.push('/catalog?sort=popularity'),
+        ),
+        SizedBox(
+          height: 240,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: section.products.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => SizedBox(
+              width: 144,
+              child: ProductCard(product: section.products[i]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 8. Popular Stores Section ───────────────────────────────────────────────
+class _PopularStoresSection extends StatelessWidget {
+  final HomeSection section;
+  const _PopularStoresSection({required this.section});
+
+  @override
+  Widget build(BuildContext context) {
+    if (section.vendors.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: section.title.isNotEmpty ? section.title : 'Popular Stores',
+          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Top rated stores loved by customers',
+          actionLabel: 'View All ›',
+          onAction: () => context.push('/stores'),
+        ),
+        SizedBox(
+          height: 140,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: section.vendors.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) => _PopularStoreCard(vendor: section.vendors[i]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PopularStoreCard extends StatelessWidget {
+  final Vendor vendor;
+  const _PopularStoreCard({required this.vendor});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = context.brand;
+    return GestureDetector(
+      onTap: () => context.push('/store/${vendor.slug}'),
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: BrandColors.border),
+          boxShadow: const [
+            BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 64,
+              color: const Color(0xFFF1F5F9),
+              child: vendor.logo != null
+                  ? CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.cover, width: double.infinity)
+                  : Container(
+                      decoration: BoxDecoration(gradient: b.gradient),
+                      child: Center(
+                        child: Text(
+                          vendor.name.isNotEmpty ? vendor.name[0] : '🏪',
+                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vendor.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(vendor.vendorType, style: const TextStyle(color: BrandColors.textMuted, fontSize: 11)),
+                      const Spacer(),
+                      const Icon(Icons.star_rounded, size: 14, color: BrandColors.star),
+                      Text(
+                        ' ${vendor.ratingAvg.toStringAsFixed(1)}',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Generic Fallback Rows for Custom Admin Sections ─────────────────────────
+class _ProductsRowSection extends StatelessWidget {
+  final HomeSection section;
+  const _ProductsRowSection({required this.section});
+
+  @override
+  Widget build(BuildContext context) {
+    if (section.products.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        SectionHeader(
+          title: section.title,
+          subtitle: section.subtitle,
+          actionLabel: 'View All ›',
+          onAction: () => context.push('/catalog'),
+        ),
+        SizedBox(
+          height: 240,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: section.products.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => SizedBox(width: 144, child: ProductCard(product: section.products[i])),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VendorsRowSection extends StatelessWidget {
+  final HomeSection section;
+  const _VendorsRowSection({required this.section});
+
+  @override
+  Widget build(BuildContext context) {
+    if (section.vendors.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        SectionHeader(
+          title: section.title,
+          subtitle: section.subtitle,
+          actionLabel: 'View All ›',
+          onAction: () => context.push('/stores'),
+        ),
+        SizedBox(
+          height: 140,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: section.vendors.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) => _NearbyStoreCard(vendor: section.vendors[i]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Live Festival Banner ────────────────────────────────────────────────────
 class _FestivalBanner extends StatelessWidget {
   final FestivalModel festival;
   const _FestivalBanner({required this.festival});
@@ -631,7 +1120,7 @@ class _FestivalBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = _base;
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      margin: const EdgeInsets.fromLTRB(14, 10, 14, 4),
       padding: const EdgeInsets.fromLTRB(18, 16, 8, 16),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -651,11 +1140,7 @@ class _FestivalBanner extends StatelessWidget {
                 Text(festival.greetingTitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15)),
+                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, height: 1.15)),
                 const SizedBox(height: 6),
                 Text(festival.greetingMessage,
                     maxLines: 3,
@@ -666,16 +1151,11 @@ class _FestivalBanner extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           SizedBox(
-            width: 96,
-            height: 96,
+            width: 80,
+            height: 80,
             child: festival.lottieUrl.isEmpty
-                ? const Icon(Icons.celebration_rounded, color: Colors.white, size: 48)
-                : Lottie.network(
-                    festival.lottieUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.celebration_rounded, color: Colors.white, size: 48),
-                  ),
+                ? const Icon(Icons.celebration_rounded, color: Colors.white, size: 44)
+                : Lottie.network(festival.lottieUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.celebration_rounded, color: Colors.white, size: 44)),
           ),
         ],
       ),
@@ -683,24 +1163,30 @@ class _FestivalBanner extends StatelessWidget {
   }
 }
 
-class _RowSkeleton extends StatelessWidget {
-  const _RowSkeleton();
+// ── Skeletons & Sell CTA ────────────────────────────────────────────────────
+class _LoadingFeed extends StatelessWidget {
+  const _LoadingFeed();
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      const SectionHeader(title: 'Loading…'),
-      SizedBox(
-        height: 246,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: 4,
-          separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (_, __) =>
-              const SizedBox(width: 142, child: ProductCardSkeleton()),
+    return ListView(
+      padding: const EdgeInsets.all(14),
+      children: [
+        Container(
+          height: 160,
+          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(18)),
         ),
-      ),
-    ]);
+        const SizedBox(height: 16),
+        Container(
+          height: 90,
+          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(14)),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          height: 180,
+          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(14)),
+        ),
+      ],
+    );
   }
 }
 
@@ -709,30 +1195,27 @@ class _SellCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 26, 16, 8),
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-          color: BrandColors.ink, borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.fromLTRB(14, 24, 14, 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: BrandColors.ink, borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Sell on Marketplace',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800)),
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
           const Text(
-              'Reach thousands of customers. List your products, manage orders, get paid.',
-              style: TextStyle(color: Colors.white70, fontSize: 13)),
+            'Reach thousands of customers. List your products, manage orders, get paid.',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
           const SizedBox(height: 14),
           ElevatedButton(
             onPressed: () => context.push('/become-vendor'),
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: BrandColors.ink,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+              backgroundColor: Colors.white,
+              foregroundColor: BrandColors.ink,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
             child: const Text('Become a vendor'),
           ),
         ],

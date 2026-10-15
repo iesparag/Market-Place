@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
+import '../categories/categories_screen.dart';
 import '../stores/stores_list_screen.dart';
-import '../catalog/catalog_screen.dart';
+import '../orders/orders_screen.dart';
 import '../account/account_screen.dart';
 
 /// Selected bottom-nav tab. Exposed so other screens (e.g. the home avatar)
@@ -20,11 +21,12 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  // Home · Stores · Products · Account
+  // Home · Categories · Stores · Orders · Account (5 tabs matching Image 1 & specification)
   static const _tabs = [
     HomeScreen(),
+    CategoriesScreen(),
     StoresListScreen(),
-    CatalogScreen(searchable: true),
+    OrdersScreen(),
     AccountScreen(),
   ];
 
@@ -33,9 +35,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
-    // Lives for the whole session (AppShell is the '/' route, never disposed) — a
-    // notification arriving while the user is on Stores/Products/Account still has
-    // to refresh the bell badge, not just while they happen to be on Home.
     _notifSub = ref.read(appSocketProvider).notifications.listen((_) {
       ref.invalidate(unreadCountProvider);
       ref.invalidate(notificationsProvider);
@@ -62,8 +61,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        // Not on Home → first back press lands the user on Home, same as every
-        // other shopping app, instead of exiting straight from Stores/Products/Account.
+        // Not on Home → first back press lands the user on Home
         if (index != 0) {
           ref.read(shellTabProvider.notifier).state = 0;
           return;
@@ -92,11 +90,12 @@ class _AppShellState extends ConsumerState<AppShell> {
           onDestinationSelected: (i) => ref.read(shellTabProvider.notifier).state = i,
           backgroundColor: Colors.white,
           indicatorColor: b.soft,
-          height: 58,
+          height: 60,
           destinations: [
             dest(Icons.home_outlined, Icons.home_rounded, 'Home'),
+            dest(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Categories'),
             dest(Icons.storefront_outlined, Icons.storefront_rounded, 'Stores'),
-            dest(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Products'),
+            dest(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
             dest(Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
           ],
         ),

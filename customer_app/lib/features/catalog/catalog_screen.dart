@@ -255,47 +255,70 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   Widget _leftRail() {
     if (_railCollapsed) {
       return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => setState(() => _railCollapsed = false),
+        onHorizontalDragUpdate: (d) {
+          if (d.delta.dx > 3) setState(() => _railCollapsed = false);
+        },
+        onHorizontalDragEnd: (d) {
+          if ((d.primaryVelocity ?? 0) > 50) setState(() => _railCollapsed = false);
+        },
         child: Container(
-          width: 18,
+          width: 32,
           color: const Color(0xFFF0F7F2),
           alignment: Alignment.center,
-          child: const _EdgeHandle(),
+          child: const _EdgeHandle(collapsed: true),
         ),
       );
     }
-    return SizedBox(
-      width: 84,
-      child: Stack(
-        children: [
-          Container(
-            color: const Color(0xFFF0F7F2),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
-              children: [
-                _railTile('All', null, _railSlug == null),
-                for (final r in _rail)
-                  _railTile(r.name, r.slug, _railSlug == r.slug),
-              ],
-            ),
-          ),
-          // Edge handle — tap-to-collapse, styled like a Samsung Edge panel pull
-          // tab instead of a chevron, sitting right on the rail/grid boundary.
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: GestureDetector(
-              onTap: () => setState(() => _railCollapsed = true),
-              child: Container(
-                width: 16,
-                color: Colors.transparent,
-                alignment: Alignment.center,
-                child: const _EdgeHandle(),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragUpdate: (d) {
+        if (d.delta.dx < -3) setState(() => _railCollapsed = true);
+      },
+      onHorizontalDragEnd: (d) {
+        if ((d.primaryVelocity ?? 0) < -50) setState(() => _railCollapsed = true);
+      },
+      child: SizedBox(
+        width: 86,
+        child: Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(right: 14),
+              color: const Color(0xFFF0F7F2),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
+                children: [
+                  _railTile('All', null, _railSlug == null),
+                  for (final r in _rail)
+                    _railTile(r.name, r.slug, _railSlug == r.slug),
+                ],
               ),
             ),
-          ),
-        ],
+            // Edge handle — tap OR swipe to collapse, styled like Samsung Edge pull tab
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _railCollapsed = true),
+                onHorizontalDragUpdate: (d) {
+                  if (d.delta.dx < -3) setState(() => _railCollapsed = true);
+                },
+                onHorizontalDragEnd: (d) {
+                  if ((d.primaryVelocity ?? 0) < -50) setState(() => _railCollapsed = true);
+                },
+                child: Container(
+                  width: 22,
+                  color: Colors.transparent,
+                  alignment: Alignment.center,
+                  child: const _EdgeHandle(collapsed: false),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -501,15 +524,34 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 /// A small vertical pull-tab — like the Samsung Edge panel handle — used in place of
 /// a chevron for the category rail's collapse/expand toggle.
 class _EdgeHandle extends StatelessWidget {
-  const _EdgeHandle();
+  final bool collapsed;
+  const _EdgeHandle({this.collapsed = false});
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 4,
-      height: 46,
+      width: 5,
+      height: 48,
       decoration: BoxDecoration(
-        color: BrandColors.border,
-        borderRadius: BorderRadius.circular(4),
+        color: collapsed ? context.brand.primary : const Color(0xFF94A3B8),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x24000000),
+            blurRadius: 4,
+            offset: Offset(1, 1),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Container(
+          width: 1.5,
+          height: 16,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
       ),
     );
   }

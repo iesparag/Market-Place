@@ -5,7 +5,7 @@ export interface HomeSection {
   _id: string;
   title: string;
   subtitle?: string;
-  type: 'products' | 'vendors';
+  type: 'products' | 'vendors' | 'categories' | 'banners';
   source?: 'auto' | 'curated';
   sort?: string;
   category?: string;
@@ -25,4 +25,5 @@ export class HomeApi {
   update(id: string, body: Partial<HomeSectionInput>) { return this.api.patch<HomeSection>(`/home-sections/${id}`, body); }
   remove(id: string) { return this.api.delete<{ deleted: boolean }>(`/home-sections/${id}`); }
   reorder(ids: string[]) { return this.api.patch<{ reordered: boolean }>('/home-sections/reorder', { ids }); }
+  seedDefaults() { return this.api.post<{ seeded: boolean; count: number }>('/home-sections/seed-defaults', {}); }
 }

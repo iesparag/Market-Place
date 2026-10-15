@@ -19,22 +19,54 @@ const _quickIntents = <String>[
   'Damaged / wrong item',
 ];
 
+class _FaqItem {
+  final String q;
+  final String a;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _FaqItem({
+    required this.q,
+    required this.a,
+    this.actionLabel,
+    this.onAction,
+  });
+}
+
 class SupportScreen extends ConsumerStatefulWidget {
-  const SupportScreen({super.key});
+  final String? initialIssue;
+  final String? initialOrderId;
+  const SupportScreen({super.key, this.initialIssue, this.initialOrderId});
   @override
   ConsumerState<SupportScreen> createState() => _SupportScreenState();
 }
 
-class _SupportScreenState extends ConsumerState<SupportScreen> {
+class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTickerProviderStateMixin {
   final _input = TextEditingController();
   final _scroll = ScrollController();
+  late final TabController _tabController;
 
   // Selected context the customer attaches to their query.
   OrderModel? _order;
   SuggestProduct? _product;
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    if (widget.initialIssue != null || widget.initialOrderId != null) {
+      _tabController.index = 1;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (widget.initialIssue != null) {
+          _send(widget.initialIssue);
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -56,6 +88,12 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
     ref
         .read(supportControllerProvider.notifier)
         .send(text, orderId: _order?.id, productTitle: _product?.title);
+  }
+
+  void _helpWithRecentOrder(OrderModel order, String issue) {
+    setState(() => _order = order);
+    _tabController.animateTo(1);
+    _send(issue);
   }
 
   Future<void> _pickOrder() async {
@@ -109,17 +147,464 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('Help & Support', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              Text(state.escalated ? 'Connected to our team' : 'AI assistant · usually instant',
+              Text(state.escalated ? 'Connected to our team' : '24x7 Customer Care & Assistant',
                   style: const TextStyle(fontSize: 11, color: BrandColors.textMuted, fontWeight: FontWeight.w500)),
             ],
           ),
         ]),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: context.brand.primary,
+          indicatorWeight: 3,
+          labelColor: context.brand.primaryDark,
+          unselectedLabelColor: BrandColors.textMuted,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+          tabs: const [
+            Tab(text: 'Help Center & FAQs'),
+            Tab(text: 'Live Support Chat'),
+          ],
+        ),
       ),
-      body: _body(context, state),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _helpCenterTab(context),
+          _chatTab(context, state),
+        ],
+      ),
     );
   }
 
-  Widget _body(BuildContext context, SupportState state) {
+  // ── BigBasket-style Help Center Tab (Recent Orders + FAQs + Helpline) ────────
+  Widget _helpCenterTab(BuildContext context) {
+    final ordersAsync = ref.watch(myOrdersProvider);
+    final b = context.brand;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
+        // Live Assistant Banner
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [b.primary, Color.lerp(b.primary, Colors.black, 0.25)!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 4)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.forum_rounded, color: b.primary, size: 26),
+              ),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('24x7 Support Assistant',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                    SizedBox(height: 3),
+                    Text('Instant help with orders, refunds, cancellations & policies',
+                        style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => _tabController.animateTo(1),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: b.primaryDark,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                ),
+                child: const Text('Chat now ›'),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Need Help with a Recent Order? (BigBasket Flagship Feature)
+        ordersAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (orders) {
+            if (orders.isEmpty) return const SizedBox.shrink();
+            final latest = orders.first;
+            final isDelivered = latest.status.toUpperCase() == 'DELIVERED';
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Need help with recent order?',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    GestureDetector(
+                      onTap: () => context.push('/orders'),
+                      child: Text('View all orders ›',
+                          style: TextStyle(color: b.primaryDark, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: BrandColors.border),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 3)),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.receipt_long_rounded, size: 16, color: BrandColors.textMuted),
+                              const SizedBox(width: 6),
+                              Text('Order #${latest.number}',
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isDelivered ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              latest.status.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: isDelivered ? const Color(0xFF166534) : const Color(0xFF92400E),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${latest.items.length} item(s)${latest.amounts != null ? " · ₹${(latest.amounts!.grandTotal / 100).toStringAsFixed(0)}" : ""}',
+                        style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 10),
+                      const Text('Quick resolution options:',
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: BrandColors.textMuted)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _orderIssueBtn(context, '📦 Missing / Damaged item', () => _helpWithRecentOrder(latest, 'I received damaged or missing items in Order #${latest.number}')),
+                          _orderIssueBtn(context, '🚚 Where is my order?', () => _helpWithRecentOrder(latest, "Where is my order #${latest.number}? Please track delivery.")),
+                          _orderIssueBtn(context, '🧾 Bill & payment query', () => _helpWithRecentOrder(latest, 'I have a billing/payment issue with Order #${latest.number}')),
+                          _orderIssueBtn(context, '🔄 Cancel / Return', () => _helpWithRecentOrder(latest, 'I want to cancel or return Order #${latest.number}')),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            );
+          },
+        ),
+
+        // Frequently Asked Questions (BigBasket-style Categorized Accordions)
+        const Text('Browse Help by Topic',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const Text('Common questions answered instantly',
+            style: TextStyle(fontSize: 12, color: BrandColors.textMuted)),
+        const SizedBox(height: 12),
+
+        _faqCategoryCard(
+          icon: Icons.local_shipping_outlined,
+          title: 'Delivery & Order Tracking',
+          color: const Color(0xFF0284C7),
+          faqs: [
+            _FaqItem(
+              q: 'How do I track my order in real-time?',
+              a: 'Once your order is confirmed and assigned to a rider, open the Orders tab and tap on your order. You can see live status progression from packed to out-for-delivery, along with rider contact details.',
+              actionLabel: 'Go to Orders',
+              onAction: () => context.push('/orders'),
+            ),
+            _FaqItem(
+              q: 'Can I change my delivery address after placing an order?',
+              a: 'You can update your address before the vendor packs the order by contacting support. Once the order is out for delivery with the rider, route changes are restricted.',
+              actionLabel: 'Chat with Agent',
+              onAction: () => _tabController.animateTo(1),
+            ),
+            const _FaqItem(
+              q: 'What if my delivery is delayed?',
+              a: 'During peak hours, severe traffic, or bad weather, delivery might take a few extra minutes. Our system automatically alerts you with updated ETAs.',
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        _faqCategoryCard(
+          icon: Icons.currency_rupee_rounded,
+          title: 'Payments & Refunds',
+          color: const Color(0xFF10B981),
+          faqs: [
+            const _FaqItem(
+              q: 'When will I receive my refund?',
+              a: 'Refunds for cancelled orders or returned items are initiated immediately. UPI and wallet refunds typically reflect within 2 to 4 hours. Credit/Debit card refunds reflect in 3 to 5 business days per your bank.',
+            ),
+            _FaqItem(
+              q: 'Money was debited from my bank but order was not confirmed?',
+              a: 'This usually occurs when payment gateways experience brief bank connection lags. The debited amount is automatically reversed by your bank within 24 to 48 hours.',
+              actionLabel: 'Report Payment Query',
+              onAction: () {
+                _tabController.animateTo(1);
+                _send('Money deducted from my bank but order was not confirmed');
+              },
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        _faqCategoryCard(
+          icon: Icons.swap_horiz_rounded,
+          title: 'Returns & Cancellations',
+          color: const Color(0xFFF59E0B),
+          faqs: [
+            _FaqItem(
+              q: 'How do I cancel my order?',
+              a: 'You can cancel any unshipped order directly from the Order Details screen or by telling our Support Assistant. Once cancelled, full refund is immediately credited.',
+              actionLabel: 'Cancel via Assistant',
+              onAction: () {
+                _tabController.animateTo(1);
+                _send('I want to cancel an order');
+              },
+            ),
+            _FaqItem(
+              q: 'What should I do if items are damaged or defective?',
+              a: 'Please report any damaged, spoiled or missing items within 24 hours of delivery. You can upload pictures and receive an instant refund or replacement.',
+              actionLabel: 'Report Issue',
+              onAction: () {
+                _tabController.animateTo(1);
+                _send('I have damaged or defective items in my delivery');
+              },
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        _faqCategoryCard(
+          icon: Icons.storefront_rounded,
+          title: 'Multi-Store Orders & Vendors',
+          color: const Color(0xFF8B5CF6),
+          faqs: const [
+            _FaqItem(
+              q: 'How does ordering from multiple stores in one cart work?',
+              a: 'You can add items from multiple local stores into a single cart. The system automatically splits the order into sub-orders for each store. Each vendor prepares their portion independently.',
+            ),
+            _FaqItem(
+              q: 'Will items from different stores arrive together?',
+              a: 'Depending on vendor preparation times and rider dispatch, packages from different stores may arrive separately or consolidated by our logistics team.',
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 24),
+
+        // Direct Helpline & Support Channels
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: BrandColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Still need help? Reach us directly',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+              const SizedBox(height: 12),
+              _contactRow(
+                icon: Icons.call_rounded,
+                color: const Color(0xFF10B981),
+                title: 'Toll-Free Customer Helpline',
+                subtitle: '1800-419-7878 (9:00 AM – 11:00 PM)',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Helpline: 1800-419-7878. Support team is available 24/7.'),
+                  ));
+                },
+              ),
+              const Divider(height: 20),
+              _contactRow(
+                icon: Icons.email_outlined,
+                color: const Color(0xFF0284C7),
+                title: 'Email Customer Support',
+                subtitle: 'care@marketplace.com',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Email support: care@marketplace.com (average response within 2 hours).'),
+                  ));
+                },
+              ),
+              const Divider(height: 20),
+              _contactRow(
+                icon: Icons.chat_bubble_outline_rounded,
+                color: const Color(0xFF8B5CF6),
+                title: 'Interactive 24x7 Assistant',
+                subtitle: 'Instant self-service & human agent escalation',
+                onTap: () => _tabController.animateTo(1),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _orderIssueBtn(BuildContext context, String title, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: context.brand.soft,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Color.lerp(context.brand.soft, context.brand.primary, 0.3)!),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: context.brand.primaryDark,
+            fontWeight: FontWeight.w700,
+            fontSize: 11.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _contactRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(color: BrandColors.textMuted, fontSize: 11.5)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: BrandColors.textMuted, size: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _faqCategoryCard({
+    required IconData icon,
+    required String title,
+    required Color color,
+    required List<_FaqItem> faqs,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: BrandColors.border),
+      ),
+      child: ExpansionTile(
+        leading: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        children: faqs.map((f) => _faqTile(f)).toList(),
+      ),
+    );
+  }
+
+  Widget _faqTile(_FaqItem f) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(f.q, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: BrandColors.ink)),
+          const SizedBox(height: 6),
+          Text(f.a, style: const TextStyle(fontSize: 12, height: 1.4, color: BrandColors.textMuted)),
+          if (f.actionLabel != null && f.onAction != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: f.onAction,
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                child: Text('${f.actionLabel} ›', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Chat Tab (AI Assistant & Agent conversation) ─────────────────────────────
+  Widget _chatTab(BuildContext context, SupportState state) {
     if (state.loading) return const Center(child: CircularProgressIndicator());
     if (!state.channelOn) {
       return _notice(Icons.chat_bubble_outline_rounded, 'Support chat is currently unavailable.\nPlease try again later.');

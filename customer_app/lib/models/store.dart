@@ -8,6 +8,7 @@ class Vendor {
   final String? description;
   final String vendorType;
   final String? logo;
+  final String? deliveryTime;
   final double ratingAvg;
   final int ratingCount;
   final int productCount;
@@ -19,6 +20,7 @@ class Vendor {
     this.description,
     required this.vendorType,
     this.logo,
+    this.deliveryTime,
     required this.ratingAvg,
     required this.ratingCount,
     required this.productCount,
@@ -31,6 +33,7 @@ class Vendor {
         description: j['description']?.toString(),
         vendorType: j['vendorType']?.toString() ?? 'generic',
         logo: j['logo']?.toString(),
+        deliveryTime: j['deliveryTime']?.toString(),
         ratingAvg: _dbl(j['ratingAvg']),
         ratingCount: _int(j['ratingCount']),
         productCount: _int(j['productCount']),

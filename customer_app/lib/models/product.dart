@@ -51,6 +51,8 @@ class Product {
   final double ratingAvg;
   final int ratingCount;
   final int minPrice; // paise
+  final int? discountPercent;
+  final int? originalPrice;
   final String storeId;
   final ProductStore? store;
   final String? categoryName;
@@ -72,6 +74,8 @@ class Product {
     required this.ratingAvg,
     required this.ratingCount,
     required this.minPrice,
+    this.discountPercent,
+    this.originalPrice,
     required this.storeId,
     this.store,
     this.categoryName,
@@ -107,6 +111,8 @@ class Product {
       ratingAvg: _dbl(j['ratingAvg']),
       ratingCount: _int(j['ratingCount']),
       minPrice: minPrice,
+      discountPercent: j['discountPercent'] != null ? _int(j['discountPercent']) : null,
+      originalPrice: j['originalPrice'] != null ? _int(j['originalPrice']) : null,
       storeId: (j['storeId'] ?? '').toString(),
       store: j['store'] is Map ? ProductStore.fromJson(j['store'] as Map<String, dynamic>) : null,
       categoryName: j['categoryName']?.toString(),

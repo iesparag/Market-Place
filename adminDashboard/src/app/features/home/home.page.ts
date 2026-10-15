@@ -9,7 +9,7 @@ import { NotificationService } from '../../core/services/notification.service';
 interface Draft {
   _id?: string;
   title: string; subtitle: string;
-  type: 'products' | 'vendors';
+  type: 'products' | 'vendors' | 'categories' | 'banners';
   source: 'auto' | 'curated';
   sort: string; category: string; limit: number; enabled: boolean;
   storeIds: string[];
@@ -26,7 +26,13 @@ interface Draft {
     <div class="cols">
       <!-- Sections list -->
       <div class="card list">
-        <div class="lhead"><h3>Sections</h3><button class="btn btn-sm" (click)="newDraft()">+ Add section</button></div>
+        <div class="lhead">
+          <h3>Sections</h3>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" (click)="restoreDefaults()" title="Reset to standard 6-section landing layout">↺ Standard Layout</button>
+            <button class="btn btn-sm" (click)="newDraft()">+ Add section</button>
+          </div>
+        </div>
         @for (s of sections(); track s._id; let i = $index) {
           <div class="srow" [class.editing]="draft()._id === s._id" [class.off]="!s.enabled">
             <div class="sinfo">
@@ -56,10 +62,20 @@ interface Draft {
 
         <div class="two">
           <div><label class="label">Type</label>
-            <select class="input" [(ngModel)]="d.type"><option value="products">Products</option><option value="vendors">Vendors / Shops</option></select>
+            <select class="input" [(ngModel)]="d.type">
+              <option value="products">Products</option>
+              <option value="vendors">Vendors / Shops</option>
+              <option value="categories">Categories</option>
+              <option value="banners">Promotional Banners</option>
+            </select>
           </div>
           <div><label class="label">Source</label>
-            <select class="input" [(ngModel)]="d.source"><option value="auto">Auto (a rule)</option><option value="curated">Hand-picked</option></select>
+            <select class="input" [(ngModel)]="d.source">
+              <option value="auto">Auto (a rule)</option>
+              @if (d.type === 'products' || d.type === 'vendors') {
+                <option value="curated">Hand-picked</option>
+              }
+            </select>
           </div>
         </div>
 
@@ -67,8 +83,12 @@ interface Draft {
           <div class="two">
             <div><label class="label">Sort by</label>
               <select class="input" [(ngModel)]="d.sort">
-                <option value="popularity">Popular</option><option value="rating">Top rated</option>
-                <option value="newest">Newest</option><option value="price_asc">Price ↑</option><option value="price_desc">Price ↓</option>
+                <option value="popularity">Popular / Trending</option>
+                <option value="discount">Discount / Deals (with countdown timer)</option>
+                <option value="rating">Top rated</option>
+                <option value="newest">Newest</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
               </select>
             </div>
             <div><label class="label">Category (optional)</label>
@@ -77,6 +97,18 @@ interface Draft {
                 @for (c of flatCats(); track c._id) { <option [value]="c.slug">{{ c.indent }}{{ c.name }}</option> }
               </select>
             </div>
+          </div>
+        }
+
+        @if (d.type === 'vendors' && d.source === 'auto') {
+          <div class="two">
+            <div><label class="label">Vendor sorting</label>
+              <select class="input" [(ngModel)]="d.sort">
+                <option value="nearby">Nearby stores (Delivery time)</option>
+                <option value="rating">Top rated stores</option>
+              </select>
+            </div>
+            <div></div>
           </div>
         }
 
@@ -231,9 +263,24 @@ export class HomeAdminPage implements OnInit {
   }
 
   describe(s: HomeSection): string {
-    if (s.type === 'vendors') return s.source === 'curated' ? `${s.storeIds?.length ?? 0} shops picked` : `Top ${s.limit ?? 8} shops`;
+    if (s.type === 'banners') return 'Promotional carousel banners';
+    if (s.type === 'categories') return 'Category circle grid (10 categories)';
+    if (s.type === 'vendors') return s.source === 'curated' ? `${s.storeIds?.length ?? 0} shops picked` : (s.sort === 'rating' ? `Top rated shops · ${s.limit ?? 8} max` : `Nearby local stores · ${s.limit ?? 8} max`);
     if (s.source === 'curated') return `${s.productIds?.length ?? 0} products picked`;
-    return `${s.sort ?? 'popularity'}${s.category ? ' · ' + s.category : ''} · ${s.limit ?? 8} items`;
+    const sortLabel = s.sort === 'discount' ? 'Deals with countdown' : (s.sort ?? 'popularity');
+    return `${sortLabel}${s.category ? ' · ' + s.category : ''} · ${s.limit ?? 8} items`;
+  }
+
+  restoreDefaults(): void {
+    if (!confirm('Reset home sections to standard 6-section layout (Banners, Categories, Shops Near You, Deals of the Day, Trending, Popular Stores)?')) return;
+    this.homeApi.seedDefaults().subscribe({
+      next: () => {
+        this.notify.push('Restored', 'Standard layout configured', 'success');
+        this.newDraft();
+        this.load();
+      },
+      error: (e) => this.notify.push('Failed', e?.message, 'warning'),
+    });
   }
 
   newDraft(): void { this.draft.set(this.blank()); this.picked.set([]); this.prodQuery = ''; this.loadProducts(true); }
