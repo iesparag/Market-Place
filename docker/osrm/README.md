@@ -7,19 +7,18 @@ says it isn't meant for production traffic, so "free" only actually holds if you
 
 ## One-time setup
 
-1. **Download a regional OSM extract.** Geofabrik publishes ready-made `.osm.pbf` files
-   per country/state — pick the smallest one that covers where you actually operate (a
-   full-India extract works but is large; a single-state extract processes much faster).
+1. **Download the OSM extract.** Geofabrik does NOT publish per-state/per-city files for
+   India — only a single whole-country file (~1.7GB). This setup covers all of India.
 
    ```bash
    cd docker/osrm
    mkdir -p data
-   # Example: Delhi NCT. Browse https://download.geofabrik.de/asia/india.html for other states.
-   curl -L -o data/region.osm.pbf https://download.geofabrik.de/asia/india/delhi-latest.osm.pbf
+   curl -L -o data/region.osm.pbf https://download.geofabrik.de/asia/india-latest.osm.pbf
    ```
 
 2. **Preprocess it** (extract → partition → customize — OSRM's MLD pipeline, run once;
-   only needs re-running if you swap the region or profile):
+   only needs re-running if you swap the region or profile). Whole-India preprocessing
+   is heavy — expect several GB of RAM used and a long run, not a quick step:
 
    ```bash
    docker run -t -v "$(pwd)/data:/data" osrm/osrm-backend osrm-extract -p /opt/car.lua /data/region.osm.pbf
@@ -64,13 +63,13 @@ image.
    service, separate from your backend — do NOT point your existing backend service at
    this folder).
 2. Connect it to this same GitHub repo, and set its **root directory** to `docker/osrm`.
-3. Railway will find `Dockerfile` automatically. Optionally override the region via a
-   build arg in Railway's service settings: `OSM_EXTRACT_URL` → pick a `.osm.pbf` URL
-   from https://download.geofabrik.de for the state/country you actually operate in
-   (defaults to Delhi NCT if you don't set one).
-4. Deploy. The build takes a few minutes (downloads the extract + runs OSRM's
-   extract/partition/customize) — this is normal, it only happens again if you change
-   the region or redeploy this service.
+3. Railway will find `Dockerfile` automatically — it downloads all of India
+   (`OSM_SOURCE_URL` build arg, defaults to Geofabrik's `india-latest.osm.pbf`) and
+   preprocesses it.
+4. Deploy. This build is HEAVY — whole-India `osrm-extract`/`partition`/`customize`
+   needs several GB of RAM and can take a long while. If the build OOMs or times out on
+   your Railway plan, that's this step; you'd need a bigger build-resource tier, or ask
+   to scope this down to one region's bounding box instead (much lighter, faster build).
 5. Once it's up, open this OSRM service's **Settings → Networking** and note its
    internal URL (something like `osrm.railway.internal`, or use the public domain if you
    generated one). Internal is enough — only your backend needs to reach it.
