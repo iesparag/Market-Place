@@ -77,6 +77,7 @@ class AddressesScreen extends ConsumerWidget {
     final phone = TextEditingController();
     double? lat;
     double? lng;
+    final locating = ValueNotifier<bool>(false);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -90,6 +91,46 @@ class AddressesScreen extends ConsumerWidget {
           children: [
             const Text('Add address', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             const SizedBox(height: 14),
+            ValueListenableBuilder<bool>(
+              valueListenable: locating,
+              builder: (_, isLocating, __) => OutlinedButton.icon(
+                onPressed: isLocating
+                    ? null
+                    : () async {
+                        locating.value = true;
+                        try {
+                          final pos = await ref.read(deviceLocationServiceProvider).current();
+                          if (pos == null) {
+                            if (sheetCtx.mounted) {
+                              ScaffoldMessenger.of(sheetCtx).showSnackBar(const SnackBar(
+                                  content: Text('Could not get your location — check location permission.')));
+                            }
+                            return;
+                          }
+                          final hit = await ref.read(geocodeRepoProvider).reverse(pos.lat, pos.lng);
+                          if (hit == null) {
+                            if (sheetCtx.mounted) {
+                              ScaffoldMessenger.of(sheetCtx)
+                                  .showSnackBar(const SnackBar(content: Text('Could not resolve an address here.')));
+                            }
+                            return;
+                          }
+                          line1.text = hit.line1;
+                          city.text = hit.city;
+                          if (hit.pincode != null && hit.pincode!.isNotEmpty) pincode.text = hit.pincode!;
+                          lat = hit.lat;
+                          lng = hit.lng;
+                        } finally {
+                          locating.value = false;
+                        }
+                      },
+                icon: isLocating
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location_rounded, size: 18),
+                label: Text(isLocating ? 'Locating…' : 'Use current location'),
+              ),
+            ),
+            const SizedBox(height: 10),
             PlacesSearchField(onPicked: (r) {
               line1.text = r.line1;
               city.text = r.city;

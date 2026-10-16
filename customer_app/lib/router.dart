@@ -5,6 +5,7 @@ import 'features/categories/categories_screen.dart';
 import 'features/categories/department_screen.dart';
 import 'features/product/product_screen.dart';
 import 'features/store/store_screen.dart';
+import 'features/stores/stores_list_screen.dart';
 import 'features/search/search_screen.dart';
 import 'features/cart/cart_screen.dart';
 import 'features/checkout/checkout_screen.dart';
@@ -48,6 +49,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/department/:slug', builder: (_, s) => DepartmentScreen(slug: s.pathParameters['slug']!)),
     GoRoute(path: '/p/:slug', builder: (_, s) => ProductScreen(slug: s.pathParameters['slug']!)),
     GoRoute(path: '/store/:slug', builder: (_, s) => StoreScreen(slug: s.pathParameters['slug']!)),
+    GoRoute(path: '/stores', builder: (_, __) => const StoresListScreen()),
     GoRoute(
         path: '/search',
         builder: (_, s) =>

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
-import '../categories/categories_screen.dart';
+import '../favourites/favourites_screen.dart';
 import '../stores/stores_list_screen.dart';
 import '../orders/orders_screen.dart';
 import '../account/account_screen.dart';
@@ -21,10 +21,15 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  // Home · Categories · Stores · Orders · Account (5 tabs matching Image 1 & specification)
+  // Home · Favourites · Stores · Orders · Account.
+  // Categories dropped as its own tab — it's a full duplicate of Home's "Shop by
+  // Category" section; that section's "View All" already pushes to /categories, so
+  // nothing is lost, just promoted from a tab to a one-tap-away screen. Favourites
+  // takes its place: one tab for both saved items and saved stores (see
+  // favourites_screen.dart) instead of no nav entry for either.
   static const _tabs = [
     HomeScreen(),
-    CategoriesScreen(),
+    FavouritesScreen(),
     StoresListScreen(),
     OrdersScreen(),
     AccountScreen(),
@@ -93,7 +98,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           height: 60,
           destinations: [
             dest(Icons.home_outlined, Icons.home_rounded, 'Home'),
-            dest(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Categories'),
+            dest(Icons.favorite_border_rounded, Icons.favorite_rounded, 'Favourites'),
             dest(Icons.storefront_outlined, Icons.storefront_rounded, 'Stores'),
             dest(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
             dest(Icons.person_outline_rounded, Icons.person_rounded, 'Account'),

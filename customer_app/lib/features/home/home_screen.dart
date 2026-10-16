@@ -569,7 +569,7 @@ class _CategoryGridSection extends StatelessWidget {
               final cat = _standardCategories[i];
               return GestureDetector(
                 onTap: () {
-                  context.push('/catalog?category=${cat.slug}&title=${Uri.encodeComponent(cat.name)}');
+                  context.push('/catalog?dept=${cat.slug}&title=${Uri.encodeComponent(cat.name)}');
                 },
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
