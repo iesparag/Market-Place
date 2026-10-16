@@ -1,10 +1,10 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/format.dart';
 import '../../core/theme/theme.dart';
+import '../../core/location/delivery_resolution.dart';
 import '../../data/providers.dart';
 import '../../models/address.dart';
 import '../../data/payment_repository.dart';
@@ -35,14 +35,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     super.dispose();
   }
 
-  double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
-    const p = 0.017453292519943295; // Math.PI / 180
-    final a = 0.5 -
-        math.cos((lat2 - lat1) * p) / 2 +
-        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
-    return 12742 * math.asin(math.sqrt(a)); // 2 * R; R = 6371 km
-  }
-
   void _syncSlotsForAddress(Address addr, List<CartLine> lines) {
     final stores = ref.read(vendorsProvider).valueOrNull ?? [];
     final storeIds = lines.map((l) => l.storeId).toSet();
@@ -52,22 +44,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final vendor = stores.where((s) => s.id == sid).firstOrNull;
       if (vendor == null) continue;
 
-      bool isLocal = vendor.isLocal;
-      if (addr.lat != null && addr.lng != null && vendor.lat != null && vendor.lng != null) {
-        final dist = _haversineKm(addr.lat!, addr.lng!, vendor.lat!, vendor.lng!);
-        isLocal = dist <= 15.0;
-      }
+      final eval = evaluateDeliverability(address: addr, vendor: vendor);
+      final isLocal = eval.isLocal;
 
       final existing = currentSlots[sid];
       if (!isLocal) {
-        // Intercity delivery: MUST be standard (5-6 days)
+        // Intercity delivery: MUST be standard (5-7 days)
         if (existing?.type != 'standard') {
           ref.read(cartDeliverySlotsProvider.notifier).setSlot(
                 sid,
                 const VendorDeliverySlot(
                   type: 'standard',
-                  slot: '5–6 business days',
-                  label: '📦 Standard Delivery (Estimated 5–6 days)',
+                  slot: '5–7 business days',
+                  label: '📦 Standard Delivery (Estimated 5–7 days)',
                 ),
               );
         }
@@ -400,6 +389,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         selected: a.id == selected?.id,
                         onTap: () {
                           setState(() => _selectedId = a.id);
+                          ref.read(activeAddressIdProvider.notifier).state = a.id;
                           _syncSlotsForAddress(a, lines);
                         },
                       )),
@@ -673,14 +663,6 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
   final List<CartLine> lines;
   const _DeliveryFulfillmentCard({required this.address, required this.lines});
 
-  double _calcDist(double lat1, double lon1, double lat2, double lon2) {
-    const p = 0.017453292519943295;
-    final a = 0.5 -
-        math.cos((lat2 - lat1) * p) / 2 +
-        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
-    return 12742 * math.asin(math.sqrt(a));
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (address == null || lines.isEmpty) return const SizedBox.shrink();
@@ -716,13 +698,9 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
               final vendor = stores.where((s) => s.id == sid).firstOrNull;
               final slot = slots[sid];
 
-              double? distKm;
-              if (address!.lat != null && address!.lng != null && vendor?.lat != null && vendor?.lng != null) {
-                distKm = _calcDist(address!.lat!, address!.lng!, vendor!.lat!, vendor.lng!);
-              }
-
-              final isStandard = slot?.type == 'standard' || (distKm != null && distKm > 15.0);
-              final isScheduled = slot?.type == 'scheduled';
+              final eval = evaluateDeliverability(address: address, vendor: vendor);
+              final isStandard = !eval.isLocal || slot?.type == 'standard';
+              final isScheduled = !isStandard && slot?.type == 'scheduled';
 
               if (isStandard) {
                 return Container(
@@ -743,20 +721,23 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '$storeName · Standard Intercity Delivery',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0369A1)),
+                              '$storeName · Standard Courier Delivery',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: Color(0xFF0369A1)),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              distKm != null
-                                  ? 'Distance: ~${distKm.round()} km · Estimated 5–6 business days'
-                                  : 'Intercity destination · Estimated 5–6 business days',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF0C4A6E), fontWeight: FontWeight.w500),
+                              eval.distanceKm != null
+                                  ? 'Distance: ~${eval.distanceKm!.round()} km · Estimated 5–7 business days'
+                                  : 'Intercity destination · Estimated 5–7 business days',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF0C4A6E), fontWeight: FontWeight.w600),
                             ),
                             if (address!.city.isNotEmpty)
-                              Text(
-                                'Dispatching to ${address!.label} (${address!.city})',
-                                style: const TextStyle(fontSize: 10, color: Color(0xFF0284C7)),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  'Shipping to ${address!.label} (${address!.city}${address!.pincode != null ? ' - ${address!.pincode}' : ''}) from ${vendor?.city ?? 'vendor city'}',
+                                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF0284C7)),
+                                ),
                               ),
                           ],
                         ),
@@ -830,8 +811,8 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            distKm != null
-                                ? 'Distance: ~${distKm.toStringAsFixed(1)} km · Delivered in 15–30 mins'
+                            eval.distanceKm != null
+                                ? 'Distance: ~${eval.distanceKm!.toStringAsFixed(1)} km · Delivered in 15–30 mins'
                                 : 'Express local delivery in 15–30 mins',
                             style: const TextStyle(fontSize: 11, color: Color(0xFF78350F), fontWeight: FontWeight.w500),
                           ),

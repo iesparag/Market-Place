@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/format.dart';
 import '../../core/theme/theme.dart';
+import '../../core/location/delivery_resolution.dart';
 import '../../data/providers.dart';
 import '../../models/store.dart';
+import '../../models/address.dart';
 import 'cart_controller.dart';
 
 class CartScreen extends ConsumerWidget {
@@ -15,6 +17,7 @@ class CartScreen extends ConsumerWidget {
     final lines = ref.watch(cartProvider);
     final cart = ref.read(cartProvider.notifier);
     final subtotal = lines.fold<int>(0, (n, l) => n + l.lineTotal);
+    final activeAddress = ref.watch(activeDeliveryAddressProvider);
 
     // Grouped by vendor — a multi-vendor cart gets one instructions box per store, not
     // one note that would be shown to every vendor regardless of relevance.
@@ -36,6 +39,11 @@ class CartScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                _CartDeliveryAddressBar(
+                  address: activeAddress,
+                  onChange: () => _showAddressPicker(context, ref),
+                ),
+                const SizedBox(height: 12),
                 for (final entry in groups.entries) ...[
                   _VendorGroup(storeId: entry.key, lines: entry.value, cart: cart),
                   const SizedBox(height: 14),
@@ -116,13 +124,25 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
   }
 
   void _initSlot() {
+    final activeAddress = ref.read(activeDeliveryAddressProvider);
     final stores = ref.read(vendorsProvider).valueOrNull ?? [];
     final v = _findVendor(stores);
-    final isLocal = v?.isLocal ?? true;
+    final eval = evaluateDeliverability(address: activeAddress, vendor: v);
+    final isLocal = eval.isLocal;
     final isOpen = v?.isOpenNow ?? true;
 
-    if (!isOpen) {
-      // Closed store: Default to scheduled delivery
+    if (!isLocal) {
+      if (mounted) setState(() => _mode = 'standard');
+      ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+            widget.storeId,
+            const VendorDeliverySlot(
+              type: 'standard',
+              slot: '5–7 business days',
+              label: '📦 Standard Delivery (Estimated 5–7 days)',
+            ),
+          );
+    } else if (!isOpen) {
+      // Closed local store: Default to scheduled delivery
       if (mounted) setState(() => _mode = 'scheduled');
       ref.read(cartDeliverySlotsProvider.notifier).setSlot(
             widget.storeId,
@@ -133,7 +153,7 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
               label: '📅 Scheduled: $_selectedDay ($_selectedSlot)',
             ),
           );
-    } else if (isLocal) {
+    } else {
       if (mounted) setState(() => _mode = 'now');
       ref.read(cartDeliverySlotsProvider.notifier).setSlot(
             widget.storeId,
@@ -141,16 +161,6 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
               type: 'now',
               slot: '⚡ 15–30 mins',
               label: '⚡ Now (Delivery in 15–30 mins)',
-            ),
-          );
-    } else {
-      if (mounted) setState(() => _mode = 'standard');
-      ref.read(cartDeliverySlotsProvider.notifier).setSlot(
-            widget.storeId,
-            const VendorDeliverySlot(
-              type: 'standard',
-              slot: '5–6 business days',
-              label: '📦 Standard Delivery (Estimated 5–6 days)',
             ),
           );
     }
@@ -192,11 +202,54 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
     final instructions = ref.watch(cartInstructionsProvider)[widget.storeId] ?? '';
     final stores = ref.watch(vendorsProvider).valueOrNull ?? [];
     final vendor = _findVendor(stores);
-    final isLocal = vendor?.isLocal ?? true;
+    final activeAddress = ref.watch(activeDeliveryAddressProvider);
+    final eval = evaluateDeliverability(address: activeAddress, vendor: vendor);
+    final isLocal = eval.isLocal;
     final isOpen = vendor?.isOpenNow ?? true;
 
-    // Automatically correct mode if store is closed and mode is 'now'
-    if (!isOpen && _mode == 'now') {
+    // Automatically adapt mode if deliverability or store hours shift
+    if (!isLocal && _mode != 'standard') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _mode = 'standard');
+          ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                widget.storeId,
+                const VendorDeliverySlot(
+                  type: 'standard',
+                  slot: '5–7 business days',
+                  label: '📦 Standard Delivery (Estimated 5–7 days)',
+                ),
+              );
+        }
+      });
+    } else if (isLocal && _mode == 'standard') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          if (!isOpen) {
+            setState(() => _mode = 'scheduled');
+            ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                  widget.storeId,
+                  VendorDeliverySlot(
+                    type: 'scheduled',
+                    date: _selectedDay,
+                    slot: _selectedSlot,
+                    label: '📅 Scheduled: $_selectedDay ($_selectedSlot)',
+                  ),
+                );
+          } else {
+            setState(() => _mode = 'now');
+            ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                  widget.storeId,
+                  const VendorDeliverySlot(
+                    type: 'now',
+                    slot: '⚡ 15–30 mins',
+                    label: '⚡ Now (Delivery in 15–30 mins)',
+                  ),
+                );
+          }
+        }
+      });
+    } else if (isLocal && !isOpen && _mode == 'now') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() => _mode = 'scheduled');
@@ -536,34 +589,42 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                     ),
                   ],
                 ] else ...[
-                  // Intercity Store: Standard Delivery (Estimated 5-6 Days)
+                  // Intercity Store: Standard Delivery (Estimated 5–7 Days)
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0F2FE),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFBAE6FD)),
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
                     ),
-                    child: const Row(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('📦', style: TextStyle(fontSize: 16)),
-                        SizedBox(width: 8),
+                        const Text('📦', style: TextStyle(fontSize: 18)),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Standard Intercity Delivery · 5–6 Days',
+                              const Text(
+                                'Standard Courier Delivery · 5–7 Days',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 12,
-                                  color: Color(0xFF0369A1),
+                                  fontSize: 12.5,
+                                  color: Color(0xFF1E40AF),
                                 ),
                               ),
-                              SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               Text(
-                                'Store is outside your city. Order will be accepted & shipped safely via courier.',
-                                style: TextStyle(fontSize: 10.5, color: Color(0xFF0284C7)),
+                                activeAddress != null
+                                    ? 'Intercity shipping to ${activeAddress.label} (${activeAddress.city}${activeAddress.pincode != null ? ' - ${activeAddress.pincode}' : ''}) from ${vendor?.city ?? 'vendor location'}.'
+                                    : 'Store is outside local delivery zone. Order will be shipped safely via courier.',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF1E3A8A)),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                '🚚 Express 15-30m / scheduled morning slots are only available within the store\'s local city.',
+                                style: TextStyle(fontSize: 10, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -712,4 +773,203 @@ class _EmptyCart extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CartDeliveryAddressBar extends StatelessWidget {
+  final Address? address;
+  final VoidCallback onChange;
+
+  const _CartDeliveryAddressBar({required this.address, required this.onChange});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = context.brand;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: b.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.location_on_rounded, size: 17, color: b.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      address != null ? 'Deliver to: ${address!.label}' : 'Delivery destination',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                    if (address?.isDefault == true) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE7F6EC),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'DEFAULT',
+                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: BrandColors.success),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  address != null ? address!.oneLine : 'Select your address to calculate accurate delivery time',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: BrandColors.textMuted, fontSize: 11.5),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onChange,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            child: Text(
+              address != null ? 'Change' : 'Select',
+              style: TextStyle(fontWeight: FontWeight.w900, color: b.primary, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showAddressPicker(BuildContext context, WidgetRef ref) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      return Consumer(
+        builder: (ctx, ref, _) {
+          final addresses = ref.watch(addressesProvider).valueOrNull ?? [];
+          final active = ref.watch(activeDeliveryAddressProvider);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Choose Delivery Address',
+                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const Text('Delivery timeline & slots are based on your selected address',
+                      style: TextStyle(fontSize: 12, color: BrandColors.textMuted)),
+                  const SizedBox(height: 12),
+                  if (addresses.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: Text('No saved addresses yet', style: TextStyle(color: BrandColors.textMuted)),
+                      ),
+                    )
+                  else
+                    ...addresses.map((a) {
+                      final isSelected = a.id == active?.id;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? context.brand.soft : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? context.brand.primary : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          leading: Icon(
+                            isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                            color: isSelected ? context.brand.primary : BrandColors.textMuted,
+                          ),
+                          title: Row(
+                            children: [
+                              Text(a.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                              if (a.city.isNotEmpty)
+                                Text(' (${a.city})', style: const TextStyle(fontSize: 12, color: BrandColors.textMuted)),
+                              if (a.isDefault) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE7F6EC),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('DEFAULT',
+                                      style: TextStyle(
+                                          fontSize: 8.5, fontWeight: FontWeight.w800, color: BrandColors.success)),
+                                ),
+                              ],
+                            ],
+                          ),
+                          subtitle: Text(
+                            a.oneLine,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11.5),
+                          ),
+                          onTap: () {
+                            ref.read(activeAddressIdProvider.notifier).state = a.id;
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+                      label: const Text('Add new address'),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        context.push('/addresses');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
 }

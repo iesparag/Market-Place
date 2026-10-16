@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
@@ -14,12 +15,12 @@ import '../stores/stores_list_screen.dart';
 /// can jump straight to a tab like Account without a separate route.
 final shellTabProvider = StateProvider<int>((ref) => 0);
 
-class _NavItem {
+class NavItem {
   final IconData icon;
   final IconData selectedIcon;
   final String label;
   final Widget screen;
-  const _NavItem({required this.icon, required this.selectedIcon, required this.label, required this.screen});
+  const NavItem({required this.icon, required this.selectedIcon, required this.label, required this.screen});
 }
 
 /// The bottom-nav's tab list, built fresh each read so "Now" can come and go with
@@ -28,23 +29,55 @@ class _NavItem {
 /// no tab — it's already one tap away from Account (the avatar on Home), and a thing
 /// reachable from Account doesn't need a second, permanent slot in the bar too (same
 /// reasoning Account itself was dropped from the bar for, earlier).
-final shellNavItemsProvider = Provider.autoDispose<List<_NavItem>>((ref) {
+final shellNavItemsProvider = Provider.autoDispose<List<NavItem>>((ref) {
   final showNow = ref.watch(nowTabVisibleProvider);
   return [
-    const _NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home', screen: HomeScreen()),
+    const NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home', screen: HomeScreen()),
     if (showNow)
-      const _NavItem(icon: Icons.bolt_outlined, selectedIcon: Icons.bolt_rounded, label: 'Now', screen: NowScreen()),
-    const _NavItem(
+      const NavItem(icon: Icons.bolt_outlined, selectedIcon: Icons.bolt_rounded, label: 'Now', screen: NowScreen()),
+    const NavItem(
         icon: Icons.grid_view_outlined,
         selectedIcon: Icons.grid_view_rounded,
         label: 'Products',
         screen: CatalogScreen(searchable: true, title: 'Products')),
-    const _NavItem(
+    const NavItem(
         icon: Icons.favorite_border_rounded, selectedIcon: Icons.favorite_rounded, label: 'Favourites', screen: FavouritesScreen()),
-    const _NavItem(
+    const NavItem(
         icon: Icons.storefront_outlined, selectedIcon: Icons.storefront_rounded, label: 'Stores', screen: StoresListScreen()),
   ];
 });
+
+/// Shared bottom navigation bar that can be rendered on root shell and pushed screens (like Orders).
+class AppBottomNav extends ConsumerWidget {
+  final int? selectedIndex;
+  const AppBottomNav({super.key, this.selectedIndex});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = ref.watch(shellNavItemsProvider);
+    final int rawIndex = selectedIndex ?? ref.watch(shellTabProvider);
+    final index = items.isEmpty ? 0 : rawIndex.clamp(0, items.length - 1);
+    final b = context.brand;
+
+    return NavigationBar(
+      selectedIndex: index,
+      onDestinationSelected: (i) {
+        ref.read(shellTabProvider.notifier).state = i;
+        context.go('/');
+      },
+      backgroundColor: Colors.white,
+      indicatorColor: b.soft,
+      height: 60,
+      destinations: items
+          .map((it) => NavigationDestination(
+                icon: Icon(it.icon),
+                selectedIcon: Icon(it.selectedIcon, color: b.primary),
+                label: it.label,
+              ))
+          .toList(),
+    );
+  }
+}
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -78,12 +111,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     // happens to be on the last tab).
     final rawIndex = ref.watch(shellTabProvider);
     final index = rawIndex.clamp(0, items.length - 1);
-    final b = context.brand;
-    NavigationDestination dest(_NavItem it) => NavigationDestination(
-          icon: Icon(it.icon),
-          selectedIcon: Icon(it.selectedIcon, color: b.primary),
-          label: it.label,
-        );
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -112,14 +139,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       },
       child: Scaffold(
         body: IndexedStack(index: index, children: items.map((it) => it.screen).toList()),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: (i) => ref.read(shellTabProvider.notifier).state = i,
-          backgroundColor: Colors.white,
-          indicatorColor: b.soft,
-          height: 60,
-          destinations: items.map(dest).toList(),
-        ),
+        bottomNavigationBar: const AppBottomNav(),
       ),
     );
   }

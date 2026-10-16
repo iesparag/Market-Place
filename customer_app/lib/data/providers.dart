@@ -59,6 +59,23 @@ final pricingSettingsProvider = FutureProvider<PricingSettings>((ref) async {
 
 // ── authenticated data ─────────────────────────────────────────────────────
 final addressesProvider = FutureProvider.autoDispose<List<Address>>((ref) => ref.read(checkoutRepoProvider).addresses());
+
+/// Explicitly selected shipping address ID (shared across Cart and Checkout).
+/// Null means use the user's default saved address.
+final activeAddressIdProvider = StateProvider<String?>((ref) => null);
+
+/// Resolves the currently active Address object for delivery calculation across Cart & Checkout.
+final activeDeliveryAddressProvider = Provider.autoDispose<Address?>((ref) {
+  final addresses = ref.watch(addressesProvider).valueOrNull ?? const [];
+  if (addresses.isEmpty) return null;
+  final explicitId = ref.watch(activeAddressIdProvider);
+  if (explicitId != null) {
+    final match = addresses.where((a) => a.id == explicitId).firstOrNull;
+    if (match != null) return match;
+  }
+  return addresses.where((a) => a.isDefault).firstOrNull ?? addresses.first;
+});
+
 final myOrdersProvider = FutureProvider.autoDispose<List<OrderModel>>((ref) => ref.read(checkoutRepoProvider).myOrders());
 final orderProvider = FutureProvider.autoDispose.family<OrderModel, String>((ref, id) => ref.read(checkoutRepoProvider).order(id));
 

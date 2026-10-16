@@ -9,6 +9,7 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/order.dart';
+import '../shell/app_shell.dart';
 import 'pay_order_button.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
@@ -66,79 +67,102 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My orders'),
-        actions: [
-          if (user != null)
-            ref.watch(myOrdersProvider).maybeWhen(
-                  data: (orders) => orders.isEmpty
-                      ? const SizedBox.shrink()
-                      : IconButton(
-                          icon: Icon(_range == null ? Icons.filter_list_rounded : Icons.filter_list_off_rounded,
-                              color: _range != null ? context.brand.primary : null),
-                          tooltip: 'Filter by date',
-                          onPressed: () => _range == null ? _pickRange(orders) : setState(() => _range = null),
-                        ),
-                  orElse: () => const SizedBox.shrink(),
-                ),
-        ],
-      ),
-      body: user == null
-          ? Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.receipt_long_rounded, size: 48, color: BrandColors.textMuted),
-                const SizedBox(height: 10),
-                const Text('Sign in to see your orders', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 14),
-                ElevatedButton(onPressed: () => context.push('/login'), child: const Text('Sign in')),
-              ]),
-            )
-          : ref.watch(myOrdersProvider).when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => ErrorView(error: e),
-              data: (allOrders) {
-                final orders = _filtered(allOrders);
-                return Column(children: [
-                  if (_range != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Chip(
-                          avatar: const Icon(Icons.date_range_rounded, size: 16),
-                          label: Text(
-                              '${DateFormat('d MMM').format(_range!.start)} – ${DateFormat('d MMM yyyy').format(_range!.end)} · ${orders.length} order${orders.length == 1 ? '' : 's'}'),
-                          onDeleted: () => setState(() => _range = null),
-                          backgroundColor: context.brand.soft,
-                          deleteIconColor: context.brand.primaryDark,
-                          labelStyle: TextStyle(color: context.brand.primaryDark, fontWeight: FontWeight.w700, fontSize: 12.5),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (Navigator.of(context).canPop()) {
+          context.pop();
+        } else {
+          context.go('/');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Back to Home',
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
+          ),
+          title: const Text('My orders'),
+          actions: [
+            if (user != null)
+              ref.watch(myOrdersProvider).maybeWhen(
+                    data: (orders) => orders.isEmpty
+                        ? const SizedBox.shrink()
+                        : IconButton(
+                            icon: Icon(_range == null ? Icons.filter_list_rounded : Icons.filter_list_off_rounded,
+                                color: _range != null ? context.brand.primary : null),
+                            tooltip: 'Filter by date',
+                            onPressed: () => _range == null ? _pickRange(orders) : setState(() => _range = null),
+                          ),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+          ],
+        ),
+        body: user == null
+            ? Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.receipt_long_rounded, size: 48, color: BrandColors.textMuted),
+                  const SizedBox(height: 10),
+                  const Text('Sign in to see your orders', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 14),
+                  ElevatedButton(onPressed: () => context.push('/login'), child: const Text('Sign in')),
+                ]),
+              )
+            : ref.watch(myOrdersProvider).when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => ErrorView(error: e),
+                data: (allOrders) {
+                  final orders = _filtered(allOrders);
+                  return Column(children: [
+                    if (_range != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Chip(
+                            avatar: const Icon(Icons.date_range_rounded, size: 16),
+                            label: Text(
+                                '${DateFormat('d MMM').format(_range!.start)} – ${DateFormat('d MMM yyyy').format(_range!.end)} · ${orders.length} order${orders.length == 1 ? '' : 's'}'),
+                            onDeleted: () => setState(() => _range = null),
+                            backgroundColor: context.brand.soft,
+                            deleteIconColor: context.brand.primaryDark,
+                            labelStyle: TextStyle(color: context.brand.primaryDark, fontWeight: FontWeight.w700, fontSize: 12.5),
+                          ),
                         ),
                       ),
-                    ),
-                  Expanded(
-                    child: orders.isEmpty
-                        ? Center(
-                            child: Text(_range == null ? 'No orders yet' : 'No orders in this date range',
-                                style: const TextStyle(color: BrandColors.textMuted)),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: () async => ref.invalidate(myOrdersProvider),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: orders.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 12),
-                              itemBuilder: (_, i) => _OrderCard(
-                                order: orders[i],
-                                color: _statusColor(context, orders[i].status),
-                                icon: _statusIcon(orders[i].status),
+                    Expanded(
+                      child: orders.isEmpty
+                          ? Center(
+                              child: Text(_range == null ? 'No orders yet' : 'No orders in this date range',
+                                  style: const TextStyle(color: BrandColors.textMuted)),
+                            )
+                          : RefreshIndicator(
+                              onRefresh: () async => ref.invalidate(myOrdersProvider),
+                              child: ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: orders.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                itemBuilder: (_, i) => _OrderCard(
+                                  order: orders[i],
+                                  color: _statusColor(context, orders[i].status),
+                                  icon: _statusIcon(orders[i].status),
+                                ),
                               ),
                             ),
-                          ),
-                  ),
-                ]);
-              },
-            ),
+                    ),
+                  ]);
+                },
+              ),
+        bottomNavigationBar: const AppBottomNav(),
+      ),
     );
   }
 }

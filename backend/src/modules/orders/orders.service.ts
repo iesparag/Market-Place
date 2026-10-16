@@ -126,32 +126,41 @@ export const ordersService = {
     // (estimated 5-6 business days). Orders are NEVER rejected due to distance.
     const destLat = input.shippingAddress?.lat;
     const destLng = input.shippingAddress?.lng;
+    const destCity = (input.shippingAddress?.city ?? '').trim().toLowerCase();
     const deliverySlots = new Map<string, { type: string; slot?: string; date?: string; estimatedDelivery: string }>();
 
-    if (destLat != null && destLng != null) {
-      const dest = { lat: destLat, lng: destLng };
-      const stores = await Store.find({ _id: { $in: storeIds } }).select('name location').lean();
-      for (const s of stores) {
-        const storeIdStr = String(s._id);
-        const [lng, lat] = s.location?.coordinates ?? [];
-        const isLocal = (lng != null && lat != null) ? haversineKm(dest, { lat, lng }) <= env.SERVICEABLE_RADIUS_KM : true;
-        if (!isLocal) {
-          deliverySlots.set(storeIdStr, {
-            type: 'standard',
-            slot: '5-6 business days',
-            estimatedDelivery: '📦 Estimated 5–6 days',
-          });
+    const stores = await Store.find({ _id: { $in: storeIds } }).select('name location address city').lean();
+    for (const s of stores) {
+      const storeIdStr = String(s._id);
+      const [lng, lat] = s.location?.coordinates ?? [];
+      let isLocal = false;
+      if (destLat != null && destLng != null && lat != null && lng != null) {
+        isLocal = haversineKm({ lat: destLat, lng: destLng }, { lat, lng }) <= env.SERVICEABLE_RADIUS_KM;
+      } else {
+        const storeCity = (s.address?.city ?? (s as any).city ?? '').trim().toLowerCase();
+        if (destCity && storeCity && (destCity === storeCity || destCity.includes(storeCity) || storeCity.includes(destCity))) {
+          isLocal = true;
         } else {
-          const clientSlot = input.deliverySlots?.[storeIdStr];
-          deliverySlots.set(storeIdStr, {
-            type: clientSlot?.type ?? 'now',
-            slot: clientSlot?.slot ?? (clientSlot?.type === 'scheduled' ? 'Scheduled' : '⚡ 15–30 mins'),
-            date: clientSlot?.date,
-            estimatedDelivery: clientSlot?.type === 'scheduled'
-              ? `Scheduled (${clientSlot.date ?? 'Next 1–3 days'})`
-              : '⚡ 15–30 mins',
-          });
+          isLocal = false;
         }
+      }
+
+      if (!isLocal) {
+        deliverySlots.set(storeIdStr, {
+          type: 'standard',
+          slot: '5-7 business days',
+          estimatedDelivery: '📦 Estimated 5–7 days (Standard Courier)',
+        });
+      } else {
+        const clientSlot = input.deliverySlots?.[storeIdStr];
+        deliverySlots.set(storeIdStr, {
+          type: clientSlot?.type ?? 'now',
+          slot: clientSlot?.slot ?? (clientSlot?.type === 'scheduled' ? 'Scheduled' : '⚡ 15–30 mins'),
+          date: clientSlot?.date,
+          estimatedDelivery: clientSlot?.type === 'scheduled'
+            ? `Scheduled (${clientSlot.date ?? 'Next 1–3 days'})`
+            : '⚡ 15–30 mins',
+        });
       }
     }
 
