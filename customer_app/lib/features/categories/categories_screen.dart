@@ -4,11 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/category.dart';
-
-const _emoji = {
-  'food-beverages': '🍔', 'food': '🍔', 'grocery-dept': '🛒', 'kirana-grocery': '🛒',
-  'fashion': '👗', 'electronics': '📱', 'home-kitchen': '🍳', 'beauty': '💄', 'pharmacy': '💊', 'watches': '⌚',
-};
+import '../../shared/category_emoji.dart';
 
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
@@ -45,7 +41,7 @@ class _Department extends StatelessWidget {
               width: 44, height: 44,
               decoration: BoxDecoration(color: const Color(0xFFE7F6EC), borderRadius: BorderRadius.circular(12)),
               alignment: Alignment.center,
-              child: Text(_emoji[node.slug] ?? '🛍️', style: const TextStyle(fontSize: 22)),
+              child: Text(categoryEmoji(node.slug), style: const TextStyle(fontSize: 22)),
             ),
             title: Text(node.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             trailing: const Icon(Icons.chevron_right_rounded),

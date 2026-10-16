@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../data/providers.dart';
@@ -243,7 +244,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
           data: (orders) {
             if (orders.isEmpty) return const SizedBox.shrink();
             final latest = orders.first;
-            final isDelivered = latest.status.toUpperCase() == 'DELIVERED';
+            // Backend order.model.ts enum is pending/paid/fulfilled/cancelled/refunded — there is
+            // no 'delivered' status, so match 'fulfilled' (same check as orders_screen.dart).
+            final isDelivered = latest.status.toLowerCase() == 'fulfilled';
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -453,11 +456,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                 color: const Color(0xFF10B981),
                 title: 'Toll-Free Customer Helpline',
                 subtitle: '1800-419-7878 (9:00 AM – 11:00 PM)',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Helpline: 1800-419-7878. Support team is available 24/7.'),
-                  ));
-                },
+                onTap: () => launchUrl(Uri.parse('tel:18004197878')),
               ),
               const Divider(height: 20),
               _contactRow(
@@ -465,11 +464,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                 color: const Color(0xFF0284C7),
                 title: 'Email Customer Support',
                 subtitle: 'care@marketplace.com',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Email support: care@marketplace.com (average response within 2 hours).'),
-                  ));
-                },
+                onTap: () => launchUrl(Uri.parse('mailto:care@marketplace.com')),
               ),
               const Divider(height: 20),
               _contactRow(

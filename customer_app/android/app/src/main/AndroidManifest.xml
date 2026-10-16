@@ -57,10 +57,14 @@
         <intent>
             <action android:name="android.speech.RecognitionService"/>
         </intent>
-        <!-- "Call store" button on the store page — dial the vendor's contact number. -->
+        <!-- "Call store" button on the store page, and the support screen's helpline/email rows. -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="tel"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mailto"/>
         </intent>
     </queries>
 </manifest>

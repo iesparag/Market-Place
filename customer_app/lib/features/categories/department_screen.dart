@@ -4,34 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/category.dart';
+import '../../shared/category_emoji.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
-
-const _emoji = {
-  'shirts': '👔',
-  'jeans': '👖',
-  't-shirts': '👕',
-  'kurtis': '🥻',
-  'sarees': '🥻',
-  'dresses': '👗',
-  'boys-clothing': '👦',
-  'girls-clothing': '👧',
-  'toys': '🧸',
-  'smartphones': '📱',
-  'laptops': '💻',
-  'audio': '🎧',
-  'wrist-watches': '⌚',
-  'medicines': '💊',
-  'wellness-otc': '🌿',
-  'pizza': '🍕',
-  'burgers-wraps': '🍔',
-  'biryani': '🍛',
-  'dals-pulses': '🫘',
-  'spices-masala': '🌶️',
-  'atta-flour': '🌾',
-  'edible-oil': '🛢️',
-  'rice-grains': '🍚',
-};
 
 /// Drill-in from "Shop by department" → shows THIS department's sub-categories.
 class DepartmentScreen extends ConsumerWidget {
@@ -116,7 +91,7 @@ class DepartmentScreen extends ConsumerWidget {
                                     color: const Color(0xFFE7F6EC),
                                     borderRadius: BorderRadius.circular(16)),
                                 alignment: Alignment.center,
-                                child: Text(_emoji[c.slug] ?? '🛍️',
+                                child: Text(categoryEmoji(c.slug),
                                     style: const TextStyle(fontSize: 34)),
                               ),
                             ),
