@@ -22,6 +22,11 @@ const orderSchema = new Schema(
     customerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     items: { type: [orderItemSchema], default: [] },
     storeIds: { type: [Schema.Types.ObjectId], index: true }, // for vendor filtering
+    // Per-vendor note from the customer (cart screen → "Instructions for <store>") —
+    // keyed by storeId since one order can span several vendors and a note for one
+    // doesn't apply to the others. Copied onto each DeliveryTask at createForOrder()
+    // time so the vendor sees exactly their own instruction, not the whole map.
+    storeInstructions: { type: Map, of: String, default: undefined },
     couponCode: String,
     amounts: {
       itemsTotal: Number,
@@ -72,7 +77,10 @@ const orderSchema = new Schema(
     contact: { name: String, phone: String, email: String },
     // lat/lng (from the customer's saved Address) feed DeliveryTask.dropAddress, which
     // in turn drives the live rider→destination polyline — see delivery-tasks.service.ts.
-    shippingAddress: { line1: String, city: String, pincode: String, lat: Number, lng: Number },
+    shippingAddress: {
+      line1: String, line2: String, landmark: String, city: String, state: String, pincode: String,
+      lat: Number, lng: Number,
+    },
   },
   { timestamps: true },
 );

@@ -97,8 +97,12 @@ class HomeScreen extends ConsumerWidget {
         return _CategoryGridSection(section: s);
 
       case 'vendors':
+        // "Near you" used to be a home-feed rail; it's now the dedicated "Now" tab
+        // (bottom nav) — open-right-now vendors within instant-delivery range, not just
+        // sorted-by-distance. Hiding this section rather than rendering it as a generic
+        // row avoids showing the same "near you" idea twice in two different places.
         if (s.sort == 'nearby' || s.title.toLowerCase().contains('near')) {
-          return _ShopsNearYouSection(section: s);
+          return const SizedBox.shrink();
         }
         if (s.sort == 'rating' || s.title.toLowerCase().contains('popular') || s.title.toLowerCase().contains('top')) {
           return _PopularStoresSection(section: s);
@@ -602,46 +606,11 @@ class _CategoryGridSection extends ConsumerWidget {
   }
 }
 
-// ── 5. Shops Near You (Local Stores, Rating & Delivery Time) ────────────────
-class _ShopsNearYouSection extends StatelessWidget {
-  final HomeSection section;
-  const _ShopsNearYouSection({required this.section});
-
-  @override
-  Widget build(BuildContext context) {
-    // outOfServiceArea is only ever set when the backend actually geo-filtered (lat/lng
-    // was sent) and found zero stores in range — never as a fallback for "still loading"
-    // or a request error, so this message only shows when it's genuinely true.
-    if (section.outOfServiceArea) return const _OutOfServiceArea();
-    if (section.vendors.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: section.title.isNotEmpty ? section.title : 'Shops Near You',
-          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Trusted local stores in your area',
-          actionLabel: 'View All ›',
-          onAction: () => context.push('/stores'),
-        ),
-        SizedBox(
-          height: 156,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: section.vendors.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) => _NearbyStoreCard(vendor: section.vendors[i]),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// Blinkit-style "outside serviceable area" state — same visual language as
-/// cart_screen.dart's _EmptyCart, sized for inline placement in the home feed.
-class _OutOfServiceArea extends StatelessWidget {
-  const _OutOfServiceArea();
+/// cart_screen.dart's _EmptyCart. Also reused by the "Now" tab (now_screen.dart)
+/// for its own empty state, same wording fits both.
+class OutOfServiceArea extends StatelessWidget {
+  const OutOfServiceArea({super.key});
   @override
   Widget build(BuildContext context) {
     final b = context.brand;

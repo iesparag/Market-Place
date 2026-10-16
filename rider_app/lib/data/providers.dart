@@ -26,3 +26,5 @@ final alertServiceProvider = Provider<AlertService>((ref) => AlertService());
 final offersProvider = FutureProvider.autoDispose<List<TaskModel>>((ref) => ref.read(ridersRepoProvider).myOffers());
 
 final myTasksProvider = FutureProvider.autoDispose<List<TaskModel>>((ref) => ref.read(ridersRepoProvider).myTasks());
+
+final historyProvider = FutureProvider.autoDispose<List<TaskModel>>((ref) => ref.read(ridersRepoProvider).history());

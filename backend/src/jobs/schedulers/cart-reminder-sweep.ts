@@ -1,6 +1,10 @@
+import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { Cart } from '../../modules/cart/cart.module.js';
 import { notify } from '../../modules/notifications/notifications.module.js';
+import { User } from '../../modules/auth/user.model.js';
+import { WhatsAppTemplate } from '../../modules/whatsapp/whatsapp.module.js';
+import { whatsappProvider } from '../../providers/whatsapp/index.js';
 
 const SWEEP_INTERVAL_MS = 15 * 60_000; // every 15 minutes — fine-grained enough to not miss the window
 const EVENING_START_HOUR_IST = 18; // 6 PM
@@ -28,7 +32,14 @@ export async function sweepAbandonedCarts(now = new Date()): Promise<number> {
     .limit(500)
     .lean();
 
+  // Resolved once per sweep tick, not per cart — looking it up 500 times for a feature
+  // that's off by default (no WHATSAPP_CART_REMINDER_TEMPLATE set) would be pure waste.
+  const template = env.WHATSAPP_CART_REMINDER_TEMPLATE
+    ? await WhatsAppTemplate.findOne({ name: env.WHATSAPP_CART_REMINDER_TEMPLATE, status: 'approved' }).lean()
+    : null;
+
   let sent = 0;
+  let whatsappSent = 0;
   for (const cart of carts) {
     // Atomic claim — if two ticks overlap (sweep took > interval), only one sends.
     const claimed = await Cart.updateOne(
@@ -45,8 +56,26 @@ export async function sweepAbandonedCarts(now = new Date()): Promise<number> {
       link: '/cart',
     });
     sent += 1;
+
+    // WhatsApp is opt-in only (Meta policy — see User.whatsappOptIn) and additive to the
+    // push above, never a replacement: push always fires, WhatsApp only when the customer
+    // has actually consented AND an approved template is configured.
+    if (template) {
+      const user = await User.findById(cart.userId).select('name phone whatsappOptIn').lean();
+      if (user?.whatsappOptIn && user.phone) {
+        const result = await whatsappProvider.sendTemplate({
+          to: user.phone,
+          templateName: template.name,
+          languageCode: template.language,
+          bodyParams: Array.from({ length: template.variableCount }, (_, i) =>
+            i === 0 ? (user.name || 'there') : i === 1 ? String(count) : '',
+          ),
+        });
+        if (result.sent) whatsappSent += 1;
+      }
+    }
   }
-  if (sent > 0) logger.info({ sent }, 'cart-reminder-sweep: sent abandoned-cart reminders');
+  if (sent > 0) logger.info({ sent, whatsappSent }, 'cart-reminder-sweep: sent abandoned-cart reminders');
   return sent;
 }
 

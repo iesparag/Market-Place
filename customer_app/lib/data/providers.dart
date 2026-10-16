@@ -95,6 +95,21 @@ final vendorsProvider = FutureProvider.autoDispose((ref) async {
   return ref.read(catalogRepoProvider).stores(lat: loc?.lat, lng: loc?.lng);
 });
 
+/// Whether the bottom-nav "Now" tab should even appear — only for a customer whose
+/// area actually has vendors (reuses the same nearby-vendors fetch as the home feed,
+/// no extra request). Defaults to hidden while loading/unknown rather than flashing the
+/// tab on then pulling it away: a city with zero vendors should never see "Now" at all.
+final nowTabVisibleProvider = Provider.autoDispose<bool>((ref) {
+  return ref.watch(vendorsProvider).maybeWhen(data: (list) => list.isNotEmpty, orElse: () => false);
+});
+
+/// "Now" tab — vendors open right now within instant-delivery range. No GPS → empty
+/// (the screen treats that as "we need your location," not "nothing's open").
+final nowStoresProvider = FutureProvider.autoDispose((ref) async {
+  final loc = await ref.watch(deviceLocationProvider.future);
+  return ref.read(catalogRepoProvider).nowStores(lat: loc?.lat, lng: loc?.lng);
+});
+
 /// Live "Deliver to: <area>" label for the home screen's location bar — reverse-geocoded
 /// from device GPS via the existing FREE `/geocode/reverse` (Nominatim), deliberately not
 /// Google Places: this fires on every app open and has no billing reason to use Places.

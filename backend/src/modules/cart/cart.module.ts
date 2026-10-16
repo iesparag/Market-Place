@@ -114,7 +114,7 @@ cartRoutes.post('/recovery-campaign', authorize('notification:manage'), asyncHan
   const input = CampaignSchema.parse(req.body);
   const carts = await Cart.find({ userId: { $in: input.userIds } }).lean();
   const cartByUser = new Map(carts.map((c) => [String(c.userId), c]));
-  const users = await User.find({ _id: { $in: input.userIds } }).select('name phone').lean();
+  const users = await User.find({ _id: { $in: input.userIds } }).select('name phone whatsappOptIn').lean();
 
   let template: InstanceType<typeof WhatsAppTemplate> | null = null;
   if (input.channels.includes('whatsapp') && input.whatsappTemplateName) {
@@ -134,7 +134,9 @@ cartRoutes.post('/recovery-campaign', authorize('notification:manage'), asyncHan
       await notify(String(user._id), { type: 'promo', title: input.title, body, link: '/cart', image: input.image });
       pushSent += 1;
     }
-    if (input.channels.includes('whatsapp') && template && user.phone) {
+    // WhatsApp is opt-in only (User.whatsappOptIn — Meta policy on unsolicited business
+    // messages); skipped on this channel for a non-consenting user, never on push.
+    if (input.channels.includes('whatsapp') && template && user.phone && user.whatsappOptIn) {
       const result = await whatsappProvider.sendTemplate({
         to: user.phone,
         templateName: template.name,

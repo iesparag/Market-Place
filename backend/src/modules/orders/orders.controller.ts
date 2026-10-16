@@ -18,6 +18,9 @@ const CreateOrderSchema = z.object({
     )
     .min(1),
   couponCode: z.string().optional(),
+  // Keyed by storeId — "Instructions for <store>" from the cart screen, one note per
+  // vendor on a multi-vendor cart (not one note smeared across unrelated stores).
+  storeInstructions: z.record(z.string(), z.string()).optional(),
   contact: z
     .object({ name: z.string().optional(), phone: z.string().optional(), email: z.string().optional() })
     .optional(),
@@ -28,7 +31,8 @@ const CreateOrderSchema = z.object({
   // production delivery app should never let checkout complete with an unresolved pin.
   shippingAddress: z
     .object({
-      line1: z.string().optional(), city: z.string().optional(), pincode: z.string().optional(),
+      line1: z.string().optional(), line2: z.string().optional(), landmark: z.string().optional(),
+      city: z.string().optional(), state: z.string().optional(), pincode: z.string().optional(),
       lat: z.number(), lng: z.number(),
     })
     .optional(),

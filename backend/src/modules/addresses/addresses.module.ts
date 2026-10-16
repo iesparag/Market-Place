@@ -10,8 +10,15 @@ const addressSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     label: { type: String, default: 'Home' },
+    recipientName: String,
     line1: { type: String, required: true },
+    // Flat/house no., building, floor — kept separate from `line1` (area/street) because
+    // Places/current-location resolve `line1`, but a flat number inside a building is
+    // never part of a geocoded result; a rider needs both lines, not one merged string.
+    line2: String,
+    landmark: String,
     city: { type: String, required: true },
+    state: String,
     pincode: String,
     phone: String,
     isDefault: { type: Boolean, default: false },
@@ -25,8 +32,12 @@ export const Address = model('Address', addressSchema);
 
 const AddressInput = z.object({
   label: z.string().optional(),
+  recipientName: z.string().optional(),
   line1: z.string().min(1),
+  line2: z.string().optional(),
+  landmark: z.string().optional(),
   city: z.string().min(1),
+  state: z.string().optional(),
   pincode: z.string().optional(),
   phone: z.string().optional(),
   isDefault: z.boolean().optional(),

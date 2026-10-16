@@ -146,6 +146,7 @@ export const NAV_META: NavSectionMeta[] = [
       { perm: 'banner:manage', label: 'Festivals', route: '/festivals' },
       { perm: 'notification:manage', label: 'Push / Announce', route: '/announcements' },
       { perm: 'notification:manage', label: 'Cart Recovery', route: '/cart-recovery' },
+      { perm: 'notification:manage', label: 'Campaigns', route: '/campaigns' },
       { perm: 'notification:manage', label: 'WhatsApp', route: '/whatsapp-templates' },
     ],
   },

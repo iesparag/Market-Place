@@ -20,16 +20,21 @@ export const usersController = {
       email: doc.email,
       phone: doc.phone,
       emailVerified: doc.emailVerified ?? false,
+      whatsappOptIn: doc.whatsappOptIn ?? false,
       role: auth.role,
       storeId: auth.storeId,
       permissions: auth.permissions,
     });
   },
 
-  /** Update own profile (name / phone). */
+  /** Update own profile (name / phone / WhatsApp marketing opt-in). */
   async updateMe(req: Request, res: Response) {
-    const input = z.object({ name: z.string().min(1).optional(), phone: z.string().optional() }).parse(req.body);
-    const doc = await User.findByIdAndUpdate(req.user!.id, input, { new: true }).select('name email phone emailVerified').lean();
+    const input = z
+      .object({ name: z.string().min(1).optional(), phone: z.string().optional(), whatsappOptIn: z.boolean().optional() })
+      .parse(req.body);
+    const doc = await User.findByIdAndUpdate(req.user!.id, input, { new: true })
+      .select('name email phone emailVerified whatsappOptIn')
+      .lean();
     if (!doc) throw AppError.notFound('User not found');
     ok(res, doc);
   },

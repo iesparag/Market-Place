@@ -71,7 +71,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     String orderId;
     String orderNumber;
     try {
-      final order = await ref.read(checkoutRepoProvider).placeOrder(lines: lines, address: addr);
+      final order = await ref.read(checkoutRepoProvider).placeOrder(
+            lines: lines,
+            address: addr,
+            storeInstructions: ref.read(cartInstructionsProvider),
+          );
       orderId = order.id;
       orderNumber = order.number;
       ref.read(cartProvider.notifier).clear();

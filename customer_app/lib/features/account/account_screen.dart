@@ -15,20 +15,21 @@ class AccountScreen extends ConsumerWidget {
       body: ListView(
         children: [
           Container(
-            color: BrandColors.ink,
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            decoration: BoxDecoration(gradient: context.brand.gradient),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 26),
             child: Row(children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: context.brand.primary,
+              Container(
+                width: 60,
+                height: 60,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 10, offset: Offset(0, 3))],
+                ),
+                alignment: Alignment.center,
                 child: Text(
-                    user != null && user.name.isNotEmpty
-                        ? user.name[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800)),
+                    user != null && user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                    style: TextStyle(color: context.brand.primaryDark, fontSize: 26, fontWeight: FontWeight.w900)),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -36,30 +37,29 @@ class AccountScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(user?.name ?? 'Guest',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800)),
+                        style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 2),
                     Text(user?.email ?? 'Sign in to see your orders',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 13)),
+                        style: const TextStyle(color: Colors.white, fontSize: 13)),
                   ],
                 ),
               ),
               if (user == null)
                 ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: context.brand.primaryDark),
                     onPressed: () => context.push('/login'),
                     child: const Text('Sign in')),
             ]),
           ),
-          const SizedBox(height: 8),
-          // Same destination as the bottom-nav Orders tab (index 4 in app_shell.dart) —
-          // switch the shared tab index instead of pushing a second /orders route, so
-          // there's one consistent way to get there, not two with different back behavior.
-          // Account itself is now a pushed /account route (not a tab), so this also
-          // pops back to reveal the shell with Orders selected.
+          const SizedBox(height: 10),
+          // Same destination as the bottom-nav Orders tab — switch the shared tab index
+          // (read fresh from ordersTabIndexProvider, since Now appearing/disappearing
+          // shifts where Orders actually sits) instead of pushing a second /orders
+          // route, so there's one consistent way to get there, not two with different
+          // back behavior. Account itself is now a pushed /account route (not a tab),
+          // so this also pops back to reveal the shell with Orders selected.
           _tile(Icons.receipt_long_rounded, 'Your orders', () {
-            ref.read(shellTabProvider.notifier).state = 4;
+            ref.read(shellTabProvider.notifier).state = ref.read(ordersTabIndexProvider);
             if (context.canPop()) context.pop();
           }),
           _tile(Icons.location_on_outlined, 'Addresses',
@@ -68,6 +68,25 @@ class AccountScreen extends ConsumerWidget {
               () => context.push('/become-vendor')),
           _tile(Icons.help_outline_rounded, 'Help & support', () => context.push('/support')),
           if (user != null) ...[
+            const Divider(height: 8),
+            SwitchListTile(
+              secondary: const Icon(Icons.chat_outlined, color: BrandColors.ink),
+              title: const Text('WhatsApp updates & offers',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: BrandColors.ink)),
+              subtitle: const Text('Cart reminders and deals on WhatsApp — you can turn this off anytime',
+                  style: TextStyle(fontSize: 12, color: BrandColors.textMuted)),
+              value: user.whatsappOptIn,
+              onChanged: (v) async {
+                try {
+                  await ref.read(authProvider.notifier).setWhatsappOptIn(v);
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(const SnackBar(content: Text('Could not update preference — try again.')));
+                  }
+                }
+              },
+            ),
             const Divider(height: 24),
             _tile(Icons.logout_rounded, 'Log out',
                 () => ref.read(authProvider.notifier).logout(),

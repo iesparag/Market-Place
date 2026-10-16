@@ -14,6 +14,13 @@ class CartScreen extends ConsumerWidget {
     final cart = ref.read(cartProvider.notifier);
     final subtotal = lines.fold<int>(0, (n, l) => n + l.lineTotal);
 
+    // Grouped by vendor — a multi-vendor cart gets one instructions box per store, not
+    // one note that would be shown to every vendor regardless of relevance.
+    final groups = <String, List<CartLine>>{};
+    for (final l in lines) {
+      groups.putIfAbsent(l.storeId, () => []).add(l);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your cart'),
@@ -24,62 +31,14 @@ class CartScreen extends ConsumerWidget {
       ),
       body: lines.isEmpty
           ? _EmptyCart(onShop: () => context.go('/'))
-          : ListView.separated(
+          : ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: lines.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final l = lines[i];
-                return Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: BrandColors.border)),
-                  child: Row(children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: SizedBox(
-                        width: 64,
-                        height: 64,
-                        child: l.image != null
-                            ? CachedNetworkImage(
-                                imageUrl: l.image!, fit: BoxFit.cover)
-                            : Container(
-                                color: const Color(0xFFF1F1F4),
-                                child: const Icon(Icons.image_outlined)),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(l.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 13.5)),
-                          if (l.storeName != null)
-                            Text(l.storeName!,
-                                style: const TextStyle(
-                                    color: BrandColors.textMuted,
-                                    fontSize: 12)),
-                          const SizedBox(height: 6),
-                          Text(rupees(l.price),
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w800)),
-                        ],
-                      ),
-                    ),
-                    _QtyBox(
-                      qty: l.qty,
-                      onDec: () => cart.setQty(l.key, l.qty - 1),
-                      onInc: () => cart.setQty(l.key, l.qty + 1),
-                    ),
-                  ]),
-                );
-              },
+              children: [
+                for (final entry in groups.entries) ...[
+                  _VendorGroup(storeId: entry.key, lines: entry.value, cart: cart),
+                  const SizedBox(height: 14),
+                ],
+              ],
             ),
       bottomNavigationBar: lines.isEmpty
           ? null
@@ -116,6 +75,97 @@ class CartScreen extends ConsumerWidget {
               ),
             ),
     );
+  }
+}
+
+class _VendorGroup extends ConsumerWidget {
+  final String storeId;
+  final List<CartLine> lines;
+  final CartController cart;
+  const _VendorGroup({required this.storeId, required this.lines, required this.cart});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final storeName = lines.first.storeName;
+    final instructions = ref.watch(cartInstructionsProvider)[storeId] ?? '';
+    return Container(
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: BrandColors.border)),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (storeName != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(2, 2, 2, 8),
+              child: Row(children: [
+                const Icon(Icons.storefront_outlined, size: 15, color: BrandColors.textMuted),
+                const SizedBox(width: 6),
+                Text(storeName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+              ]),
+            ),
+          for (final l in lines) ...[
+            _CartLineRow(line: l, cart: cart),
+            const SizedBox(height: 10),
+          ],
+          TextFormField(
+            initialValue: instructions,
+            maxLines: 2,
+            minLines: 1,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: storeName != null ? 'Instructions for $storeName (optional)' : 'Instructions for vendor (optional)',
+              hintText: 'e.g. ring the bell, no onions, leave at the door…',
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (v) => ref.read(cartInstructionsProvider.notifier).set(storeId, v),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CartLineRow extends StatelessWidget {
+  final CartLine line;
+  final CartController cart;
+  const _CartLineRow({required this.line, required this.cart});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 64,
+          height: 64,
+          child: line.image != null
+              ? CachedNetworkImage(imageUrl: line.image!, fit: BoxFit.cover)
+              : Container(color: const Color(0xFFF1F1F4), child: const Icon(Icons.image_outlined)),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(line.title,
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            const SizedBox(height: 6),
+            Text(rupees(line.price), style: const TextStyle(fontWeight: FontWeight.w800)),
+          ],
+        ),
+      ),
+      _QtyBox(
+        qty: line.qty,
+        onDec: () => cart.setQty(line.key, line.qty - 1),
+        onInc: () => cart.setQty(line.key, line.qty + 1),
+      ),
+    ]);
   }
 }
 

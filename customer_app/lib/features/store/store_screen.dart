@@ -288,6 +288,7 @@ class _InfoCard extends StatelessWidget {
                       runSpacing: 4,
                       children: [
                         const _VerifiedBadge(),
+                        _OpenStatusBadge(isOpenNow: s.isOpenNow),
                         if (s.ratingCount > 0) _RatingPill(avg: s.ratingAvg, count: s.ratingCount),
                         Text('$productCount products',
                             style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
@@ -333,6 +334,26 @@ class _InfoCard extends StatelessWidget {
           const Divider(height: 1),
         ],
       ),
+    );
+  }
+}
+
+class _OpenStatusBadge extends StatelessWidget {
+  final bool isOpenNow;
+  const _OpenStatusBadge({required this.isOpenNow});
+  @override
+  Widget build(BuildContext context) {
+    final color = isOpenNow ? BrandColors.success : BrandColors.danger;
+    final bg = isOpenNow ? const Color(0xFFE7F6EC) : const Color(0xFFFCE8E8);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(isOpenNow ? Icons.bolt_rounded : Icons.schedule_rounded, size: 13, color: color),
+        const SizedBox(width: 3),
+        Text(isOpenNow ? 'Open now' : 'Closed',
+            style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w800)),
+      ]),
     );
   }
 }

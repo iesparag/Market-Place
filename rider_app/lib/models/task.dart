@@ -1,20 +1,41 @@
 class TaskItem {
   final String title;
   final int qty;
-  TaskItem({required this.title, required this.qty});
-  factory TaskItem.fromJson(Map<String, dynamic> j) =>
-      TaskItem(title: (j['title'] ?? 'Item').toString(), qty: (j['qty'] as num?)?.toInt() ?? 1);
+  final String? image;
+  TaskItem({required this.title, required this.qty, this.image});
+  factory TaskItem.fromJson(Map<String, dynamic> j) => TaskItem(
+        title: (j['title'] ?? 'Item').toString(),
+        qty: (j['qty'] as num?)?.toInt() ?? 1,
+        image: (j['image'] as String?)?.trim().isEmpty == true ? null : j['image']?.toString(),
+      );
 }
 
 class TaskAddress {
   final String? line1;
+  final String? line2;
+  final String? landmark;
   final String? city;
+  final String? state;
   final String? pincode;
-  TaskAddress({this.line1, this.city, this.pincode});
-  factory TaskAddress.fromJson(Map<String, dynamic>? j) =>
-      TaskAddress(line1: j?['line1']?.toString(), city: j?['city']?.toString(), pincode: j?['pincode']?.toString());
+  final double? lat;
+  final double? lng;
+  TaskAddress({this.line1, this.line2, this.landmark, this.city, this.state, this.pincode, this.lat, this.lng});
+  factory TaskAddress.fromJson(Map<String, dynamic>? j) => TaskAddress(
+        line1: j?['line1']?.toString(),
+        line2: (j?['line2'] as String?)?.trim().isEmpty == true ? null : j?['line2']?.toString(),
+        landmark: (j?['landmark'] as String?)?.trim().isEmpty == true ? null : j?['landmark']?.toString(),
+        city: j?['city']?.toString(),
+        state: j?['state']?.toString(),
+        pincode: j?['pincode']?.toString(),
+        lat: (j?['lat'] as num?)?.toDouble(),
+        lng: (j?['lng'] as num?)?.toDouble(),
+      );
 
-  String get oneLine => [line1, city, pincode].where((e) => e != null && e.isNotEmpty).join(', ');
+  bool get hasLocation => lat != null && lng != null;
+  String get oneLine =>
+      [line2, line1, if (landmark != null) 'near $landmark', city, state, pincode]
+          .where((e) => e != null && e.isNotEmpty)
+          .join(', ');
 }
 
 /// An offer currently open on a task — only present while it's being auto-assignment-
@@ -64,6 +85,15 @@ class TaskModel {
   final TaskAddress pickup;
   final TaskAddress drop;
   final TaskOffer? offer;
+  final String? storeName;
+  final String? storePhone;
+  final String? customerName;
+  final String? customerPhone;
+  /// Cash to collect on delivery — null for a prepaid order (nothing to collect).
+  final int? codAmount;
+  /// The customer's note to THIS vendor (cart screen — "Instructions for [store]").
+  final String? instructions;
+  final DateTime? updatedAt;
 
   TaskModel({
     required this.id,
@@ -73,7 +103,16 @@ class TaskModel {
     required this.pickup,
     required this.drop,
     this.offer,
+    this.storeName,
+    this.storePhone,
+    this.customerName,
+    this.customerPhone,
+    this.codAmount,
+    this.instructions,
+    this.updatedAt,
   });
+
+  bool get isCod => codAmount != null;
 
   bool get isReadyForPickup => status == 'ready';
   bool get isDelivered => status == 'delivered';
@@ -108,6 +147,13 @@ class TaskModel {
       pickup: TaskAddress.fromJson((j['pickupAddress'] as Map?)?.cast<String, dynamic>()),
       drop: TaskAddress.fromJson((j['dropAddress'] as Map?)?.cast<String, dynamic>()),
       offer: offerJson != null ? TaskOffer.fromJson(offerJson) : null,
+      storeName: j['storeName']?.toString(),
+      storePhone: (j['storePhone'] as String?)?.trim().isEmpty == true ? null : j['storePhone']?.toString(),
+      customerName: j['customerName']?.toString(),
+      customerPhone: (j['customerPhone'] as String?)?.trim().isEmpty == true ? null : j['customerPhone']?.toString(),
+      codAmount: (j['codAmount'] as num?)?.toInt(),
+      instructions: (j['instructions'] as String?)?.trim().isEmpty == true ? null : j['instructions']?.toString(),
+      updatedAt: DateTime.tryParse(j['updatedAt']?.toString() ?? ''),
     );
   }
 }

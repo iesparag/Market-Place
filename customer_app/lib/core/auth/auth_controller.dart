@@ -7,12 +7,18 @@ class AuthUser {
   final String name;
   final String email;
   final String role;
-  AuthUser({required this.id, required this.name, required this.email, required this.role});
+  final bool whatsappOptIn;
+  AuthUser({required this.id, required this.name, required this.email, required this.role, this.whatsappOptIn = false});
   factory AuthUser.fromJson(Map<String, dynamic> j) => AuthUser(
         id: (j['id'] ?? j['_id'] ?? '').toString(),
         name: j['name']?.toString() ?? '',
         email: j['email']?.toString() ?? '',
         role: j['role']?.toString() ?? 'customer',
+        whatsappOptIn: j['whatsappOptIn'] == true,
+      );
+  AuthUser copyWith({bool? whatsappOptIn}) => AuthUser(
+        id: id, name: name, email: email, role: role,
+        whatsappOptIn: whatsappOptIn ?? this.whatsappOptIn,
       );
 }
 
@@ -117,6 +123,20 @@ class AuthController extends StateNotifier<AuthUser?> {
       'code': code,
       'newPassword': newPassword,
     });
+  }
+
+  /// WhatsApp marketing messages (cart reminders etc.) are opt-in only — see
+  /// User.whatsappOptIn on the backend. Optimistic update, reverted on failure.
+  Future<void> setWhatsappOptIn(bool value) async {
+    final prev = state;
+    if (prev == null) return;
+    state = prev.copyWith(whatsappOptIn: value);
+    try {
+      await ref.read(apiClientProvider).patch('/me', body: {'whatsappOptIn': value});
+    } catch (_) {
+      state = prev;
+      rethrow;
+    }
   }
 
   Future<void> logout() async {

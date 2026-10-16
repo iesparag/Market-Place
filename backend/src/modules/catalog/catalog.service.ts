@@ -2,7 +2,7 @@ import { AppError } from '../../common/AppError.js';
 import { env } from '../../config/env.js';
 import { Product } from '../products/product.model.js';
 import { Category } from '../categories/category.model.js';
-import { Store } from '../stores/store.model.js';
+import { Store, isStoreOpenNow } from '../stores/store.model.js';
 
 export interface GeoQuery {
   lat?: number;
@@ -80,6 +80,22 @@ export const catalogService = {
     return products.map((p) => ({ ...p, store: storeMap.get(String(p.storeId)) ?? null }));
   },
 
+  /**
+   * Resolves a productId → its current slug (+ current price, for the "has this changed
+   * since I ordered it" comparison) — used by the order-detail screen, where an order's
+   * item snapshot carries productId but never a slug (slugs can change; the snapshot is
+   * deliberately frozen at order time). 404s the same way getProductBySlug does for a
+   * product that's since been deactivated/removed — "no longer available" is accurate,
+   * not a bug, for an old order pointing at a product that doesn't sell anymore.
+   */
+  async getProductSlugById(id: string) {
+    const product = await Product.findOne({ _id: id, status: 'active', visibility: 'public' })
+      .select('slug minPrice')
+      .lean();
+    if (!product) throw AppError.notFound('Product not found');
+    return { slug: product.slug, currentPrice: product.minPrice };
+  },
+
   async getProductBySlug(slug: string) {
     const product = await Product.findOne({ slug, status: 'active', visibility: 'public' }).lean();
     if (!product) throw AppError.notFound('Product not found');
@@ -146,12 +162,15 @@ export const catalogService = {
             ratingAvg: 1,
             ratingCount: 1,
             distanceMeters: 1,
+            availabilityStatus: 1,
+            operatingHours: 1,
+            holidays: 1,
           },
         },
       ]);
     } else {
       stores = await Store.find({ status: 'approved' })
-        .select('name slug description vendorType logo banner ratingAvg ratingCount')
+        .select('name slug description vendorType logo banner ratingAvg ratingCount availabilityStatus operatingHours holidays')
         .sort({ createdAt: -1 })
         .lean();
     }
@@ -166,7 +185,50 @@ export const catalogService = {
       { $group: { _id: '$storeId', n: { $sum: 1 } } },
     ]);
     const countMap = new Map(counts.map((c) => [String(c._id), c.n]));
-    return stores.map((s) => ({ ...s, productCount: countMap.get(String(s._id)) ?? 0 }));
+    return stores.map((s) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { availabilityStatus, operatingHours, holidays, ...rest } = s as Record<string, unknown>;
+      return { ...rest, productCount: countMap.get(String(s._id)) ?? 0, isOpenNow: isStoreOpenNow(s as never) };
+    });
+  },
+
+  /**
+   * "Now" feed — same $geoNear shape as listStores, but tighter radius
+   * (env.NOW_RADIUS_KM, instant-delivery distance, not just "serviceable") AND filtered
+   * to stores that are actually open at this exact moment (isStoreOpenNow). This is the
+   * query backing the customer app's "Now" tab.
+   */
+  async listNowStores(geo: GeoQuery = {}) {
+    if (geo.lat == null || geo.lng == null) return [];
+    const stores = await Store.aggregate([
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [geo.lng, geo.lat] },
+          distanceField: 'distanceMeters',
+          spherical: true,
+          maxDistance: env.NOW_RADIUS_KM * 1000,
+          query: { status: 'approved' },
+        },
+      },
+      {
+        $project: {
+          name: 1, slug: 1, description: 1, vendorType: 1, logo: 1, banner: 1,
+          ratingAvg: 1, ratingCount: 1, distanceMeters: 1,
+          availabilityStatus: 1, operatingHours: 1, holidays: 1,
+        },
+      },
+    ]);
+    const open = stores.filter((s) => isStoreOpenNow(s as never));
+    const counts = await Product.aggregate<{ _id: string; n: number }>([
+      { $match: { status: 'active', visibility: 'public', storeId: { $in: open.map((s) => s._id) } } },
+      { $group: { _id: '$storeId', n: { $sum: 1 } } },
+    ]);
+    const countMap = new Map(counts.map((c) => [String(c._id), c.n]));
+    return open.map((s) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { availabilityStatus, operatingHours, holidays, ...rest } = s as Record<string, unknown>;
+      return { ...rest, productCount: countMap.get(String(s._id)) ?? 0, isOpenNow: true };
+    });
   },
 
   async getStoreBySlug(slug: string) {
@@ -193,6 +255,6 @@ export const catalogService = {
       }
     }
     const categoryTree = buildTree([...include].map((id) => catMap.get(id)!));
-    return { store, products, categoryTree };
+    return { store: { ...store, isOpenNow: isStoreOpenNow(store) }, products, categoryTree };
   },
 };

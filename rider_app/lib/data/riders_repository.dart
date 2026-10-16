@@ -29,6 +29,12 @@ class RidersRepository {
     return data.map((e) => TaskModel.fromJson((e as Map).cast<String, dynamic>())).toList();
   }
 
+  /// Completed/cancelled tasks — "what did I accomplish" (last 30 days by default).
+  Future<List<TaskModel>> history({int days = 30}) async {
+    final data = await api.get('/riders/me/history', query: {'days': days}) as List;
+    return data.map((e) => TaskModel.fromJson((e as Map).cast<String, dynamic>())).toList();
+  }
+
   Future<List<TaskModel>> myOffers() async {
     final data = await api.get('/riders/me/offers') as List;
     return data.map((e) => TaskModel.fromJson((e as Map).cast<String, dynamic>())).toList();

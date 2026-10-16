@@ -89,6 +89,9 @@ const EnvSchema = z.object({
   PLACES_DETAILS_CACHE_TTL_SECONDS: z.coerce.number().default(7776000), // 90 days — place_id → lat/lng rarely changes
   // ── Nearby-vendor search + delivery ETA ─────────────────────────────────────
   SERVICEABLE_RADIUS_KM: z.coerce.number().default(10),
+  // Tighter than SERVICEABLE_RADIUS_KM — the "Now" feed is instant/same-visit delivery,
+  // so it only shows vendors close enough for that to be realistic, not just "deliverable."
+  NOW_RADIUS_KM: z.coerce.number().default(5),
   // Self-hosted OSRM for the live rider→destination polyline (free, no per-request
   // billing — deliberately NOT the public router.project-osrm.org demo server, whose
   // own usage policy says it isn't for production traffic). See docker/osrm/README.md.
@@ -107,6 +110,14 @@ const EnvSchema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(), // needed only to create/list templates
+  // Name of the Meta-approved template the abandoned-cart sweep sends automatically.
+  // Unset = sweep stays push-only (safe default — a template name here that isn't actually
+  // 'approved' in WhatsAppTemplate is a silent no-op, never a crash; see cart-reminder-sweep.ts).
+  WHATSAPP_CART_REMINDER_TEMPLATE: z.string().optional(),
+  // Name of the Meta-approved template deliveryTasksService.createForOrder() sends to a
+  // vendor's contactPhone when a new order comes in. Same off-by-default contract as
+  // WHATSAPP_CART_REMINDER_TEMPLATE — unset = vendors only get the in-portal notify.
+  WHATSAPP_NEW_ORDER_TEMPLATE: z.string().optional(),
   LOGISTICS_WEBHOOK_SECRET: z.string().default('dev-logistics-webhook-secret'),
 });
 

@@ -28,8 +28,12 @@ export interface OrderItemInput {
 export interface CreateOrderInput {
   items: OrderItemInput[];
   couponCode?: string;
+  storeInstructions?: Record<string, string>;
   contact?: { name?: string; phone?: string; email?: string };
-  shippingAddress?: { line1?: string; city?: string; pincode?: string; lat?: number; lng?: number };
+  shippingAddress?: {
+    line1?: string; line2?: string; landmark?: string; city?: string; state?: string; pincode?: string;
+    lat?: number; lng?: number;
+  };
 }
 
 function orderNumber(): string {
@@ -152,6 +156,7 @@ export const ordersService = {
       customerId,
       items: lines,
       storeIds,
+      storeInstructions: input.storeInstructions,
       couponCode,
       amounts: { itemsTotal, discount, tax, delivery, grandTotal },
       contact: input.contact,

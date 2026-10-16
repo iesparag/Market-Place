@@ -17,10 +17,26 @@ import { Product } from '../../modules/products/product.model.js';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-const pick = <T>(arr: T[]): T => arr[rand(0, arr.length - 1)]!;
+const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)]!;
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 const priceEnding99 = (min: number, max: number) => Math.floor(rand(min, max) / 10) * 10 + 9;
 const shuffle = <T>(a: T[]) => [...a].sort(() => Math.random() - 0.5);
+
+/**
+ * Real, geocodable localities — the old generator picked a random city but invented a
+ * fake "Shop N, Main Market" line1 + fully random pincode (not even matching the city),
+ * so Nominatim/LocationIQ either 404'd or fuzzy-matched several stores onto the same
+ * wrong coordinates. These are real markets with correct state + pincode + (lat,lng),
+ * so geocoding is reliable AND the demo map actually clusters stores in their own city.
+ */
+const DEMO_LOCALITIES = [
+  { city: 'Mumbai', area: 'Linking Road, Bandra West', state: 'Maharashtra', pincode: '400050', lat: 19.0596, lng: 72.8295 },
+  { city: 'Delhi', area: 'Karol Bagh Market', state: 'Delhi', pincode: '110005', lat: 28.6519, lng: 77.1909 },
+  { city: 'Pune', area: 'FC Road', state: 'Maharashtra', pincode: '411004', lat: 18.5236, lng: 73.8478 },
+  { city: 'Jaipur', area: 'Johari Bazaar', state: 'Rajasthan', pincode: '302003', lat: 26.9196, lng: 75.8255 },
+  { city: 'Indore', area: 'Sarafa Bazaar', state: 'Madhya Pradesh', pincode: '452007', lat: 22.7177, lng: 75.8333 },
+  { city: 'Surat', area: 'Ring Road', state: 'Gujarat', pincode: '395002', lat: 21.1959, lng: 72.8302 },
+] as const;
 const cartesian = (lists: string[][]): string[][] => lists.reduce<string[][]>((acc, l) => acc.flatMap((c) => l.map((v) => [...c, v])), [[]]);
 function lockNum(s: string): number { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000; return h; }
 // Deterministic placeholder images via picsum.photos (reliable, no keyword matching — loremflickr's redirector went down).
@@ -223,13 +239,17 @@ async function run(): Promise<void> {
 
     let store = await Store.findOne({ ownerId: user._id });
     if (!store) {
+      const loc = pick(DEMO_LOCALITIES);
       store = await Store.create({
         ownerId: user._id, name: def.name, slug, vendorType: def.vendorType, status: 'approved',
         description: `${def.name} — your trusted shop for quality ${def.vendorType} products.`,
         logo: imgs(def.vendorType, '', `${slug}-logo`)[0],
         coverImages: imgs(def.vendorType + '-store', '', `${slug}-cover`).slice(0, 2),
         contactEmail: email, contactPhone: `9${rand(100000000, 999999999)}`,
-        address: { line1: `Shop ${rand(1, 200)}, Main Market`, city: pick(['Mumbai', 'Delhi', 'Pune', 'Jaipur', 'Indore', 'Surat']), state: 'India', pincode: `${rand(110001, 799999)}` },
+        address: { line1: `Shop ${rand(1, 60)}, ${loc.area}`, city: loc.city, state: loc.state, pincode: loc.pincode },
+        // Set directly from the known-real locality rather than left for backfill-store-geo
+        // to geocode later — a fresh seed should be immediately $geoNear-visible.
+        location: { type: 'Point', coordinates: [loc.lng, loc.lat] },
       });
     }
     if (String(user.storeId ?? '') !== String(store._id)) { user.set('storeId', store._id); await user.save(); }

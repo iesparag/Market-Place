@@ -81,6 +81,9 @@ export const storesService = {
       'name', 'description', 'vendorType', 'logo', 'banner', 'coverImages',
       'legalName', 'gstin', 'pan', 'establishedYear', 'contactEmail', 'contactPhone',
       'website', 'address', 'social',
+      // Availability — same owner-or-admin gate as everything else here, so a vendor
+      // sets their own hours/holidays/status and an admin can do it on their behalf.
+      'availabilityStatus', 'operatingHours', 'holidays',
     ] as const;
     for (const k of editable) if (k in fields) store.set(k, (fields as Record<string, unknown>)[k]);
 

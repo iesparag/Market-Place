@@ -6,13 +6,53 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
 import '../favourites/favourites_screen.dart';
-import '../stores/stores_list_screen.dart';
+import '../now/now_screen.dart';
 import '../catalog/catalog_screen.dart';
 import '../orders/orders_screen.dart';
 
 /// Selected bottom-nav tab. Exposed so other screens (e.g. the home avatar)
 /// can jump straight to a tab like Account without a separate route.
 final shellTabProvider = StateProvider<int>((ref) => 0);
+
+class _NavItem {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final Widget screen;
+  const _NavItem({required this.icon, required this.selectedIcon, required this.label, required this.screen});
+}
+
+/// The bottom-nav's tab list, built fresh each read so "Now" can come and go with
+/// nowTabVisibleProvider — Home, Products, Favourites and Orders are always present;
+/// only Now's presence (and therefore everyone else's index) is conditional. Exposed as
+/// a provider (not just a local build() variable) so other screens — the Account
+/// screen's "Your orders" tile — can look up "which index is Orders today" instead of
+/// hardcoding a number that silently goes stale when Now appears/disappears.
+final shellNavItemsProvider = Provider.autoDispose<List<_NavItem>>((ref) {
+  final showNow = ref.watch(nowTabVisibleProvider);
+  return [
+    const _NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home', screen: HomeScreen()),
+    if (showNow)
+      const _NavItem(icon: Icons.bolt_outlined, selectedIcon: Icons.bolt_rounded, label: 'Now', screen: NowScreen()),
+    const _NavItem(
+        icon: Icons.grid_view_outlined,
+        selectedIcon: Icons.grid_view_rounded,
+        label: 'Products',
+        screen: CatalogScreen(searchable: true, title: 'Products')),
+    const _NavItem(
+        icon: Icons.favorite_border_rounded, selectedIcon: Icons.favorite_rounded, label: 'Favourites', screen: FavouritesScreen()),
+    const _NavItem(
+        icon: Icons.receipt_long_outlined, selectedIcon: Icons.receipt_long_rounded, label: 'Orders', screen: OrdersScreen()),
+  ];
+});
+
+/// Index of the Orders tab in today's nav — used by AccountScreen's "Your orders" tile
+/// instead of a hardcoded number, since Now appearing/disappearing shifts it.
+final ordersTabIndexProvider = Provider.autoDispose<int>((ref) {
+  final items = ref.watch(shellNavItemsProvider);
+  final i = items.indexWhere((it) => it.screen is OrdersScreen);
+  return i < 0 ? 0 : i;
+});
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -21,23 +61,6 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  // Home · Stores · Products · Favourites · Orders.
-  // Categories dropped as its own tab — it's a full duplicate of Home's "Shop by
-  // Category" section; that section's "View All" already pushes to /categories, so
-  // nothing is lost, just promoted from a tab to a one-tap-away screen. Account
-  // dropped too — it's reachable from the avatar at the top of Home (pushes /account),
-  // so it doesn't need a second, permanent slot in the bar. Products is a new tab:
-  // CatalogScreen with no category/dept filter, i.e. "browse everything" — the
-  // `searchable` flag it already supports was built for exactly this but was never
-  // wired to a route before now.
-  static const _tabs = [
-    HomeScreen(),
-    StoresListScreen(),
-    CatalogScreen(searchable: true, title: 'Products'),
-    FavouritesScreen(),
-    OrdersScreen(),
-  ];
-
   StreamSubscription<Map<String, dynamic>>? _notifSub;
 
   @override
@@ -57,13 +80,17 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final index = ref.watch(shellTabProvider);
+    final items = ref.watch(shellNavItemsProvider);
+    // Now appearing/disappearing shifts indices — clamp rather than let IndexedStack
+    // crash on a now-out-of-range index (e.g. serviceability resolves while the user
+    // happens to be on the last tab).
+    final rawIndex = ref.watch(shellTabProvider);
+    final index = rawIndex.clamp(0, items.length - 1);
     final b = context.brand;
-    NavigationDestination dest(IconData o, IconData s, String l) =>
-        NavigationDestination(
-          icon: Icon(o),
-          selectedIcon: Icon(s, color: b.primary),
-          label: l,
+    NavigationDestination dest(_NavItem it) => NavigationDestination(
+          icon: Icon(it.icon),
+          selectedIcon: Icon(it.selectedIcon, color: b.primary),
+          label: it.label,
         );
     return PopScope(
       canPop: false,
@@ -92,20 +119,14 @@ class _AppShellState extends ConsumerState<AppShell> {
         if (exit == true) SystemNavigator.pop();
       },
       child: Scaffold(
-        body: IndexedStack(index: index, children: _tabs),
+        body: IndexedStack(index: index, children: items.map((it) => it.screen).toList()),
         bottomNavigationBar: NavigationBar(
           selectedIndex: index,
           onDestinationSelected: (i) => ref.read(shellTabProvider.notifier).state = i,
           backgroundColor: Colors.white,
           indicatorColor: b.soft,
           height: 60,
-          destinations: [
-            dest(Icons.home_outlined, Icons.home_rounded, 'Home'),
-            dest(Icons.storefront_outlined, Icons.storefront_rounded, 'Stores'),
-            dest(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Products'),
-            dest(Icons.favorite_border_rounded, Icons.favorite_rounded, 'Favourites'),
-            dest(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
-          ],
+          destinations: items.map(dest).toList(),
         ),
       ),
     );

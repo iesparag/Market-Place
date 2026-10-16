@@ -34,6 +34,9 @@ export const catalogController = {
   async getProduct(req: Request, res: Response) {
     ok(res, await catalogService.getProductBySlug(req.params.slug!));
   },
+  async getProductSlugById(req: Request, res: Response) {
+    ok(res, await catalogService.getProductSlugById(req.params.id!));
+  },
   async listCategories(_req: Request, res: Response) {
     ok(res, await catalogService.listCategories());
   },
@@ -46,5 +49,11 @@ export const catalogController = {
   },
   async getStore(req: Request, res: Response) {
     ok(res, await catalogService.getStoreBySlug(req.params.slug!));
+  },
+  /** "Now" tab — stores open right now within instant-delivery range. Requires lat/lng
+   * (there's no meaningful "Now" without a location to be near). */
+  async listNowStores(req: Request, res: Response) {
+    const geo = GeoQuery.parse(req.query);
+    ok(res, geo.lat != null ? await catalogService.listNowStores({ lat: geo.lat, lng: geo.lng! }) : []);
   },
 };

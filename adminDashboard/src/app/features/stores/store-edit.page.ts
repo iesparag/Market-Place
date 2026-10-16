@@ -1,15 +1,17 @@
 import { Component, inject, Input, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { PlacesAutocompleteComponent, type PickedPlace } from '../../shared/places-autocomplete.component';
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 /** Super-admin / vendor: full storefront + business (KYC) profile — the customer store page renders from this. */
 @Component({
   selector: 'app-store-edit',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, PlacesAutocompleteComponent],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink, PlacesAutocompleteComponent],
   template: `
     <header class="head">
       <div>
@@ -74,6 +76,44 @@ import { PlacesAutocompleteComponent, type PickedPlace } from '../../shared/plac
         </div>
       </div>
 
+      <div class="card">
+        <h3>Availability <span class="muted small">— drives the customer app's "Now" tab</span></h3>
+        <label class="label">Status</label>
+        <select class="input" formControlName="availabilityStatus">
+          <option value="auto">Auto (follow the weekly hours below)</option>
+          <option value="open">Force open now</option>
+          <option value="closed">Force closed</option>
+          <option value="holiday">On holiday today</option>
+        </select>
+        <p class="muted small">"Auto" is what you want almost always — the two "Force" options and "On holiday" override the schedule below until you change this back.</p>
+
+        <label class="label">Weekly hours</label>
+        <table class="hours" formArrayName="operatingHours">
+          <thead><tr><th>Day</th><th>Open</th><th>Close</th><th>Closed all day</th></tr></thead>
+          <tbody>
+            @for (day of operatingHours.controls; track $index) {
+              <tr [formGroupName]="$index">
+                <td>{{ dayNames[$index] }}</td>
+                <td><input class="input" type="time" formControlName="open" [disabled]="day.controls.closed.value" /></td>
+                <td><input class="input" type="time" formControlName="close" [disabled]="day.controls.closed.value" /></td>
+                <td><input type="checkbox" formControlName="closed" /></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <label class="label">Holidays <span class="muted small">(specific dates you're shut, regardless of weekly hours)</span></label>
+        <div class="holidays">
+          @for (h of holidays.controls; track $index) {
+            <span class="chip">{{ h.value }} <button type="button" (click)="removeHoliday($index)">✕</button></span>
+          }
+        </div>
+        <div class="add-holiday">
+          <input class="input" type="date" [(ngModel)]="newHoliday" [ngModelOptions]="{ standalone: true }" />
+          <button type="button" class="btn btn-ghost" (click)="addHoliday()">+ Add holiday</button>
+        </div>
+      </div>
+
       <div class="card" formGroupName="bankAccount">
         <h3>Payout account <span class="muted small">(where settlements are sent)</span></h3>
         <div class="two">
@@ -132,6 +172,15 @@ import { PlacesAutocompleteComponent, type PickedPlace } from '../../shared/plac
       .thumb button { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; font-size: 11px; }
       .upload { width: 120px; height: 68px; border: 1px dashed var(--border); border-radius: var(--radius-sm); display: grid; place-items: center; cursor: pointer; color: var(--text-muted); font-size: 0.8rem; }
       .actions { position: sticky; bottom: 0; padding: 12px 0; }
+      .hours { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.86rem; }
+      .hours th { text-align: left; padding: 6px 8px; color: var(--text-muted); font-weight: 600; }
+      .hours td { padding: 4px 8px; }
+      .hours input[type='time'] { width: 110px; }
+      .holidays { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+      .chip { background: var(--bg-subtle, #f3f4f6); border-radius: 999px; padding: 4px 10px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px; }
+      .chip button { border: none; background: none; cursor: pointer; color: var(--text-muted); font-size: 0.8rem; }
+      .add-holiday { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+      .add-holiday .input { width: 180px; }
     `,
   ],
 })
@@ -147,6 +196,9 @@ export class StoreEditPage implements OnInit {
   mine = signal(false);      // vendor editing their OWN store (route /my-store)
   noStore = signal(false);   // vendor has no store yet → show create prompt
 
+  dayNames = DAY_NAMES;
+  newHoliday = '';
+
   form = this.fb.nonNullable.group({
     name: [''], vendorType: ['generic'], establishedYear: [null as number | null], description: [''],
     logo: [''], legalName: [''], gstin: [''], pan: [''], website: [''], contactEmail: [''], contactPhone: [''],
@@ -158,7 +210,24 @@ export class StoreEditPage implements OnInit {
       lat: [null as number | null], lng: [null as number | null],
     }),
     social: this.fb.group({ instagram: [''], facebook: [''], twitter: [''] }),
+    availabilityStatus: ['auto'],
+    operatingHours: this.fb.array(
+      DAY_NAMES.map((_, day) =>
+        this.fb.nonNullable.group({ day: [day], open: ['09:00'], close: ['21:00'], closed: [false] }),
+      ),
+    ),
+    holidays: this.fb.array<string>([]),
   });
+
+  get operatingHours() { return this.form.controls.operatingHours; }
+  get holidays() { return this.form.controls.holidays; }
+
+  addHoliday(): void {
+    if (!this.newHoliday || this.holidays.value.includes(this.newHoliday)) return;
+    this.holidays.push(this.fb.nonNullable.control(this.newHoliday));
+    this.newHoliday = '';
+  }
+  removeHoliday(i: number): void { this.holidays.removeAt(i); }
 
   ngOnInit(): void {
     this.mine.set(Boolean(this.route.snapshot.data['mine']));
@@ -196,7 +265,16 @@ export class StoreEditPage implements OnInit {
         lng: loc?.coordinates?.[0] ?? null,
       } as never,
       social: (s['social'] as never) ?? {},
+      availabilityStatus: (s['availabilityStatus'] as string) ?? 'auto',
     });
+    const hours = s['operatingHours'] as { day: number; open: string; close: string; closed: boolean }[] | undefined;
+    if (hours?.length === 7) {
+      for (const h of [...hours].sort((a, b) => a.day - b.day)) {
+        this.operatingHours.at(h.day)?.patchValue({ open: h.open, close: h.close, closed: h.closed });
+      }
+    }
+    this.holidays.clear();
+    for (const h of (s['holidays'] as string[] | undefined) ?? []) this.holidays.push(this.fb.nonNullable.control(h));
   }
 
   /** Fills the still-editable address fields and the hidden lat/lng controls — see

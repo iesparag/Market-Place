@@ -12,6 +12,8 @@ class Vendor {
   final double ratingAvg;
   final int ratingCount;
   final int productCount;
+  final double? distanceMeters;
+  final bool isOpenNow;
 
   Vendor({
     required this.id,
@@ -24,6 +26,8 @@ class Vendor {
     required this.ratingAvg,
     required this.ratingCount,
     required this.productCount,
+    this.distanceMeters,
+    this.isOpenNow = true,
   });
 
   factory Vendor.fromJson(Map<String, dynamic> j) => Vendor(
@@ -37,6 +41,8 @@ class Vendor {
         ratingAvg: _dbl(j['ratingAvg']),
         ratingCount: _int(j['ratingCount']),
         productCount: _int(j['productCount']),
+        distanceMeters: (j['distanceMeters'] as num?)?.toDouble(),
+        isOpenNow: j['isOpenNow'] != false,
       );
 }
 
@@ -54,6 +60,7 @@ class StoreProfile {
   final Map<String, dynamic>? address;
   final double ratingAvg;
   final int ratingCount;
+  final bool isOpenNow;
 
   StoreProfile({
     required this.id,
@@ -68,6 +75,7 @@ class StoreProfile {
     this.address,
     required this.ratingAvg,
     required this.ratingCount,
+    this.isOpenNow = true,
   });
 
   factory StoreProfile.fromJson(Map<String, dynamic> j) => StoreProfile(
@@ -79,6 +87,7 @@ class StoreProfile {
         coverImages: (j['coverImages'] as List?)?.map((e) => e.toString()).toList() ?? [],
         vendorType: j['vendorType']?.toString(),
         contactEmail: j['contactEmail']?.toString(),
+        isOpenNow: j['isOpenNow'] != false,
         contactPhone: j['contactPhone']?.toString(),
         address: (j['address'] as Map?)?.cast<String, dynamic>(),
         ratingAvg: _dbl(j['ratingAvg']),

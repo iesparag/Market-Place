@@ -115,6 +115,7 @@ class CartController extends StateNotifier<List<CartLine>> {
   void clear() {
     state = [];
     _save();
+    ref.read(cartInstructionsProvider.notifier).clear();
   }
 
   int get count => state.fold(0, (n, l) => n + l.qty);
@@ -128,3 +129,47 @@ class CartController extends StateNotifier<List<CartLine>> {
 }
 
 final cartProvider = StateNotifierProvider<CartController, List<CartLine>>((ref) => CartController(ref));
+
+/// Per-vendor "Instructions for <store>" notes from the cart screen — keyed by storeId
+/// since a multi-vendor cart needs one note per store, not one note smeared across all
+/// of them. Persisted locally like the cart itself; sent to the backend as
+/// `storeInstructions` on placeOrder() (checkout_repository.dart) and copied onto each
+/// vendor's own DeliveryTask server-side (delivery-tasks.service.ts), so only the
+/// relevant vendor ever sees their own note.
+class CartInstructionsController extends StateNotifier<Map<String, String>> {
+  CartInstructionsController() : super({}) {
+    _load();
+  }
+  static const _key = 'cart_instructions_v1';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key);
+    if (raw == null) return;
+    state = (jsonDecode(raw) as Map).map((k, v) => MapEntry(k.toString(), v.toString()));
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, jsonEncode(state));
+  }
+
+  void set(String storeId, String text) {
+    final next = {...state};
+    if (text.trim().isEmpty) {
+      next.remove(storeId);
+    } else {
+      next[storeId] = text;
+    }
+    state = next;
+    _save();
+  }
+
+  void clear() {
+    state = {};
+    _save();
+  }
+}
+
+final cartInstructionsProvider =
+    StateNotifierProvider<CartInstructionsController, Map<String, String>>((ref) => CartInstructionsController());

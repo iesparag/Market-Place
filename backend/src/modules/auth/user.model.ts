@@ -24,6 +24,10 @@ const userSchema = new Schema(
       remove: { type: [String], default: [] },
     },
     status: { type: String, enum: ['active', 'suspended', 'invited'], default: 'active' },
+    // WhatsApp Business messaging requires explicit per-user opt-in (Meta policy — sending
+    // promotional templates without consent risks the number getting suspended). Defaults
+    // false; the cart-reminder sweep and any future marketing trigger must check this.
+    whatsappOptIn: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

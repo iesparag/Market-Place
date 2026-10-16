@@ -62,6 +62,10 @@ export const ridersController = {
   async myTasks(req: Request, res: Response) {
     ok(res, await deliveryTasksService.listForRider(req.rider!.riderId));
   },
+  async myHistory(req: Request, res: Response) {
+    const days = req.query.days ? Number(req.query.days) : undefined;
+    ok(res, await deliveryTasksService.historyForRider(req.rider!.riderId, { days }));
+  },
   async myOffers(req: Request, res: Response) {
     ok(res, await deliveryTasksService.listOffersForRider(req.rider!.riderId));
   },

@@ -16,8 +16,12 @@ class CheckoutRepository {
 
   Future<Address> addAddress({
     required String label,
+    String? recipientName,
     required String line1,
+    String? line2,
+    String? landmark,
     required String city,
+    String? state,
     String? pincode,
     String? phone,
     bool isDefault = false,
@@ -26,6 +30,10 @@ class CheckoutRepository {
   }) async {
     final data = await api.post('/addresses', body: {
       'label': label, 'line1': line1, 'city': city,
+      if (recipientName != null && recipientName.isNotEmpty) 'recipientName': recipientName,
+      if (line2 != null && line2.isNotEmpty) 'line2': line2,
+      if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+      if (state != null && state.isNotEmpty) 'state': state,
       if (pincode != null && pincode.isNotEmpty) 'pincode': pincode,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
       'isDefault': isDefault,
@@ -37,13 +45,21 @@ class CheckoutRepository {
 
   Future<void> deleteAddress(String id) => api.delete('/addresses/$id');
 
-  Future<OrderModel> placeOrder({required List<CartLine> lines, Address? address}) async {
+  Future<OrderModel> placeOrder({
+    required List<CartLine> lines,
+    Address? address,
+    Map<String, String>? storeInstructions,
+  }) async {
     final items = lines.map((l) => {'productId': l.productId, 'variantSku': l.variantSku, 'qty': l.qty}).toList();
     final data = await api.post('/orders', body: {
       'items': items,
+      if (storeInstructions != null && storeInstructions.isNotEmpty) 'storeInstructions': storeInstructions,
       if (address != null)
         'shippingAddress': {
           'line1': address.line1, 'city': address.city,
+          if (address.line2 != null && address.line2!.isNotEmpty) 'line2': address.line2,
+          if (address.landmark != null && address.landmark!.isNotEmpty) 'landmark': address.landmark,
+          if (address.state != null && address.state!.isNotEmpty) 'state': address.state,
           if (address.pincode != null) 'pincode': address.pincode,
           // Feeds DeliveryTask.dropAddress → the live rider→destination polyline.
           if (address.lat != null) 'lat': address.lat,

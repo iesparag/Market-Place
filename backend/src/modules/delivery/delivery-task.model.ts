@@ -25,6 +25,9 @@ const deliveryTaskSchema = new Schema(
     storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
     customerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     items: { type: [deliveryTaskItemSchema], default: [] },
+    // This store's slice of Order.storeInstructions — the customer's note to THIS
+    // vendor, never the whole multi-vendor order's instructions.
+    instructions: String,
     status: {
       type: String,
       enum: [
@@ -74,7 +77,10 @@ const deliveryTaskSchema = new Schema(
     // today (see Phase 1). Distance-based auto-assignment needs this filled in before
     // it can work; manual assignment doesn't depend on it.
     pickupAddress: { line1: String, city: String, lat: Number, lng: Number },
-    dropAddress: { line1: String, city: String, pincode: String, lat: Number, lng: Number },
+    dropAddress: {
+      line1: String, line2: String, landmark: String, city: String, state: String, pincode: String,
+      lat: Number, lng: Number,
+    },
   },
   { timestamps: true },
 );

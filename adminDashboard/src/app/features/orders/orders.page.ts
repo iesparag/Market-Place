@@ -15,6 +15,11 @@ interface Order {
   amounts: { grandTotal: number };
   items: { title: string; qty: number; storeId: string }[];
   contact?: { name?: string };
+  // Keyed by storeId — the customer's note to a specific vendor on this order (cart
+  // screen → "Instructions for <store>"). A vendor only ever sees orders that include
+  // their own store, so in practice this is "their" note; an admin viewing a
+  // multi-vendor order sees every vendor's note, each still scoped to its own store.
+  storeInstructions?: Record<string, string>;
 }
 
 @Component({
@@ -45,7 +50,12 @@ interface Order {
             <tr>
               <td>{{ o.orderNumber }}</td>
               <td>{{ o.contact?.name || '—' }}</td>
-              <td>{{ o.items.length }}</td>
+              <td>
+                {{ o.items.length }}
+                @if (hasInstructions(o)) {
+                  <span class="note-flag" [title]="instructionsText(o)">📝</span>
+                }
+              </td>
               <td>₹{{ o.amounts.grandTotal / 100 }}</td>
               <td>
                 <span class="badge" [class.badge-success]="o.status === 'fulfilled' || o.status === 'paid'"
@@ -85,12 +95,20 @@ interface Order {
       .search { flex: 1; max-width: 360px; } .count { white-space: nowrap; }
       .pad { padding: 16px; }
       .actions { white-space: nowrap; display: flex; gap: 6px; }
+      .note-flag { margin-left: 4px; cursor: help; }
     `,
   ],
 })
 export class OrdersPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotificationService);
+
+  hasInstructions(o: Order): boolean {
+    return Object.values(o.storeInstructions ?? {}).some((v) => v.trim().length > 0);
+  }
+  instructionsText(o: Order): string {
+    return Object.values(o.storeInstructions ?? {}).filter((v) => v.trim().length > 0).join(' · ');
+  }
   orders = signal<Order[]>([]);
   q = '';
 

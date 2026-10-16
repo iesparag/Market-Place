@@ -1,7 +1,10 @@
 import { SOCKET_EVENTS } from '@app/shared';
 import { logger } from '../../config/logger.js';
 import { AppError } from '../../common/AppError.js';
+import { env } from '../../config/env.js';
 import { Store } from '../stores/store.model.js';
+import { User } from '../auth/user.model.js';
+import { Order } from '../orders/order.model.js';
 import { Rider } from '../riders/rider.model.js';
 import { DeliveryTask } from './delivery-task.model.js';
 import { getDeliverySettings } from './delivery-settings.model.js';
@@ -10,6 +13,8 @@ import { logisticsProvider } from '../../providers/logistics/index.js';
 import { emitToOrder, emitToStore, emitToAdmin, emitToRider, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
 import { notifyRider } from '../riders/rider-push.js';
+import { whatsappProvider } from '../../providers/whatsapp/index.js';
+import { WhatsAppTemplate } from '../whatsapp/whatsapp.module.js';
 
 export interface OrderForDeliveryTasks {
   _id: unknown;
@@ -17,7 +22,14 @@ export interface OrderForDeliveryTasks {
   customerId: unknown;
   storeIds?: unknown[];
   items: { productId: unknown; storeId: unknown; title?: string | null; image?: string | null; qty: number }[];
-  shippingAddress?: { line1?: string | null; city?: string | null; pincode?: string | null; lat?: number | null; lng?: number | null } | null;
+  shippingAddress?: {
+    line1?: string | null; line2?: string | null; landmark?: string | null;
+    city?: string | null; state?: string | null; pincode?: string | null;
+    lat?: number | null; lng?: number | null;
+  } | null;
+  // Mongoose Map fields come through as a JS Map on a hydrated doc but a plain object
+  // once .lean()'d — normalized to a Map in createForOrder() before use either way.
+  storeInstructions?: Map<string, string> | Record<string, string> | null;
 }
 
 const STATUS_FLOW = [
@@ -61,6 +73,47 @@ const VALID_FROM: Partial<Record<TaskStatus, TaskStatus[]>> = {
   delivered: ['delivery_arrived'],
 };
 
+/**
+ * Rider-facing enrichment — a bare DeliveryTask only has customerId/storeId refs and
+ * lat/lng; a rider actually doing the pickup/delivery needs names, phone numbers to
+ * call, and (for COD) how much cash to collect. Resolved in three batched queries
+ * (never N+1 per task) and merged onto each task as flat fields, so the rider app's
+ * TaskModel can parse them directly without a second round-trip per task.
+ */
+async function enrichTasksForRider<T extends { storeId: unknown; customerId: unknown; orderId: unknown }>(
+  tasks: T[],
+): Promise<(T & {
+  storeName?: string | null; storePhone?: string | null;
+  customerName?: string | null; customerPhone?: string | null;
+  codAmount?: number | null;
+})[]> {
+  if (!tasks.length) return [];
+  const storeIds = [...new Set(tasks.map((t) => String(t.storeId)))];
+  const customerIds = [...new Set(tasks.map((t) => String(t.customerId)))];
+  const orderIds = [...new Set(tasks.map((t) => String(t.orderId)))];
+  const [stores, customers, orders] = await Promise.all([
+    Store.find({ _id: { $in: storeIds } }).select('name contactPhone').lean(),
+    User.find({ _id: { $in: customerIds } }).select('name phone').lean(),
+    Order.find({ _id: { $in: orderIds } }).select('payment.method amounts.grandTotal').lean(),
+  ]);
+  const storeById = new Map(stores.map((s) => [String(s._id), s]));
+  const customerById = new Map(customers.map((c) => [String(c._id), c]));
+  const orderById = new Map(orders.map((o) => [String(o._id), o]));
+  return tasks.map((t) => {
+    const store = storeById.get(String(t.storeId));
+    const customer = customerById.get(String(t.customerId));
+    const order = orderById.get(String(t.orderId));
+    return {
+      ...t,
+      storeName: store?.name,
+      storePhone: store?.contactPhone,
+      customerName: customer?.name,
+      customerPhone: customer?.phone,
+      codAmount: order?.payment?.method === 'cod' ? order.amounts?.grandTotal : undefined,
+    };
+  });
+}
+
 export const deliveryTasksService = {
   /**
    * One DeliveryTask per store on the order. Called only once the order is a real
@@ -72,8 +125,18 @@ export const deliveryTasksService = {
    */
   async createForOrder(order: OrderForDeliveryTasks) {
     const storeIds = order.storeIds?.length ? order.storeIds : [...new Set(order.items.map((i) => String(i.storeId)))];
-    const stores = await Store.find({ _id: { $in: storeIds } }).select('address location').lean();
+    const stores = await Store.find({ _id: { $in: storeIds } }).select('name address location ownerId contactPhone').lean();
     const storeById = new Map(stores.map((s) => [String(s._id), s]));
+    const instructionsByStore =
+      order.storeInstructions instanceof Map
+        ? order.storeInstructions
+        : new Map(Object.entries(order.storeInstructions ?? {}));
+    // Resolved once per order, not once per store — a vendor-order-notify template is
+    // off by default (no env var set) just like WHATSAPP_CART_REMINDER_TEMPLATE, so most
+    // installs pay for this lookup zero times.
+    const newOrderTemplate = env.WHATSAPP_NEW_ORDER_TEMPLATE
+      ? await WhatsAppTemplate.findOne({ name: env.WHATSAPP_NEW_ORDER_TEMPLATE, status: 'approved' }).lean()
+      : null;
     const settings = await getDeliverySettings();
     const serviceableCities = new Set(settings.serviceableCities.map((c) => c.toLowerCase().trim()));
     const dropCity = order.shippingAddress?.city?.toLowerCase().trim();
@@ -91,6 +154,7 @@ export const deliveryTasksService = {
         .map((i) => ({ productId: i.productId, title: i.title, qty: i.qty, image: i.image }));
       if (!items.length) continue;
       const store = storeById.get(storeIdStr);
+      const instructions = instructionsByStore.get(storeIdStr);
       const storeCoords = store?.location?.coordinates; // GeoJSON [lng, lat]
       const pickupAddress = store?.address
         ? {
@@ -103,7 +167,10 @@ export const deliveryTasksService = {
       const dropAddress = order.shippingAddress
         ? {
             line1: order.shippingAddress.line1,
+            line2: order.shippingAddress.line2,
+            landmark: order.shippingAddress.landmark,
             city: order.shippingAddress.city,
+            state: order.shippingAddress.state,
             pincode: order.shippingAddress.pincode,
             lat: order.shippingAddress.lat,
             lng: order.shippingAddress.lng,
@@ -125,6 +192,7 @@ export const deliveryTasksService = {
             pickupAddress,
             dropAddress,
             fulfillmentSource,
+            instructions,
           },
         },
         { new: true, upsert: true },
@@ -139,6 +207,32 @@ export const deliveryTasksService = {
           at: new Date().toISOString(),
         }),
       );
+      // New-order notify to the vendor — two channels, both best-effort:
+      //  - notify() → persisted Notification + live toast (via the socket listener
+      //    above) whenever they're on the portal, same mechanism customers get.
+      //  - WhatsApp → reaches them even when NOT on the portal. Gated on
+      //    WHATSAPP_NEW_ORDER_TEMPLATE being configured + approved (see
+      //    cart-reminder-sweep.ts for the identical off-by-default pattern) and on the
+      //    store having a contactPhone. This is a transactional/utility notification
+      //    about the vendor's OWN order, not a marketing message, so it does not gate on
+      //    the customer-facing User.whatsappOptIn flag (that's a different relationship).
+      if (store?.ownerId) {
+        void notify(String(store.ownerId), {
+          type: 'order',
+          title: 'New order 🛎️',
+          body: `${order.orderNumber} · ${items.length} item${items.length === 1 ? '' : 's'}${instructions ? ` · "${instructions}"` : ''}`,
+          link: `/orders/${String(order._id)}`,
+        });
+      }
+      if (newOrderTemplate && store?.contactPhone) {
+        void whatsappProvider.sendTemplate({
+          to: store.contactPhone,
+          templateName: newOrderTemplate.name,
+          languageCode: newOrderTemplate.language,
+          bodyParams: Array.from({ length: newOrderTemplate.variableCount }, (_, i) =>
+            i === 0 ? (store.name ?? 'there') : i === 1 ? order.orderNumber : (instructions ?? '')),
+        });
+      }
 
       // Only dispatch brand-new third-party tasks — a retried settlement hits the
       // upsert above as a no-op (task already existed), so this must not re-dispatch.
@@ -179,16 +273,40 @@ export const deliveryTasksService = {
   },
 
   async listForRider(riderId: string) {
-    return DeliveryTask.find({ riderId, status: { $in: ['ready', ...RIDER_STATUSES.filter((s) => s !== 'delivered')] } })
+    const tasks = await DeliveryTask.find({
+      riderId,
+      status: { $in: ['ready', ...RIDER_STATUSES.filter((s) => s !== 'delivered')] },
+    })
       .sort({ createdAt: -1 })
       .lean();
+    return enrichTasksForRider(tasks);
   },
 
   /** Tasks currently offered to this rider (auto-assignment) and still within their offer window. */
   async listOffersForRider(riderId: string) {
-    return DeliveryTask.find({ 'offer.riderId': riderId, 'offer.expiresAt': { $gt: new Date() } })
+    const tasks = await DeliveryTask.find({ 'offer.riderId': riderId, 'offer.expiresAt': { $gt: new Date() } })
       .sort({ 'offer.sentAt': -1 })
       .lean();
+    return enrichTasksForRider(tasks);
+  },
+
+  /**
+   * This rider's completed/cancelled history — "what did I accomplish" (the explicit
+   * ask: a rider should be able to see and verify their own track record, not just the
+   * live queue). Capped at 100 + a day-range filter rather than unbounded, since a
+   * long-tenured rider's full history could otherwise be thousands of rows.
+   */
+  async historyForRider(riderId: string, opts: { days?: number } = {}) {
+    const since = new Date(Date.now() - (opts.days ?? 30) * 86_400_000);
+    const tasks = await DeliveryTask.find({
+      riderId,
+      status: { $in: ['delivered', 'cancelled'] },
+      updatedAt: { $gte: since },
+    })
+      .sort({ updatedAt: -1 })
+      .limit(100)
+      .lean();
+    return enrichTasksForRider(tasks);
   },
 
   /**

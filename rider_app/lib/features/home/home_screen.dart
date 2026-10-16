@@ -168,6 +168,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               subtitle: 'Pickups and deliveries assigned to you',
               onTap: () => context.push('/tasks'),
             ),
+            const SizedBox(height: 10),
+            _actionCard(
+              icon: Icons.history_rounded,
+              iconColor: RiderColors.success,
+              title: 'History',
+              subtitle: 'Deliveries you\'ve completed and cash collected',
+              onTap: () => context.push('/history'),
+            ),
 
             if (!online) ...[
               const SizedBox(height: 20),

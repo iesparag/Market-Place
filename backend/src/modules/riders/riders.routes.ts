@@ -22,6 +22,7 @@ ridersRoutes.get('/me', authenticateRider, asyncHandler(ridersController.me));
 ridersRoutes.patch('/me/status', authenticateRider, asyncHandler(ridersController.setStatus));
 ridersRoutes.post('/me/location', authenticateRider, asyncHandler(ridersController.updateLocation));
 ridersRoutes.get('/me/tasks', authenticateRider, asyncHandler(ridersController.myTasks));
+ridersRoutes.get('/me/history', authenticateRider, asyncHandler(ridersController.myHistory));
 ridersRoutes.patch('/me/tasks/:id/status', authenticateRider, asyncHandler(ridersController.updateTaskStatus));
 
 // Automatic-assignment offers — poll-based + a push nudge so a rider doesn't have to

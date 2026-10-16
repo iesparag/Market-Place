@@ -135,6 +135,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/cart-recovery/cart-recovery.page').then((m) => m.CartRecoveryPage),
       },
       {
+        path: 'campaigns',
+        canMatch: [permissionGuard('notification:manage')],
+        loadComponent: () => import('./features/campaigns/campaigns.page').then((m) => m.CampaignsPage),
+      },
+      {
         path: 'whatsapp-templates',
         canMatch: [permissionGuard('notification:manage')],
         loadComponent: () => import('./features/whatsapp-templates/whatsapp-templates.page').then((m) => m.WhatsAppTemplatesPage),

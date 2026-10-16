@@ -67,6 +67,16 @@ class CatalogRepository {
     return Product.fromJson(data);
   }
 
+  /// Resolves an order item's productId → its current slug + live price — used by the
+  /// order-detail screen to let a past order's item link through to that product's
+  /// current page (and to know whether the price has moved since). Throws (404, via
+  /// ApiException) if the product's since been deactivated/removed — the caller shows
+  /// "no longer available" rather than treating that as an unexpected error.
+  Future<({String slug, int currentPrice})> productSlugById(String productId) async {
+    final data = await api.get('/catalog/products/by-id/$productId') as Map<String, dynamic>;
+    return (slug: data['slug'].toString(), currentPrice: (data['currentPrice'] as num?)?.toInt() ?? 0);
+  }
+
   Future<StorePageData> store(String slug) async {
     final data = await api.get('/catalog/stores/$slug') as Map<String, dynamic>;
     return StorePageData(
@@ -79,6 +89,15 @@ class CatalogRepository {
   Future<List<Vendor>> stores({double? lat, double? lng}) async {
     final query = (lat != null && lng != null) ? {'lat': lat, 'lng': lng} : null;
     final data = await api.get('/catalog/stores', query: query) as List;
+    return data.map((e) => Vendor.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// "Now" tab — vendors open right now within instant-delivery range
+  /// (env.NOW_RADIUS_KM on the backend, tighter than the general serviceable radius).
+  /// No location → empty list, there's no meaningful "Now" without one.
+  Future<List<Vendor>> nowStores({double? lat, double? lng}) async {
+    if (lat == null || lng == null) return [];
+    final data = await api.get('/catalog/stores/now', query: {'lat': lat, 'lng': lng}) as List;
     return data.map((e) => Vendor.fromJson(e as Map<String, dynamic>)).toList();
   }
 

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../../core/format.dart';
 import '../../core/socket/order_socket_service.dart';
@@ -447,36 +448,82 @@ class _TimelineRow extends StatelessWidget {
   }
 }
 
-class _ItemRow extends StatelessWidget {
+/// Each row is the frozen order-time snapshot (title/variant/price as they were when
+/// this was bought — never re-priced from the live product) — but tapping through to
+/// the product's current page, and flagging if today's price has since moved, needs a
+/// live lookup by productId (orders never store a slug; see catalog_repository.dart's
+/// productSlugById doc comment for why).
+class _ItemRow extends ConsumerStatefulWidget {
   final OrderItem item;
   const _ItemRow({required this.item});
+  @override
+  ConsumerState<_ItemRow> createState() => _ItemRowState();
+}
+
+class _ItemRowState extends ConsumerState<_ItemRow> {
+  bool _loading = false;
+
+  Future<void> _open() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final resolved = await ref.read(catalogRepoProvider).productSlugById(widget.item.productId);
+      if (!mounted) return;
+      final diff = resolved.currentPrice - widget.item.unitPrice;
+      if (diff != 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(diff > 0
+              ? 'Price has gone up by ${rupees(diff)} since you ordered this'
+              : 'Price has dropped by ${rupees(-diff)} since you ordered this'),
+        ));
+      }
+      if (mounted) context.push('/p/${resolved.slug}');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('This product is no longer available.')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: item.image != null && item.image!.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: item.image!,
-                  width: 48, height: 48, fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => _placeholder(),
-                )
-              : _placeholder(),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-            if (item.variantLabel != null)
-              Text(item.variantLabel!, style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
-            Text('Qty ${item.qty}', style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
-          ]),
-        ),
-        Text(rupees(item.lineTotal), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-      ]),
+    final item = widget.item;
+    return InkWell(
+      onTap: _open,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: item.image != null && item.image!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: item.image!,
+                    width: 48, height: 48, fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _placeholder(),
+                  )
+                : _placeholder(),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+              if (item.variantLabel != null)
+                Text(item.variantLabel!, style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
+              Text('Qty ${item.qty}', style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
+            ]),
+          ),
+          if (_loading)
+            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+          else ...[
+            Text(rupees(item.lineTotal), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+            const Icon(Icons.chevron_right_rounded, size: 18, color: BrandColors.textMuted),
+          ],
+        ]),
+      ),
     );
   }
 
