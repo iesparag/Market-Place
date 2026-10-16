@@ -15,7 +15,6 @@ import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/shimmer.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/cart_button.dart';
-import '../../shared/widgets/wishlist_button.dart';
 import '../favourites/store_favourite_controller.dart';
 
 const double _kHeroHeight = 220;
@@ -30,6 +29,30 @@ class StoreScreen extends ConsumerStatefulWidget {
 class _StoreScreenState extends ConsumerState<StoreScreen> {
   String? _catId; // null = All
   bool _descExpanded = false;
+  final _scrollCtrl = ScrollController();
+  double _titleOpacity = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // The store name already appears clearly in the info card below the hero photo —
+    // showing it a second time on top of the photo too is redundant and, since that
+    // overlay has no background behind it, often unreadable against a busy photo. So
+    // it only fades in once the hero collapses and the name card has scrolled away,
+    // the same "name moves into the bar as you scroll" pattern most storefront apps use.
+    _scrollCtrl.addListener(() {
+      const fadeDistance = 40.0;
+      const collapsedOffset = _kHeroHeight - kToolbarHeight;
+      final o = ((_scrollCtrl.offset - (collapsedOffset - fadeDistance)) / fadeDistance).clamp(0.0, 1.0);
+      if (o != _titleOpacity) setState(() => _titleOpacity = o);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +84,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         : data.products.where((p) => p.categoryId == _catId).toList();
 
     return NestedScrollView(
+      controller: _scrollCtrl,
       headerSliverBuilder: (context, _) => [
         SliverAppBar(
           pinned: true,
@@ -72,11 +96,14 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
             icon: Icons.arrow_back_rounded,
             onTap: () => Navigator.of(context).maybePop(),
           ),
-          title: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: BrandColors.ink)),
+          title: AnimatedOpacity(
+            opacity: _titleOpacity,
+            duration: const Duration(milliseconds: 120),
+            child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: BrandColors.ink)),
+          ),
           actions: [
             _StoreFavouriteButton(storeId: s.id),
-            const WishlistButton(color: BrandColors.ink),
             const CartButton(color: BrandColors.ink),
             const SizedBox(width: 4),
           ],
@@ -446,8 +473,8 @@ class _CoverCarouselState extends State<_CoverCarousel> {
             gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black45],
-                stops: [0.5, 1]),
+                colors: [Colors.black26, Colors.transparent, Colors.black45],
+                stops: [0, 0.22, 1]),
           ),
         ),
         if (widget.images.length > 1)
