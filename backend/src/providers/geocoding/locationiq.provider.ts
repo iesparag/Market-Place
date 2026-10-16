@@ -13,8 +13,9 @@ const BASE_URL = 'https://us1.locationiq.com/v1';
 /** Same shape as Nominatim's — LocationIQ is OSM-data-backed and API-compatible by design. */
 function normalize(item: LocationIqItem): GeocodeResult {
   const a = item.address ?? {};
+  const sub = a.suburb || a.neighbourhood || a.subdivision;
   const line1 =
-    [a.house_number, a.road || a.neighbourhood || a.suburb].filter(Boolean).join(', ') ||
+    [a.house_number, a.road, sub].filter(Boolean).join(', ') ||
     (item.display_name?.split(',').slice(0, 2).join(',') ?? '');
   const city = a.city || a.town || a.village || a.municipality || a.county || a.state_district || '';
   const pincode = a.postcode ?? '';

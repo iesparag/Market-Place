@@ -58,6 +58,20 @@ addressesRoutes.post('/', asyncHandler(async (req, res) => {
   created(res, await Address.create({ ...input, userId: req.user!.id }));
 }));
 
+addressesRoutes.put('/:id', asyncHandler(async (req, res) => {
+  const input = AddressInput.parse(req.body);
+  const address = await Address.findOne({ _id: req.params.id, userId: req.user!.id });
+  if (!address) throw AppError.notFound('Address not found');
+
+  if (input.isDefault && !address.isDefault) {
+    await Address.updateMany({ userId: req.user!.id }, { isDefault: false });
+  }
+
+  Object.assign(address, input);
+  await address.save();
+  ok(res, address);
+}));
+
 /**
  * Switch which saved address is the "active" one — drives the home feed/nearby-vendor/
  * Now radius via effectiveLocationProvider on the client (providers.dart), not just a
@@ -78,3 +92,4 @@ addressesRoutes.delete('/:id', asyncHandler(async (req, res) => {
   if (r.deletedCount === 0) throw AppError.notFound('Address not found');
   ok(res, { deleted: true });
 }));
+

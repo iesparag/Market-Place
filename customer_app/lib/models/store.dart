@@ -21,6 +21,7 @@ class Vendor {
   final double? lat;
   final double? lng;
   final String? city;
+  final String? pincode;
 
   Vendor({
     required this.id,
@@ -42,17 +43,22 @@ class Vendor {
     this.lat,
     this.lng,
     this.city,
+    this.pincode,
   });
 
   factory Vendor.fromJson(Map<String, dynamic> j) {
+    final addr = j['address'] is Map ? (j['address'] as Map) : null;
     final loc = j['location'];
     final coords = loc is Map ? loc['coordinates'] : null;
     final parsedLat = coords is List && coords.length == 2
         ? _dbl(coords[1])
-        : (j['lat'] != null ? _dbl(j['lat']) : null);
+        : (j['lat'] != null ? _dbl(j['lat']) : (addr != null && addr['lat'] != null ? _dbl(addr['lat']) : null));
     final parsedLng = coords is List && coords.length == 2
         ? _dbl(coords[0])
-        : (j['lng'] != null ? _dbl(j['lng']) : null);
+        : (j['lng'] != null ? _dbl(j['lng']) : (addr != null && addr['lng'] != null ? _dbl(addr['lng']) : null));
+
+    final parsedCity = j['city']?.toString() ?? addr?['city']?.toString();
+    final parsedPincode = j['pincode']?.toString() ?? addr?['pincode']?.toString() ?? addr?['postalCode']?.toString();
 
     return Vendor(
       id: (j['_id'] ?? j['id']).toString(),
@@ -73,7 +79,8 @@ class Vendor {
       estimatedDelivery: j['estimatedDelivery']?.toString(),
       lat: parsedLat,
       lng: parsedLng,
-      city: j['city']?.toString(),
+      city: parsedCity,
+      pincode: parsedPincode,
     );
   }
 }

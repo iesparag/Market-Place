@@ -4,7 +4,7 @@ import { sum, percentOf } from '../../common/money.js';
 import { haversineKm } from '../../common/geo.js';
 import { env } from '../../config/env.js';
 import { Product } from '../products/product.model.js';
-import { Store } from '../stores/store.model.js';
+import { Store, isStoreOpenNow } from '../stores/store.model.js';
 import { Order } from './order.model.js';
 import { getSettings } from '../settings/settings.model.js';
 import { paymentProvider } from '../../providers/payment/index.js';
@@ -129,13 +129,16 @@ export const ordersService = {
     const destCity = (input.shippingAddress?.city ?? '').trim().toLowerCase();
     const deliverySlots = new Map<string, { type: string; slot?: string; date?: string; estimatedDelivery: string }>();
 
-    const stores = await Store.find({ _id: { $in: storeIds } }).select('name location address city').lean();
+    const stores = await Store.find({ _id: { $in: storeIds } })
+      .select('name location address city operatingHours availabilityStatus holidays')
+      .lean();
     for (const s of stores) {
       const storeIdStr = String(s._id);
       const [lng, lat] = s.location?.coordinates ?? [];
       let isLocal = false;
+      const localRadiusKm = Math.max(env.SERVICEABLE_RADIUS_KM, 25);
       if (destLat != null && destLng != null && lat != null && lng != null) {
-        isLocal = haversineKm({ lat: destLat, lng: destLng }, { lat, lng }) <= env.SERVICEABLE_RADIUS_KM;
+        isLocal = haversineKm({ lat: destLat, lng: destLng }, { lat, lng }) <= localRadiusKm;
       } else {
         const storeCity = (s.address?.city ?? (s as any).city ?? '').trim().toLowerCase();
         if (destCity && storeCity && (destCity === storeCity || destCity.includes(storeCity) || storeCity.includes(destCity))) {
@@ -152,15 +155,26 @@ export const ordersService = {
           estimatedDelivery: '📦 Estimated 5–7 days (Standard Courier)',
         });
       } else {
+        const isOpen = isStoreOpenNow(s as never);
         const clientSlot = input.deliverySlots?.[storeIdStr];
-        deliverySlots.set(storeIdStr, {
-          type: clientSlot?.type ?? 'now',
-          slot: clientSlot?.slot ?? (clientSlot?.type === 'scheduled' ? 'Scheduled' : '⚡ 15–30 mins'),
-          date: clientSlot?.date,
-          estimatedDelivery: clientSlot?.type === 'scheduled'
-            ? `Scheduled (${clientSlot.date ?? 'Next 1–3 days'})`
-            : '⚡ 15–30 mins',
-        });
+        if (!isOpen && clientSlot?.type !== 'scheduled') {
+          // Closed store cannot do instant "now" delivery; automatically schedule for next slot
+          deliverySlots.set(storeIdStr, {
+            type: 'scheduled',
+            slot: 'Morning (9:00 AM – 12:00 PM)',
+            date: 'Tomorrow',
+            estimatedDelivery: '📅 Scheduled: Tomorrow (Morning 9:00 AM – 12:00 PM)',
+          });
+        } else {
+          deliverySlots.set(storeIdStr, {
+            type: clientSlot?.type ?? (isOpen ? 'now' : 'scheduled'),
+            slot: clientSlot?.slot ?? (clientSlot?.type === 'scheduled' ? 'Scheduled' : '⚡ 15–30 mins'),
+            date: clientSlot?.date ?? (isOpen ? undefined : 'Tomorrow'),
+            estimatedDelivery: clientSlot?.type === 'scheduled'
+              ? `Scheduled (${clientSlot.date ?? 'Next 1–3 days'})`
+              : '⚡ 15–30 mins',
+          });
+        }
       }
     }
 

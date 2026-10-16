@@ -159,10 +159,11 @@ export const catalogService = {
 
     const enriched = allStores.map((s) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { availabilityStatus, operatingHours, holidays, location, ...rest } = s as Record<string, unknown>;
+      const { availabilityStatus, operatingHours, holidays, ...rest } = s as Record<string, unknown>;
 
       let distanceMeters: number | undefined;
-      const coords = (location as { coordinates?: [number, number] })?.coordinates;
+      const rawLocation = (s as any).location;
+      const coords = rawLocation?.coordinates;
       if (geo.lat != null && geo.lng != null && coords && coords.length === 2) {
         const [lng, lat] = coords;
         if (lat != null && lng != null) {
@@ -180,8 +181,17 @@ export const catalogService = {
           ? '⚡ Delivery today'
           : '📦 Estimated 5–6 days';
 
+      const [storeLng, storeLat] = coords ?? [];
+      const storeAddr = (s as any).address;
+
       return {
         ...rest,
+        location: rawLocation,
+        lat: storeLat ?? (s as any).lat,
+        lng: storeLng ?? (s as any).lng,
+        city: storeAddr?.city ?? (s as any).city,
+        pincode: storeAddr?.pincode ?? (s as any).pincode,
+        address: storeAddr,
         distanceMeters,
         isLocal,
         isNowEligible,

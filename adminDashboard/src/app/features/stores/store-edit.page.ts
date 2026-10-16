@@ -136,10 +136,11 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
         <app-places-autocomplete (picked)="onAddressPicked($event)" />
         <label class="label">Address line</label><input class="input" formControlName="line1" />
         <div class="three">
-          <div><label class="label">City</label><input class="input" formControlName="city" /></div>
-          <div><label class="label">State</label><input class="input" formControlName="state" /></div>
-          <div><label class="label">Pincode</label><input class="input" formControlName="pincode" placeholder="e.g. 380061" /></div>
+          <div><label class="label">City (Locked)</label><input class="input" formControlName="city" [readonly]="true" /></div>
+          <div><label class="label">State (Locked)</label><input class="input" formControlName="state" [readonly]="true" /></div>
+          <div><label class="label">Pincode (Locked)</label><input class="input" formControlName="pincode" [readonly]="true" /></div>
         </div>
+        <p class="muted small">🔒 City, State & Pincode are auto-filled and locked from Google Maps to ensure exact delivery distance and SLA.</p>
         @if (form.controls.address.controls.lat.value) {
           <p class="muted small">📍 Pin confirmed — this store will appear in nearby-vendor search. Re-run the search above if you change the address text.</p>
         }

@@ -14,8 +14,9 @@ const BASE_URL = 'https://nominatim.openstreetmap.org';
 /** Same line1/city/pincode normalization already proven in customerfacing's LocationPickerComponent. */
 function normalize(item: NominatimItem): GeocodeResult {
   const a = item.address ?? {};
+  const sub = a.suburb || a.neighbourhood || a.subdivision;
   const line1 =
-    [a.house_number, a.road || a.neighbourhood || a.suburb].filter(Boolean).join(', ') ||
+    [a.house_number, a.road, sub].filter(Boolean).join(', ') ||
     (item.display_name?.split(',').slice(0, 2).join(',') ?? '');
   const city = a.city || a.town || a.village || a.municipality || a.county || a.state_district || '';
   const pincode = a.postcode ?? '';

@@ -43,6 +43,38 @@ class CheckoutRepository {
     return Address.fromJson(data);
   }
 
+  Future<Address> updateAddress({
+    required String id,
+    required String label,
+    String? recipientName,
+    required String line1,
+    String? line2,
+    String? landmark,
+    required String city,
+    String? state,
+    String? pincode,
+    String? phone,
+    bool isDefault = false,
+    double? lat,
+    double? lng,
+  }) async {
+    final data = await api.put('/addresses/$id', body: {
+      'label': label,
+      'line1': line1,
+      'city': city,
+      if (recipientName != null && recipientName.isNotEmpty) 'recipientName': recipientName,
+      if (line2 != null && line2.isNotEmpty) 'line2': line2,
+      if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+      if (state != null && state.isNotEmpty) 'state': state,
+      if (pincode != null && pincode.isNotEmpty) 'pincode': pincode,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'isDefault': isDefault,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+    }) as Map<String, dynamic>;
+    return Address.fromJson(data);
+  }
+
   Future<void> deleteAddress(String id) => api.delete('/addresses/$id');
 
   /// Switches the active delivery address — re-centers home/nearby/Now on this address

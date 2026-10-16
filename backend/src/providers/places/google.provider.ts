@@ -26,17 +26,24 @@ function component(components: NewAddressComponent[], type: string): string | un
   return components.find((c) => c.types.includes(type))?.longText;
 }
 
-/** Same normalization spirit as NominatimProvider's `normalize()`. */
+/** Standard Google Maps address component mapping for India and globally. */
 function toDetails(placeId: string, data: NewDetailsResponse): PlaceDetails | null {
   const loc = data.location;
   if (!loc) return null;
   const comps = data.addressComponents ?? [];
   const streetNumber = component(comps, 'street_number');
   const route = component(comps, 'route');
-  const line1 = [streetNumber, route].filter(Boolean).join(' ') || component(comps, 'sublocality') || '';
+  const sublocality = component(comps, 'sublocality') || component(comps, 'sublocality_level_1') || component(comps, 'neighborhood');
+  
+  // Locality is the official City in Google Maps. If missing (rural), fall back to District.
   const city = component(comps, 'locality') || component(comps, 'administrative_area_level_2') || '';
   const state = component(comps, 'administrative_area_level_1');
   const pincode = component(comps, 'postal_code') || '';
+
+  // Mohalla / sublocality goes to line1 (e.g. "Chanakyapuri" or "Shop 12, Main Road, Chanakyapuri")
+  const lineParts = [streetNumber, route, sublocality].filter(Boolean);
+  const line1 = lineParts.join(', ') || sublocality || '';
+
   return {
     placeId,
     label: data.formattedAddress ?? '',
@@ -48,6 +55,9 @@ function toDetails(placeId: string, data: NewDetailsResponse): PlaceDetails | nu
     lng: loc.longitude,
   };
 }
+
+
+
 
 /**
  * Google Places Autocomplete + Place Details (New API), proxied through our backend (the

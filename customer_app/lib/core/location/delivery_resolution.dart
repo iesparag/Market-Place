@@ -54,16 +54,20 @@ DeliverabilityResult evaluateDeliverability({
     );
   }
 
-  // 2. Exact GPS Distance
+  // 2. Exact GPS Distance (Authoritative for all of India and globally)
   if (address.lat != null && address.lng != null && vendor.lat != null && vendor.lng != null) {
     final dist = haversineDistanceKm(address.lat!, address.lng!, vendor.lat!, vendor.lng!);
-    final isWithinRadius = dist <= 15.0; // 15 km local threshold
-    if (isWithinRadius) {
+    const localRadiusKm = 25.0; // 25 km covers entire metropolitan delivery radius
+    if (dist <= localRadiusKm) {
       return DeliverabilityResult(
         isLocal: true,
         distanceKm: dist,
-        estimatedSLA: vendor.isOpenNow ? '15–30 mins' : 'Next 1–3 days',
-        description: '⚡ Local Delivery (${dist.toStringAsFixed(1)} km away)',
+        estimatedSLA: vendor.isOpenNow
+            ? (dist <= 5.0 ? '15–30 mins' : 'Delivery today')
+            : 'Scheduled: Tomorrow Morning',
+        description: vendor.isOpenNow
+            ? '⚡ Local Delivery (${dist.toStringAsFixed(1)} km away)'
+            : '⚡ Local Delivery (${dist.toStringAsFixed(1)} km) · Store closed now (Opens Tomorrow)',
       );
     } else {
       return DeliverabilityResult(

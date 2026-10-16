@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
+import '../../models/address.dart';
 import 'places_search_field.dart';
+
 
 const _addressTypes = ['Home', 'Work', 'Other'];
 
@@ -18,7 +20,7 @@ class AddressesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Addresses')),
       floatingActionButton: user == null ? null : FloatingActionButton.extended(
-        onPressed: () => _addSheet(context, ref),
+        onPressed: () => _openSheet(context, ref),
         backgroundColor: context.brand.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Add new address', style: TextStyle(color: Colors.white)),
@@ -111,6 +113,12 @@ class AddressesScreen extends ConsumerWidget {
                                       },
                               ),
                               IconButton(
+                                tooltip: 'Edit address',
+                                icon: const Icon(Icons.edit_outlined, color: BrandColors.textMuted),
+                                onPressed: () => _openSheet(context, ref, existing: a),
+                              ),
+                              IconButton(
+                                tooltip: 'Delete address',
                                 icon: const Icon(Icons.delete_outline_rounded, color: BrandColors.textMuted),
                                 onPressed: () async {
                                   await ref.read(checkoutRepoProvider).deleteAddress(a.id);
@@ -126,23 +134,23 @@ class AddressesScreen extends ConsumerWidget {
     );
   }
 
-  void _addSheet(BuildContext context, WidgetRef ref) {
-    final recipientName = TextEditingController();
-    final phone = TextEditingController();
-    final pincode = TextEditingController();
-    final line2 = TextEditingController();
-    final line1 = TextEditingController();
-    final landmark = TextEditingController();
-    final city = TextEditingController();
-    final state = TextEditingController();
-    final addressType = ValueNotifier<String>('Home');
-    final makeDefault = ValueNotifier<bool>(false);
+  void _openSheet(BuildContext context, WidgetRef ref, {Address? existing}) {
+    final recipientName = TextEditingController(text: existing?.recipientName ?? '');
+    final phone = TextEditingController(text: existing?.phone ?? '');
+    final pincode = TextEditingController(text: existing?.pincode ?? '');
+    final line2 = TextEditingController(text: existing?.line2 ?? '');
+    final line1 = TextEditingController(text: existing?.line1 ?? '');
+    final landmark = TextEditingController(text: existing?.landmark ?? '');
+    final city = TextEditingController(text: existing?.city ?? '');
+    final state = TextEditingController(text: existing?.state ?? '');
+    final addressType = ValueNotifier<String>(existing?.label ?? 'Home');
+    final makeDefault = ValueNotifier<bool>(existing?.isDefault ?? false);
     final locating = ValueNotifier<bool>(false);
     final saving = ValueNotifier<bool>(false);
     final formKey = GlobalKey<FormState>();
-    double? lat;
-    double? lng;
-    final hasLocation = ValueNotifier<bool>(false);
+    double? lat = existing?.lat;
+    double? lng = existing?.lng;
+    final hasLocation = ValueNotifier<bool>(lat != null && lng != null);
 
     showModalBottomSheet(
       context: context,
@@ -158,7 +166,8 @@ class AddressesScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Add new address', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                Text(existing != null ? 'Edit address' : 'Add new address',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
                 const SizedBox(height: 14),
                 ValueListenableBuilder<bool>(
                   valueListenable: locating,
@@ -220,17 +229,21 @@ class AddressesScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: has ? const Color(0xFFE7F6EC) : const Color(0xFFFFF7E6),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: has ? const Color(0xFFB7E4C7) : const Color(0xFFFFE0B2)),
                     ),
                     child: Row(children: [
-                      Icon(has ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                      Icon(has ? Icons.verified_rounded : Icons.info_outline_rounded,
                           size: 16, color: has ? BrandColors.success : const Color(0xFF92610A)),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           has
-                              ? 'Exact location set — delivery will be precise'
-                              : 'Search above or use current location so delivery is accurate',
-                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: has ? BrandColors.success : const Color(0xFF92610A)),
+                              ? 'Google Maps Verified — City, State & Pincode locked for accurate delivery'
+                              : 'Search above or use current location to auto-verify City and Pincode',
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: has ? const Color(0xFF1B4D3E) : const Color(0xFF92610A)),
                         ),
                       ),
                     ]),
@@ -255,49 +268,70 @@ class AddressesScreen extends ConsumerWidget {
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text('Address', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                const Text('Address Details', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: pincode,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Pincode'),
-                  validator: (v) {
-                    final digits = (v ?? '').trim();
-                    return digits.length == 6 ? null : 'Enter a valid 6-digit pincode';
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
                   controller: line2,
-                  decoration: const InputDecoration(labelText: 'Flat / House no., Building, Company'),
+                  decoration: const InputDecoration(labelText: 'Flat / House no., Building, Floor, Company'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: line1,
-                  decoration: const InputDecoration(labelText: 'Area, Street, Sector, Village'),
+                  decoration: const InputDecoration(labelText: 'Area, Street, Sector, Mohalla'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 10),
                 TextField(controller: landmark, decoration: const InputDecoration(labelText: 'Landmark (optional)')),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
+                // Locked Google Verified Fields: City, State, Pincode
                 Row(children: [
                   Expanded(
                     child: TextFormField(
                       controller: city,
-                      decoration: const InputDecoration(labelText: 'City'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'City (Locked)',
+                        filled: true,
+                        fillColor: Color(0xFFF3F4F6),
+                        suffixIcon: Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Select from Google Maps' : null,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextFormField(
-                      controller: state,
-                      decoration: const InputDecoration(labelText: 'State'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      controller: pincode,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Pincode (Locked)',
+                        filled: true,
+                        fillColor: Color(0xFFF3F4F6),
+                        suffixIcon: Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Select from Google Maps' : null,
                     ),
                   ),
                 ]),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: state,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'State (Locked)',
+                    filled: true,
+                    fillColor: Color(0xFFF3F4F6),
+                    suffixIcon: Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 4, left: 2),
+                  child: Text(
+                    '🔒 City, Pincode & State are verified from Google Maps to prevent wrong SLA calculation.',
+                    style: TextStyle(fontSize: 11, color: BrandColors.textMuted),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 const Text('Save address as', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                 const SizedBox(height: 8),
@@ -341,33 +375,50 @@ class AddressesScreen extends ConsumerWidget {
                           ? null
                           : () async {
                               if (!(formKey.currentState?.validate() ?? false)) return;
-                              if (lat == null || lng == null) {
+                              if (lat == null || lng == null || city.text.trim().isEmpty) {
                                 ScaffoldMessenger.of(sheetCtx).showSnackBar(const SnackBar(
-                                    content: Text('Please search for your address or use current location first — exact location is required.')));
+                                    content: Text('Please search for your address on Google Maps or use current location to verify location.')));
                                 return;
                               }
                               saving.value = true;
                               try {
-                                await ref.read(checkoutRepoProvider).addAddress(
-                                      label: addressType.value,
-                                      recipientName: recipientName.text.trim(),
-                                      line1: line1.text.trim(),
-                                      line2: line2.text.trim(),
-                                      landmark: landmark.text.trim(),
-                                      city: city.text.trim(),
-                                      state: state.text.trim(),
-                                      pincode: pincode.text.trim(),
-                                      phone: phone.text.trim(),
-                                      isDefault: makeDefault.value,
-                                      lat: lat, lng: lng,
-                                    );
+                                if (existing != null) {
+                                  await ref.read(checkoutRepoProvider).updateAddress(
+                                        id: existing.id,
+                                        label: addressType.value,
+                                        recipientName: recipientName.text.trim(),
+                                        line1: line1.text.trim(),
+                                        line2: line2.text.trim(),
+                                        landmark: landmark.text.trim(),
+                                        city: city.text.trim(),
+                                        state: state.text.trim(),
+                                        pincode: pincode.text.trim(),
+                                        phone: phone.text.trim(),
+                                        isDefault: makeDefault.value,
+                                        lat: lat, lng: lng,
+                                      );
+                                } else {
+                                  await ref.read(checkoutRepoProvider).addAddress(
+                                        label: addressType.value,
+                                        recipientName: recipientName.text.trim(),
+                                        line1: line1.text.trim(),
+                                        line2: line2.text.trim(),
+                                        landmark: landmark.text.trim(),
+                                        city: city.text.trim(),
+                                        state: state.text.trim(),
+                                        pincode: pincode.text.trim(),
+                                        phone: phone.text.trim(),
+                                        isDefault: makeDefault.value,
+                                        lat: lat, lng: lng,
+                                      );
+                                }
                                 ref.invalidate(addressesProvider);
                                 if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                               } finally {
                                 saving.value = false;
                               }
                             },
-                      child: Text(isSaving ? 'Saving…' : 'Save address'),
+                      child: Text(isSaving ? 'Saving…' : (existing != null ? 'Update address' : 'Save address')),
                     ),
                   ),
                 ),
@@ -379,3 +430,4 @@ class AddressesScreen extends ConsumerWidget {
     );
   }
 }
+
