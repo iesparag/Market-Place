@@ -124,6 +124,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       iconBg: const Color(0xFFFFF4E5),
       title: 'Order saved — not paid yet',
       message: message,
+      caption: 'If money was debited from your bank, please wait a moment — it will update automatically in My Orders.',
       actionsBuilder: (dialogCtx) => [
         SizedBox(
           width: double.infinity,
@@ -133,7 +134,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               Navigator.pop(dialogCtx);
               context.go('/orders');
             },
-            child: const Text('Pay now'),
+            child: const Text('View in My Orders / Pay'),
           ),
         ),
         const SizedBox(height: 10),

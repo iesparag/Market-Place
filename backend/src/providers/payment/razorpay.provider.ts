@@ -98,7 +98,12 @@ export class RazorpayProvider implements PaymentProvider {
 
     if (!res.ok) {
       const e = (json as { error?: { code?: string; description?: string } }).error;
-      logger.error({ path, status: res.status, error: e }, 'razorpay: api error');
+      const isAlreadyCaptured = e?.description?.toLowerCase().includes('already been captured');
+      if (isAlreadyCaptured) {
+        logger.debug({ path, status: res.status, error: e }, 'razorpay: payment already captured');
+      } else {
+        logger.error({ path, status: res.status, error: e }, 'razorpay: api error');
+      }
       throw new PaymentProviderError(
         e?.code ?? `HTTP_${res.status}`,
         e?.description ?? `Payment gateway error (${res.status})`,

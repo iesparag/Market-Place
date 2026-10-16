@@ -121,6 +121,7 @@ class PaymentController {
         },
         'notes': {'orderId': orderId},
         'theme': {'color': '#EA580C'},
+        'timeout': 300, // 5 minutes for bank/UPI switch completion
         // Retry OFF on purpose: with it on, Razorpay swallows a failure behind its own
         // generic "Something went wrong / RETRY" dialog instead of firing
         // EVENT_PAYMENT_ERROR, so we never learn the real code. Our checkout screen
@@ -165,7 +166,29 @@ class PaymentController {
     }
   }
 
-  void _onError(PaymentFailureResponse response) {
+  Future<void> _onError(PaymentFailureResponse response) async {
+    // Before treating as error/cancelled: check if the server already marked the order as paid!
+    // (Common scenario: Customer paid in PhonePe/GPay, Razorpay webhook settled it on backend,
+    // but Razorpay mobile SDK's client polling timed out with "Something went wrong" dialog).
+    final orderId = _session?.orderId;
+    if (orderId != null) {
+      var status = await _safeStatus(orderId);
+      if (status != null && status.isPaid) {
+        _finish(PayPaid(status));
+        return;
+      }
+
+      // If webhook is in-flight, give it up to 6 seconds to register settlement
+      for (int i = 0; i < 3; i++) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        status = await _safeStatus(orderId);
+        if (status != null && status.isPaid) {
+          _finish(PayPaid(status));
+          return;
+        }
+      }
+    }
+
     // Razorpay reports a user-dismissed sheet as an error code; treat it as a cancel.
     if (response.code == Razorpay.PAYMENT_CANCELLED) {
       _finish(const PayCancelled());

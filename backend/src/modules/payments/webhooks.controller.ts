@@ -135,7 +135,9 @@ async function processEvent(
           { err: String(err), paymentId: payment.id },
           'webhook: payment.authorized capture skipped (already captured)',
         );
-        return false;
+        // It is already captured on Razorpay — apply it immediately so the customer's order is settled right away
+        await paymentsService.applyGatewayPayment(normalise(payment), 'webhook');
+        return true;
       }
     }
 
