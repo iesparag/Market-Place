@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/error_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
@@ -56,7 +57,7 @@ class _ItemsTab extends ConsumerWidget {
     }
     return ref.watch(_wishlistProductsProvider).when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+          error: (e, _) => ErrorView(error: e),
           data: (products) {
             final list = products.where((p) => ids.contains(p.id)).toList();
             if (list.isEmpty) {
@@ -96,7 +97,7 @@ class _StoresTab extends ConsumerWidget {
     }
     return ref.watch(favouriteStoreVendorsProvider).when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+          error: (e, _) => ErrorView(error: e),
           data: (stores) {
             final list = stores.where((s) => ids.contains(s.id)).toList();
             if (list.isEmpty) {

@@ -129,13 +129,16 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 
       <div class="card" formGroupName="address">
         <h3>Registered address</h3>
+        <button type="button" class="btn btn-ghost btn-sm" [disabled]="locating()" (click)="useCurrentLocation()">
+          {{ locating() ? 'Locating…' : '📍 Use current location' }}
+        </button>
         <label class="label">Search address</label>
         <app-places-autocomplete (picked)="onAddressPicked($event)" />
         <label class="label">Address line</label><input class="input" formControlName="line1" />
         <div class="three">
           <div><label class="label">City</label><input class="input" formControlName="city" /></div>
           <div><label class="label">State</label><input class="input" formControlName="state" /></div>
-          <div><label class="label">Pincode</label><input class="input" formControlName="pincode" /></div>
+          <div><label class="label">Pincode</label><input class="input" formControlName="pincode" placeholder="e.g. 380061" /></div>
         </div>
         @if (form.controls.address.controls.lat.value) {
           <p class="muted small">📍 Pin confirmed — this store will appear in nearby-vendor search. Re-run the search above if you change the address text.</p>
@@ -191,6 +194,7 @@ export class StoreEditPage implements OnInit {
   private readonly notify = inject(NotificationService);
   private readonly route = inject(ActivatedRoute);
   saving = signal(false);
+  locating = signal(false);
   uploading = signal(false);
   covers = signal<string[]>([]);
   mine = signal(false);      // vendor editing their OWN store (route /my-store)
@@ -281,6 +285,41 @@ export class StoreEditPage implements OnInit {
    * stores.service.ts's updateProfile(), which turns address.lat/lng into Store.location. */
   onAddressPicked(p: PickedPlace): void {
     this.form.controls.address.patchValue({ line1: p.line1, city: p.city, state: p.state ?? '', pincode: p.pincode, lat: p.lat, lng: p.lng });
+  }
+
+  /** Browser GPS → backend's `/geocode/reverse` → fills the address fields directly,
+   * same mechanics as picking a Places search result. */
+  useCurrentLocation(): void {
+    if (!navigator.geolocation) {
+      this.notify.push('Not supported', 'Your browser can\'t access location — please search for your address instead', 'warning');
+      return;
+    }
+    this.locating.set(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        this.api
+          .get<{ line1?: string; city?: string; state?: string; pincode?: string; lat: number; lng: number } | null>(
+            '/geocode/reverse',
+            { lat: latitude, lng: longitude },
+          )
+          .subscribe({
+            next: (hit) => {
+              this.locating.set(false);
+              if (!hit) { this.notify.push('No address found', 'Please search for your address instead', 'warning'); return; }
+              this.form.controls.address.patchValue({
+                line1: hit.line1 ?? '', city: hit.city ?? '', state: hit.state ?? '', pincode: hit.pincode ?? '',
+                lat: hit.lat, lng: hit.lng,
+              });
+            },
+            error: () => { this.locating.set(false); this.notify.push('Could not detect your location', 'Please search for your address instead', 'warning'); },
+          });
+      },
+      () => {
+        this.locating.set(false);
+        this.notify.push('Location access needed', 'Please allow location access, or search for your address instead', 'warning');
+      },
+    );
   }
 
   onFile(e: Event, kind: 'logo' | 'cover'): void {

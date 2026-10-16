@@ -14,6 +14,8 @@ import { emitToOrder, emitToStore, emitToAdmin, emitToRider, safeEmit } from '..
 import { notify } from '../notifications/notifications.module.js';
 import { notifyRider } from '../riders/rider-push.js';
 import { whatsappProvider } from '../../providers/whatsapp/index.js';
+import { routingService } from '../routing/routing.service.js';
+import { RiderPayoutRate } from '../riders/rider-payout-rate.model.js';
 import { WhatsAppTemplate } from '../whatsapp/whatsapp.module.js';
 
 export interface OrderForDeliveryTasks {
@@ -112,6 +114,69 @@ async function enrichTasksForRider<T extends { storeId: unknown; customerId: unk
       codAmount: order?.payment?.method === 'cod' ? order.amounts?.grandTotal : undefined,
     };
   });
+}
+
+/**
+ * A COD order is only "confirmed" at checkout, never paid (see paymentsService.startCod's
+ * comment) — cash actually changes hands when the rider hands over the package. Without
+ * this, a COD order's `payment.status` stays 'pending' forever: no commission/ledger
+ * entries ever get created (those only fire from settlementService.settlePrepaid), so a
+ * vendor's COD sales would never show up for payout even though the cash was collected.
+ * Settles the WHOLE order (not per-store) once every DeliveryTask on it is delivered —
+ * a multi-vendor COD order can have separate riders finishing at different times, and
+ * `payment` is one field on the order, not one per store.
+ *
+ * Dynamic import to avoid a static circular dependency: settlement.service.ts already
+ * imports this file (to create delivery tasks once a prepaid order settles); by the time
+ * this actually runs (a rider marking 'delivered'), both modules are fully loaded, so the
+ * cycle is harmless here but would NOT be safe as a top-level `import`.
+ */
+async function maybeSettleCod(orderId: unknown): Promise<void> {
+  const order = await Order.findById(orderId).select('payment status').lean();
+  if (!order || order.payment?.method !== 'cod' || order.payment?.status === 'paid') return;
+  const tasks = await DeliveryTask.find({ orderId }).select('status').lean();
+  const allDelivered = tasks.length > 0 && tasks.every((t) => t.status === 'delivered');
+  if (!allDelivered) return;
+  const { settlementService } = await import('../payments/settlement.service.js');
+  await settlementService.settlePrepaid(String(orderId), { provider: 'cod', method: 'cod' });
+}
+
+/**
+ * Rider payout for one delivered task — distance × the drop city's configured ₹/km
+ * rate (RiderPayoutRate). Distance comes from OSRM's road route between the FIXED
+ * pickup/drop points, never the rider's actual GPS trail — a trail-based distance is
+ * gameable (wander further, earn more); a route between two addresses the rider
+ * doesn't choose is not. Silently no-ops (not an error) when:
+ *   - either address is missing lat/lng (can't route)
+ *   - no RiderPayoutRate exists for the drop city (admin hasn't opted that city in yet)
+ *   - the resulting distance exceeds RIDER_PAYOUT_MAX_DISTANCE_KM (bad routing data —
+ *     every genuine delivery is already far inside this by the checkout-time radius
+ *     check, so a distance this large means something is wrong, not a real long-haul job)
+ */
+async function maybeComputePayout(taskId: string): Promise<void> {
+  const task = await DeliveryTask.findById(taskId).select('pickupAddress dropAddress payoutAmount').lean();
+  if (!task || task.payoutAmount != null) return; // already computed (idempotent)
+  const pickup = task.pickupAddress;
+  const drop = task.dropAddress;
+  if (pickup?.lat == null || pickup?.lng == null || drop?.lat == null || drop?.lng == null) return;
+
+  const dropCity = drop.city?.toLowerCase().trim();
+  if (!dropCity) return;
+  const rate = await RiderPayoutRate.findOne({ city: dropCity, active: true }).lean();
+  if (!rate) return;
+
+  const route = await routingService.route({ lat: pickup.lat, lng: pickup.lng }, { lat: drop.lat, lng: drop.lng });
+  if (!route) return;
+  const distanceKm = route.distanceMeters / 1000;
+  if (distanceKm > env.RIDER_PAYOUT_MAX_DISTANCE_KM) {
+    logger.warn({ taskId, distanceKm }, 'maybeComputePayout: route distance exceeds sanity cap — skipping payout');
+    return;
+  }
+
+  await DeliveryTask.updateOne(
+    { _id: taskId },
+    { $set: { payoutDistanceMeters: route.distanceMeters, payoutAmount: Math.round(distanceKm * rate.ratePerKm) } },
+  );
 }
 
 export const deliveryTasksService = {
@@ -451,6 +516,8 @@ export const deliveryTasksService = {
 
     if (status === 'delivered' && task.riderId) {
       await Rider.updateOne({ _id: task.riderId }, { $inc: { activeTaskCount: -1, totalDeliveries: 1 } });
+      await maybeSettleCod(task.orderId);
+      await maybeComputePayout(id);
     } else if (status === 'cancelled' && task.riderId) {
       await Rider.updateOne({ _id: task.riderId }, { $inc: { activeTaskCount: -1 } });
     }

@@ -12,6 +12,7 @@ const _themeCacheKey = 'cached_theme_json';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initPush();
+  listenForNotificationTaps((link) => appRouter.go(link));
   final prefs = await SharedPreferences.getInstance();
   runApp(ProviderScope(
     overrides: [sharedPrefsProvider.overrideWithValue(prefs)],

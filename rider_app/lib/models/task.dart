@@ -94,6 +94,11 @@ class TaskModel {
   /// The customer's note to THIS vendor (cart screen — "Instructions for [store]").
   final String? instructions;
   final DateTime? updatedAt;
+  /// What this delivery paid — OSRM pickup→drop route distance × the drop city's
+  /// configured ₹/km rate (set by an admin on the Rider Rates page). Null until the
+  /// task is delivered, AND if no rate is configured yet for that city.
+  final int? payoutAmount;
+  final int? payoutDistanceMeters;
 
   TaskModel({
     required this.id,
@@ -110,6 +115,8 @@ class TaskModel {
     this.codAmount,
     this.instructions,
     this.updatedAt,
+    this.payoutAmount,
+    this.payoutDistanceMeters,
   });
 
   bool get isCod => codAmount != null;
@@ -154,6 +161,8 @@ class TaskModel {
       codAmount: (j['codAmount'] as num?)?.toInt(),
       instructions: (j['instructions'] as String?)?.trim().isEmpty == true ? null : j['instructions']?.toString(),
       updatedAt: DateTime.tryParse(j['updatedAt']?.toString() ?? ''),
+      payoutAmount: (j['payoutAmount'] as num?)?.toInt(),
+      payoutDistanceMeters: (j['payoutDistanceMeters'] as num?)?.toInt(),
     );
   }
 }

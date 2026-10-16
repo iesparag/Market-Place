@@ -5,6 +5,7 @@ import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/task.dart';
+import '../../shared/widgets/error_view.dart';
 
 class OffersScreen extends ConsumerStatefulWidget {
   const OffersScreen({super.key});
@@ -59,7 +60,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
       appBar: AppBar(title: const Text('Job offers')),
       body: offersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: RiderColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (offers) => offers.isEmpty
             ? const Center(child: Text('No offers right now', style: TextStyle(color: RiderColors.textMuted)))
             : RefreshIndicator(

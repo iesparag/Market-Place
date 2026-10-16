@@ -18,7 +18,7 @@ import { AuthFacade } from '../../../store/auth/auth.facade';
   imports: [ReactiveFormsModule, RouterLink],
   template: `
     <header class="head">
-      <div><h1>{{ id ? 'Edit' : 'New' }} product</h1><p class="muted">Category schema drives the fields</p></div>
+      <div><h1>{{ id ? 'Edit' : 'New' }} product</h1><p class="muted">Fields change based on the category you pick</p></div>
       <a class="btn btn-ghost" routerLink="/products">← Back</a>
     </header>
 

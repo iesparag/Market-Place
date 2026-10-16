@@ -28,6 +28,12 @@ const deliveryTaskSchema = new Schema(
     // This store's slice of Order.storeInstructions — the customer's note to THIS
     // vendor, never the whole multi-vendor order's instructions.
     instructions: String,
+    // Set once, when the task is marked 'delivered' (see maybeComputePayout in
+    // delivery-tasks.service.ts) — the OSRM road-route distance pickup→drop (fixed
+    // points, not the rider's actual GPS trail, so wandering can't inflate it) × the
+    // drop city's RiderPayoutRate. Absent if no rate is configured for that city yet.
+    payoutDistanceMeters: Number,
+    payoutAmount: Number, // paise
     status: {
       type: String,
       enum: [

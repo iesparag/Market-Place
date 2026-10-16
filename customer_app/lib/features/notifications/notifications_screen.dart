@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/app_notification.dart';
+import '../../shared/widgets/error_view.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -33,8 +34,7 @@ class NotificationsScreen extends ConsumerWidget {
       ),
       body: list.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-            child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (items) {
           if (items.isEmpty) return const _Empty();
           return RefreshIndicator(

@@ -111,6 +111,7 @@ export const NAV_META: NavSectionMeta[] = [
       { perm: 'order:read', label: 'Orders', route: '/orders' },
       { perm: 'suborder:read', label: 'Fulfillment', route: '/fulfillment' },
       { perm: 'rider:read', label: 'Delivery', route: '/delivery' },
+      { perm: 'rider:manage', label: 'Rider Rates', route: '/rider-rates' },
     ],
   },
   {

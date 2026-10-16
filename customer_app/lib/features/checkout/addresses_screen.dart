@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/error_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
@@ -32,7 +33,7 @@ class AddressesScreen extends ConsumerWidget {
             )
           : ref.watch(addressesProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+              error: (e, _) => ErrorView(error: e),
               data: (list) => list.isEmpty
                   ? const Center(child: Text('No saved addresses', style: TextStyle(color: BrandColors.textMuted)))
                   : ListView.separated(
@@ -91,13 +92,32 @@ class AddressesScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: BrandColors.textMuted),
-                              onPressed: () async {
-                                await ref.read(checkoutRepoProvider).deleteAddress(a.id);
-                                ref.invalidate(addressesProvider);
-                              },
-                            ),
+                            Column(children: [
+                              IconButton(
+                                tooltip: a.isDefault ? 'Default delivery address' : 'Deliver here',
+                                icon: Icon(
+                                  a.isDefault ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                                  color: a.isDefault ? BrandColors.success : BrandColors.textMuted,
+                                ),
+                                onPressed: a.isDefault
+                                    ? null
+                                    : () async {
+                                        await ref.read(checkoutRepoProvider).setDefaultAddress(a.id);
+                                        ref.invalidate(addressesProvider);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Now delivering to ${a.label}')));
+                                        }
+                                      },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, color: BrandColors.textMuted),
+                                onPressed: () async {
+                                  await ref.read(checkoutRepoProvider).deleteAddress(a.id);
+                                  ref.invalidate(addressesProvider);
+                                },
+                              ),
+                            ]),
                           ]),
                         );
                       },
@@ -116,6 +136,7 @@ class AddressesScreen extends ConsumerWidget {
     final city = TextEditingController();
     final state = TextEditingController();
     final addressType = ValueNotifier<String>('Home');
+    final makeDefault = ValueNotifier<bool>(false);
     final locating = ValueNotifier<bool>(false);
     final saving = ValueNotifier<bool>(false);
     final formKey = GlobalKey<FormState>();
@@ -298,7 +319,19 @@ class AddressesScreen extends ConsumerWidget {
                     }).toList(),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 10),
+                ValueListenableBuilder<bool>(
+                  valueListenable: makeDefault,
+                  builder: (_, checked, __) => CheckboxListTile(
+                    value: checked,
+                    onChanged: (v) => makeDefault.value = v ?? false,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text('Make this my default delivery address', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Nearby stores and "Now" will use this address', style: TextStyle(fontSize: 11.5, color: BrandColors.textMuted)),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity, height: 48,
                   child: ValueListenableBuilder<bool>(
@@ -325,6 +358,7 @@ class AddressesScreen extends ConsumerWidget {
                                       state: state.text.trim(),
                                       pincode: pincode.text.trim(),
                                       phone: phone.text.trim(),
+                                      isDefault: makeDefault.value,
                                       lat: lat, lng: lng,
                                     );
                                 ref.invalidate(addressesProvider);

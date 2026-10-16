@@ -10,6 +10,7 @@ import '../../data/payment_repository.dart';
 import '../cart/cart_controller.dart';
 import 'places_search_field.dart';
 import 'payment_controller.dart';
+import '../../shared/widgets/error_view.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -85,7 +86,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _placing = false;
         _stage = 'idle';
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Order failed: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(friendlyError(e, fallback: 'Could not place your order. Please try again.'))));
       return;
     }
 
@@ -302,7 +304,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ]),
           addressesAsync.when(
             loading: () => const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
-            error: (e, _) => Text('$e', style: const TextStyle(color: BrandColors.textMuted)),
+            error: (e, _) => ErrorView(error: e),
             data: (list) {
               if (list.isEmpty) {
                 return _dashedBox('No saved address — tap "Add" to enter your delivery address.');
@@ -457,7 +459,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                           } catch (e) {
                             setSheet(() => saving = false);
-                            if (sheetCtx.mounted) ScaffoldMessenger.of(sheetCtx).showSnackBar(SnackBar(content: Text('$e')));
+                            if (sheetCtx.mounted) {
+                              ScaffoldMessenger.of(sheetCtx).showSnackBar(SnackBar(
+                                  content: Text(friendlyError(e, fallback: 'Could not save this address. Please try again.'))));
+                            }
                           }
                         },
                   child: saving

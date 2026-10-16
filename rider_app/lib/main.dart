@@ -16,7 +16,7 @@ class RiderApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Rider App',
+      title: 'MP Delivery',
       debugShowCheckedModeBanner: false,
       theme: RiderTheme.light(),
       routerConfig: appRouter,

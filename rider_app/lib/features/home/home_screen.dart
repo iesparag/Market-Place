@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
+import '../shell/rider_shell.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -98,7 +99,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rider App'),
+        title: const Text('MP Delivery'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -174,7 +175,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               iconColor: RiderColors.success,
               title: 'History',
               subtitle: 'Deliveries you\'ve completed and cash collected',
-              onTap: () => context.push('/history'),
+              onTap: () => ref.read(riderShellTabProvider.notifier).state = 1,
+            ),
+            const SizedBox(height: 10),
+            _actionCard(
+              icon: Icons.account_balance_wallet_outlined,
+              iconColor: RiderColors.primary,
+              title: 'Payouts',
+              subtitle: 'What you\'ve earned, delivery by delivery',
+              onTap: () => ref.read(riderShellTabProvider.notifier).state = 2,
             ),
 
             if (!online) ...[

@@ -58,6 +58,21 @@ addressesRoutes.post('/', asyncHandler(async (req, res) => {
   created(res, await Address.create({ ...input, userId: req.user!.id }));
 }));
 
+/**
+ * Switch which saved address is the "active" one — drives the home feed/nearby-vendor/
+ * Now radius via effectiveLocationProvider on the client (providers.dart), not just a
+ * cosmetic label. The explicit ask this serves: "I'm at address A but want to order for
+ * delivery to address B" — picking B as default re-centers every nearby search on B.
+ */
+addressesRoutes.patch('/:id/default', asyncHandler(async (req, res) => {
+  const address = await Address.findOne({ _id: req.params.id, userId: req.user!.id });
+  if (!address) throw AppError.notFound('Address not found');
+  await Address.updateMany({ userId: req.user!.id }, { isDefault: false });
+  address.isDefault = true;
+  await address.save();
+  ok(res, address);
+}));
+
 addressesRoutes.delete('/:id', asyncHandler(async (req, res) => {
   const r = await Address.deleteOne({ _id: req.params.id, userId: req.user!.id });
   if (r.deletedCount === 0) throw AppError.notFound('Address not found');

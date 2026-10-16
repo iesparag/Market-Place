@@ -47,3 +47,23 @@ Stream<String>? fcmTokenRefreshStream() {
     return null;
   }
 }
+
+/// Deep-links a tapped push notification via [onLink] — the backend's notify() (see
+/// notifications.module.ts) attaches `data.link` to anything meant to jump somewhere
+/// specific (e.g. the abandoned-cart reminder → '/cart'), but nothing ever read that
+/// field: tapping any notification just opened the app at its normal start screen.
+/// Covers both cases a tap can happen: app backgrounded (onMessageOpenedApp) and app
+/// fully closed (getInitialMessage, checked once at startup). Call once, right after
+/// [initPush].
+void listenForNotificationTaps(void Function(String link) onLink) {
+  try {
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      final link = message.data['link'] as String?;
+      if (link != null && link.isNotEmpty) onLink(link);
+    });
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      final link = message?.data['link'] as String?;
+      if (link != null && link.isNotEmpty) onLink(link);
+    });
+  } catch (_) {/* Firebase not configured on this build — push just won't deep-link */}
+}

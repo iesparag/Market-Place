@@ -79,19 +79,37 @@ final notificationsProvider = FutureProvider.autoDispose<List<AppNotification>>(
 final unreadCountProvider = FutureProvider.autoDispose<int>(
     (ref) => ref.read(notificationsRepoProvider).unreadCount());
 
+/// The location that actually drives "near me" everywhere in the app (home feed,
+/// nearby vendors, the Now tab) — a signed-in customer's default saved address when
+/// they have one, falling back to live GPS otherwise. This is the explicit fix for "I'm
+/// at address A right now but want to shop for delivery to address B": picking B as the
+/// default (addresses_screen.dart) re-centers every nearby search on B, not on wherever
+/// the phone's GPS happens to be. Depends on addressesProvider (not a one-off read), so
+/// changing the default live-updates every watcher below without an app restart.
+final effectiveLocationProvider = FutureProvider.autoDispose<({double lat, double lng})?>((ref) async {
+  final user = ref.watch(authProvider);
+  if (user != null) {
+    final addresses = await ref.watch(addressesProvider.future);
+    for (final a in addresses) {
+      if (a.isDefault && a.lat != null && a.lng != null) return (lat: a.lat!, lng: a.lng!);
+    }
+  }
+  return ref.watch(deviceLocationProvider.future);
+});
+
 // ── data (auto-fetch) ─────────────────────────────────────────────────────
-/// Waits on device location (resolves fast — null on no-permission/timeout, never
-/// hangs the home feed) so "Shops near you" is geo-filtered with a real ETA from the
-/// very first load, not just on a later refresh.
+/// Waits on the effective location (resolves fast — null on no-permission/timeout/no
+/// default address, never hangs the home feed) so "Shops near you" is geo-filtered with
+/// a real ETA from the very first load, not just on a later refresh.
 final homeSectionsProvider = FutureProvider.autoDispose((ref) async {
-  final loc = await ref.watch(deviceLocationProvider.future);
+  final loc = await ref.watch(effectiveLocationProvider.future);
   return ref.read(catalogRepoProvider).home(lat: loc?.lat, lng: loc?.lng);
 });
 final bannersProvider = FutureProvider.autoDispose((ref) => ref.read(catalogRepoProvider).banners());
 final categoryTreeProvider = FutureProvider((ref) => ref.read(catalogRepoProvider).categoryTree());
 final categoriesProvider = FutureProvider((ref) => ref.read(catalogRepoProvider).categories());
 final vendorsProvider = FutureProvider.autoDispose((ref) async {
-  final loc = await ref.watch(deviceLocationProvider.future);
+  final loc = await ref.watch(effectiveLocationProvider.future);
   return ref.read(catalogRepoProvider).stores(lat: loc?.lat, lng: loc?.lng);
 });
 
@@ -103,10 +121,12 @@ final nowTabVisibleProvider = Provider.autoDispose<bool>((ref) {
   return ref.watch(vendorsProvider).maybeWhen(data: (list) => list.isNotEmpty, orElse: () => false);
 });
 
-/// "Now" tab — vendors open right now within instant-delivery range. No GPS → empty
-/// (the screen treats that as "we need your location," not "nothing's open").
+/// "Now" tab — vendors open right now within instant-delivery range of the EFFECTIVE
+/// location (default address if set, else GPS) — so switching your default address
+/// switches which city/area "Now" searches too. No location → empty (the screen treats
+/// that as "we need your location," not "nothing's open").
 final nowStoresProvider = FutureProvider.autoDispose((ref) async {
-  final loc = await ref.watch(deviceLocationProvider.future);
+  final loc = await ref.watch(effectiveLocationProvider.future);
   return ref.read(catalogRepoProvider).nowStores(lat: loc?.lat, lng: loc?.lng);
 });
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/error_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
@@ -21,7 +22,7 @@ class NowScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final loc = ref.watch(deviceLocationProvider);
+    final loc = ref.watch(effectiveLocationProvider);
     final async = ref.watch(nowStoresProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF2),
@@ -56,7 +57,7 @@ class NowScreen extends ConsumerWidget {
                 if (pos == null) return const _NoLocation();
                 return async.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+                  error: (e, _) => ErrorView(error: e),
                   data: (vendors) {
                     if (vendors.isEmpty) return const _NothingOpenNow();
                     return RefreshIndicator(

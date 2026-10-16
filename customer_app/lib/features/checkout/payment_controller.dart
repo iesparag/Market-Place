@@ -127,8 +127,11 @@ class PaymentController {
         // already offers a retry, and `createCheckout` resumes the same gateway order.
         'retry': {'enabled': false},
       });
-    } catch (e) {
-      _finish(PayFailed('Could not open the payment screen: $e'));
+    } catch (_) {
+      // Whatever the native Razorpay plugin threw (a PlatformException, etc.) is not
+      // something a customer should see verbatim — same judgment call as friendlyError()
+      // in shared/widgets/error_view.dart, inlined here since this isn't an ApiException.
+      _finish(const PayFailed('Could not open the payment screen. Please try again.'));
     }
     return completer.future;
   }

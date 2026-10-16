@@ -39,6 +39,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/delivery/delivery.page').then((m) => m.DeliveryPage),
       },
       {
+        path: 'rider-rates',
+        canMatch: [permissionGuard('rider:manage')],
+        loadComponent: () => import('./features/rider-rates/rider-rates.page').then((m) => m.RiderRatesPage),
+      },
+      {
         path: 'categories',
         canMatch: [permissionGuard('category:manage')],
         loadComponent: () => import('./features/categories/categories.page').then((m) => m.CategoriesPage),

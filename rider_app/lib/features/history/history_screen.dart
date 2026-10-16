@@ -5,6 +5,7 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/task.dart';
+import '../../shared/widgets/error_view.dart';
 
 /// "What did I accomplish" — a rider's own completed/cancelled track record, last 30
 /// days. Distinct from /tasks (the live queue): this is read-only, no advance buttons,
@@ -18,7 +19,7 @@ class HistoryScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('History')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: RiderColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (tasks) {
           if (tasks.isEmpty) {
             return const Center(child: Text('No completed deliveries in the last 30 days', style: TextStyle(color: RiderColors.textMuted)));

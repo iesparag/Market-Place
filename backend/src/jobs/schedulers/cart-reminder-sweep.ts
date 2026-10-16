@@ -49,11 +49,18 @@ export async function sweepAbandonedCarts(now = new Date()): Promise<number> {
     if (claimed.modifiedCount === 0) continue;
 
     const count = cart.items.reduce((n, i) => n + i.qty, 0);
+    // First item's image, not a generic banner — a push with an actual product photo
+    // reads as "your Margherita pizza is waiting," not just another promo blast.
+    const firstItem = cart.items.find((i) => i.image);
+    const itemLabel = cart.items[0]?.title;
     void notify(String(cart.userId), {
       type: 'promo',
-      title: 'You left something in your cart',
-      body: `${count} item${count === 1 ? '' : 's'} waiting for you — complete your order before it's gone.`,
+      title: '🛒 Still want it?',
+      body: itemLabel
+        ? `${itemLabel}${count > 1 ? ` + ${count - 1} more` : ''} is waiting in your cart — grab it before it's gone!`
+        : `${count} item${count === 1 ? '' : 's'} waiting for you — complete your order before it's gone.`,
       link: '/cart',
+      image: firstItem?.image ?? undefined,
     });
     sent += 1;
 

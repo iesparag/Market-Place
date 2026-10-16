@@ -7,6 +7,7 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/task.dart';
+import '../../shared/widgets/error_view.dart';
 
 Future<void> _call(String? phone) async {
   if (phone == null || phone.isEmpty) return;
@@ -59,88 +60,132 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       appBar: AppBar(title: const Text('Task details')),
       body: tasksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: RiderColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (tasks) {
-          final task = tasks.where((t) => t.id == widget.taskId).firstOrNull;
-          if (task == null) {
-            return const Center(child: Text('This task is no longer in your queue.', style: TextStyle(color: RiderColors.textMuted)));
-          }
-          final next = task.nextStep;
-          final stepIndex = kTaskSteps.indexWhere((s) => s.status == task.status);
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(myTasksProvider),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Row(children: [
-                  Expanded(child: Text(task.orderNumber, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'monospace', fontSize: 15))),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: RiderColors.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-                    child: Text(task.stageLabel, style: const TextStyle(color: RiderColors.primary, fontWeight: FontWeight.w700, fontSize: 11.5)),
-                  ),
-                ]),
-                const SizedBox(height: 10),
-                _StepDots(currentIndex: stepIndex),
-                const SizedBox(height: 16),
+          final active = tasks.where((t) => t.id == widget.taskId).firstOrNull;
+          if (active != null) return _detail(active, isHistory: false);
 
-                if (task.isCod)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    margin: const EdgeInsets.only(bottom: 14),
-                    decoration: BoxDecoration(color: const Color(0xFFFFF7E6), borderRadius: BorderRadius.circular(14), border: Border.all(color: RiderColors.warning)),
-                    child: Row(children: [
-                      const Icon(Icons.payments_rounded, color: RiderColors.warning),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Collect on delivery', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: RiderColors.warning)),
-                          Text(rupees(task.codAmount!), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: RiderColors.warning)),
-                        ]),
-                      ),
-                    ]),
-                  ),
-
-                _ContactCard(
-                  icon: Icons.storefront_outlined,
-                  title: task.storeName ?? 'Pickup',
-                  subtitle: 'Pickup from vendor',
-                  address: task.pickup,
-                  phone: task.storePhone,
-                ),
-                const SizedBox(height: 12),
-                _ContactCard(
-                  icon: Icons.person_outline_rounded,
-                  title: task.customerName ?? 'Customer',
-                  subtitle: 'Deliver to customer',
-                  address: task.drop,
-                  phone: task.customerPhone,
-                  note: task.instructions,
-                ),
-                const SizedBox(height: 14),
-
-                _card(
-                  title: 'Items (${task.items.length})',
-                  child: Column(children: task.items.map((i) => _ItemTile(item: i)).toList()),
-                ),
-
-                const SizedBox(height: 20),
-                if (next != null)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _advancing ? null : () => _advance(task),
-                      child: _advancing
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text(next.buttonLabel),
-                    ),
-                  ),
-              ],
-            ),
+          // Not in the live queue — could be a completed/cancelled task opened from
+          // History, which myTasksProvider deliberately excludes (it only lists
+          // 'ready'+active rider stages). Fall back to historyProvider before giving up.
+          final historyAsync = ref.watch(historyProvider);
+          return historyAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const Center(
+                child: Text('This task is no longer in your queue.', style: TextStyle(color: RiderColors.textMuted))),
+            data: (history) {
+              final past = history.where((t) => t.id == widget.taskId).firstOrNull;
+              if (past == null) {
+                return const Center(
+                    child: Text('This task is no longer in your queue.', style: TextStyle(color: RiderColors.textMuted)));
+              }
+              return _detail(past, isHistory: true);
+            },
           );
         },
+      ),
+    );
+  }
+
+  Widget _detail(TaskModel task, {required bool isHistory}) {
+    final next = isHistory ? null : task.nextStep;
+    final stepIndex = kTaskSteps.indexWhere((s) => s.status == task.status);
+    return RefreshIndicator(
+      onRefresh: () async => ref.invalidate(isHistory ? historyProvider : myTasksProvider),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(children: [
+            Expanded(child: Text(task.orderNumber, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'monospace', fontSize: 15))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                  color: (isHistory
+                          ? (task.status == 'delivered' ? RiderColors.success : RiderColors.danger)
+                          : RiderColors.primary)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999)),
+              child: Text(
+                isHistory ? (task.status == 'delivered' ? 'Delivered' : 'Cancelled') : task.stageLabel,
+                style: TextStyle(
+                    color: isHistory
+                        ? (task.status == 'delivered' ? RiderColors.success : RiderColors.danger)
+                        : RiderColors.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          if (!isHistory) ...[_StepDots(currentIndex: stepIndex), const SizedBox(height: 16)],
+
+          if (task.isCod)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(color: const Color(0xFFFFF7E6), borderRadius: BorderRadius.circular(14), border: Border.all(color: RiderColors.warning)),
+              child: Row(children: [
+                const Icon(Icons.payments_rounded, color: RiderColors.warning),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(isHistory ? 'Cash collected' : 'Collect on delivery',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: RiderColors.warning)),
+                    Text(rupees(task.codAmount!), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: RiderColors.warning)),
+                  ]),
+                ),
+              ]),
+            )
+          else if (isHistory)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(color: const Color(0xFFE7F6EC), borderRadius: BorderRadius.circular(14)),
+              child: const Row(children: [
+                Icon(Icons.credit_score_rounded, color: RiderColors.success),
+                SizedBox(width: 10),
+                Text('Prepaid online — nothing to collect', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: RiderColors.success)),
+              ]),
+            ),
+
+          _ContactCard(
+            icon: Icons.storefront_outlined,
+            title: task.storeName ?? 'Pickup',
+            subtitle: 'Pickup from vendor',
+            address: task.pickup,
+            phone: task.storePhone,
+          ),
+          const SizedBox(height: 12),
+          _ContactCard(
+            icon: Icons.person_outline_rounded,
+            title: task.customerName ?? 'Customer',
+            subtitle: 'Deliver to customer',
+            address: task.drop,
+            phone: task.customerPhone,
+            note: task.instructions,
+          ),
+          const SizedBox(height: 14),
+
+          _card(
+            title: 'Items (${task.items.length})',
+            child: Column(children: task.items.map((i) => _ItemTile(item: i)).toList()),
+          ),
+
+          const SizedBox(height: 20),
+          if (next != null)
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _advancing ? null : () => _advance(task),
+                child: _advancing
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(next.buttonLabel),
+              ),
+            ),
+        ],
       ),
     );
   }

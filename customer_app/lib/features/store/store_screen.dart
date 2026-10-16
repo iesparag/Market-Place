@@ -13,6 +13,7 @@ import '../../models/store.dart';
 import '../../shared/category_emoji.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/shimmer.dart';
+import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../favourites/store_favourite_controller.dart';
@@ -37,16 +38,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       backgroundColor: Colors.white,
       body: async.when(
         loading: () => const _StoreSkeleton(),
-        error: (e, _) => Scaffold(
-          appBar: AppBar(),
-          body: Center(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.error_outline_rounded, size: 40, color: BrandColors.textMuted),
-              const SizedBox(height: 10),
-              Text('$e', style: const TextStyle(color: BrandColors.textMuted)),
-            ]),
-          ),
-        ),
+        error: (e, _) => Scaffold(appBar: AppBar(), body: ErrorView(error: e)),
         data: (data) => _content(context, data),
       ),
     );

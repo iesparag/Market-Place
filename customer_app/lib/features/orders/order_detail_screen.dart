@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../shared/widgets/error_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,7 +136,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       appBar: AppBar(title: const Text('Order details')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (order) => RefreshIndicator(
           onRefresh: () async => ref.invalidate(orderProvider(widget.orderId)),
           child: ListView(
@@ -379,7 +380,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order cancelled')));
       }
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e, fallback: 'Could not cancel the order. Please try again.'))));
+      }
     }
   }
 

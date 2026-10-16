@@ -5,6 +5,7 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/category.dart';
 import '../../shared/category_emoji.dart';
+import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 
@@ -29,9 +30,7 @@ class DepartmentScreen extends ConsumerWidget {
       appBar: AppBar(actions: const [WishlistButton(), CartButton()]),
       body: tree.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-            child: Text('$e',
-                style: const TextStyle(color: BrandColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (nodes) {
           final dept = _find(nodes, slug);
           if (dept == null) return const Center(child: Text('Not found'));

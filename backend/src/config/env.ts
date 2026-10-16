@@ -98,6 +98,10 @@ const EnvSchema = z.object({
   // Unset: /routing returns null everywhere, customer_app falls back to a plain marker.
   OSRM_BASE_URL: z.string().optional(),
   ROUTE_CACHE_TTL_SECONDS: z.coerce.number().default(15),
+  // Sanity cap on the OSRM route distance used for rider payouts — every real delivery
+  // is already bounded by NOW_RADIUS_KM/SERVICEABLE_RADIUS_KM at checkout time, so this
+  // only guards against a bad/looping route result, never a genuine long-haul delivery.
+  RIDER_PAYOUT_MAX_DISTANCE_KM: z.coerce.number().default(30),
   DELIVERY_BASE_MINUTES: z.coerce.number().default(12), // prep + dispatch overhead
   DELIVERY_AVG_SPEED_KMH: z.coerce.number().default(18), // conservative urban avg incl. traffic/stops
   // Third-party logistics (orders outside our own rider-covered cities). Keyless mock in

@@ -5,6 +5,7 @@ import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/task.dart';
+import '../../shared/widgets/error_view.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
@@ -48,12 +49,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       appBar: AppBar(title: const Text('My tasks')),
       body: tasksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Text(
-            '$e',
-            style: const TextStyle(color: RiderColors.textMuted),
-          ),
-        ),
+        error: (e, _) => ErrorView(error: e),
         data: (tasks) => tasks.isEmpty
             ? const Center(
                 child: Text(

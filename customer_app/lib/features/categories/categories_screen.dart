@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/error_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
@@ -15,7 +16,7 @@ class CategoriesScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Categories')),
       body: tree.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (nodes) => ListView(
           padding: const EdgeInsets.all(12),
           children: nodes.map((d) => _Department(node: d)).toList(),

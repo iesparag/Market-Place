@@ -8,6 +8,7 @@ import '../../models/store.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/search_bar_pill.dart';
+import '../../shared/widgets/error_view.dart';
 import '../favourites/store_favourite_controller.dart';
 
 /// The "Stores" tab — every approved vendor, tap to open the storefront.
@@ -23,9 +24,7 @@ class StoresListScreen extends ConsumerWidget {
           actions: const [WishlistButton(), CartButton()]),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-            child: Text('$e',
-                style: const TextStyle(color: BrandColors.textMuted))),
+        error: (e, _) => ErrorView(error: e),
         data: (vendors) => RefreshIndicator(
           onRefresh: () async => ref.invalidate(vendorsProvider),
           child: ListView.separated(

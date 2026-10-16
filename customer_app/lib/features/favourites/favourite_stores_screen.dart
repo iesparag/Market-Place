@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/error_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
@@ -20,7 +21,7 @@ class FavouriteStoresScreen extends ConsumerWidget {
           ? _SignIn(onSignIn: () => context.push('/login'))
           : ref.watch(favouriteStoreVendorsProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: BrandColors.textMuted))),
+              error: (e, _) => ErrorView(error: e),
               data: (stores) {
                 final list = stores.where((s) => ids.contains(s.id)).toList();
                 if (list.isEmpty) return const _Empty();

@@ -45,6 +45,13 @@ class CheckoutRepository {
 
   Future<void> deleteAddress(String id) => api.delete('/addresses/$id');
 
+  /// Switches the active delivery address — re-centers home/nearby/Now on this address
+  /// (see effectiveLocationProvider in providers.dart), not just a label change.
+  Future<Address> setDefaultAddress(String id) async {
+    final data = await api.patch('/addresses/$id/default') as Map<String, dynamic>;
+    return Address.fromJson(data);
+  }
+
   Future<OrderModel> placeOrder({
     required List<CartLine> lines,
     Address? address,

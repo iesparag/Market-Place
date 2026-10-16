@@ -8,7 +8,7 @@ import '../home/home_screen.dart';
 import '../favourites/favourites_screen.dart';
 import '../now/now_screen.dart';
 import '../catalog/catalog_screen.dart';
-import '../orders/orders_screen.dart';
+import '../stores/stores_list_screen.dart';
 
 /// Selected bottom-nav tab. Exposed so other screens (e.g. the home avatar)
 /// can jump straight to a tab like Account without a separate route.
@@ -23,11 +23,11 @@ class _NavItem {
 }
 
 /// The bottom-nav's tab list, built fresh each read so "Now" can come and go with
-/// nowTabVisibleProvider — Home, Products, Favourites and Orders are always present;
-/// only Now's presence (and therefore everyone else's index) is conditional. Exposed as
-/// a provider (not just a local build() variable) so other screens — the Account
-/// screen's "Your orders" tile — can look up "which index is Orders today" instead of
-/// hardcoding a number that silently goes stale when Now appears/disappears.
+/// nowTabVisibleProvider — Home, Products, Favourites and Stores are always present;
+/// only Now's presence (and therefore everyone else's index) is conditional. Orders has
+/// no tab — it's already one tap away from Account (the avatar on Home), and a thing
+/// reachable from Account doesn't need a second, permanent slot in the bar too (same
+/// reasoning Account itself was dropped from the bar for, earlier).
 final shellNavItemsProvider = Provider.autoDispose<List<_NavItem>>((ref) {
   final showNow = ref.watch(nowTabVisibleProvider);
   return [
@@ -42,16 +42,8 @@ final shellNavItemsProvider = Provider.autoDispose<List<_NavItem>>((ref) {
     const _NavItem(
         icon: Icons.favorite_border_rounded, selectedIcon: Icons.favorite_rounded, label: 'Favourites', screen: FavouritesScreen()),
     const _NavItem(
-        icon: Icons.receipt_long_outlined, selectedIcon: Icons.receipt_long_rounded, label: 'Orders', screen: OrdersScreen()),
+        icon: Icons.storefront_outlined, selectedIcon: Icons.storefront_rounded, label: 'Stores', screen: StoresListScreen()),
   ];
-});
-
-/// Index of the Orders tab in today's nav — used by AccountScreen's "Your orders" tile
-/// instead of a hardcoded number, since Now appearing/disappearing shifts it.
-final ordersTabIndexProvider = Provider.autoDispose<int>((ref) {
-  final items = ref.watch(shellNavItemsProvider);
-  final i = items.indexWhere((it) => it.screen is OrdersScreen);
-  return i < 0 ? 0 : i;
 });
 
 class AppShell extends ConsumerStatefulWidget {

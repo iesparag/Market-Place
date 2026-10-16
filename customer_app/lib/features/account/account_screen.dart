@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
-import '../shell/app_shell.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -52,16 +51,8 @@ class AccountScreen extends ConsumerWidget {
             ]),
           ),
           const SizedBox(height: 10),
-          // Same destination as the bottom-nav Orders tab — switch the shared tab index
-          // (read fresh from ordersTabIndexProvider, since Now appearing/disappearing
-          // shifts where Orders actually sits) instead of pushing a second /orders
-          // route, so there's one consistent way to get there, not two with different
-          // back behavior. Account itself is now a pushed /account route (not a tab),
-          // so this also pops back to reveal the shell with Orders selected.
-          _tile(Icons.receipt_long_rounded, 'Your orders', () {
-            ref.read(shellTabProvider.notifier).state = ref.read(ordersTabIndexProvider);
-            if (context.canPop()) context.pop();
-          }),
+          // Orders has no bottom-nav tab — this IS the way to it, a plain pushed route.
+          _tile(Icons.receipt_long_rounded, 'Your orders', () => context.push('/orders')),
           _tile(Icons.location_on_outlined, 'Addresses',
               () => context.push('/addresses')),
           _tile(Icons.storefront_outlined, 'Become a vendor',

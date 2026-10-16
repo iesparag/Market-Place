@@ -18,6 +18,7 @@ import { placesRoutes } from '../modules/places/places.routes.js';
 import { routingRoutes } from '../modules/routing/routing.routes.js';
 import { deliveryTasksRoutes } from '../modules/delivery/delivery-tasks.routes.js';
 import { ridersRoutes } from '../modules/riders/riders.routes.js';
+import { riderPayoutRatesRoutes } from '../modules/riders/rider-payout-rate.model.js';
 import { festivalsRoutes } from '../modules/festivals/festivals.module.js';
 import { cartRoutes } from '../modules/cart/cart.module.js';
 import { campaignsRoutes } from '../modules/campaigns/campaigns.module.js';
@@ -60,6 +61,7 @@ export function buildApiRouter(): Router {
   api.use('/routing', routingRoutes);
   api.use('/delivery', deliveryTasksRoutes);
   api.use('/riders', ridersRoutes);
+  api.use('/rider-payout-rates', riderPayoutRatesRoutes);
   api.use('/festivals', festivalsRoutes);
   api.use('/cart', cartRoutes);
   api.use('/campaigns', campaignsRoutes);
