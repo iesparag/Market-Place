@@ -8,7 +8,6 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../data/providers.dart';
-import '../shell/app_shell.dart';
 import '../cart/cart_controller.dart';
 import '../favourites/store_favourite_controller.dart';
 import '../../models/home.dart';
@@ -22,6 +21,7 @@ import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/notification_bell.dart';
 import '../../shared/widgets/search_bar_pill.dart';
+import '../../shared/category_emoji.dart';
 import 'festival_greeting_overlay.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -153,7 +153,7 @@ class _Header extends ConsumerWidget {
               const SizedBox(width: 6),
               _AccountButton(
                 user: user,
-                onAccount: () => ref.read(shellTabProvider.notifier).state = 4, // tab 4 = Account
+                onAccount: () => context.push('/account'),
               ),
             ],
           ),
@@ -517,33 +517,25 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 }
 
-// ── 4. Shop by Category (10 icons matching reference image) ─────────────────
-class _CategoryItem {
-  final String name;
-  final String emoji;
-  final String slug;
-  final Color bg;
-  const _CategoryItem(this.name, this.emoji, this.slug, this.bg);
-}
-
-const _standardCategories = [
-  _CategoryItem('Grocery', '🛒', 'grocery', Color(0xFFDCFCE7)),
-  _CategoryItem('Fruits & Veg', '🥦', 'fruits-vegetables', Color(0xFFFEF3C7)),
-  _CategoryItem('Fashion', '👗', 'fashion', Color(0xFFFCE7F3)),
-  _CategoryItem('Electronics', '🎧', 'electronics', Color(0xFFEDE9FE)),
-  _CategoryItem('Beauty & Care', '🧴', 'beauty', Color(0xFFE0E7FF)),
-  _CategoryItem('Home & Kitchen', '🍳', 'home-kitchen', Color(0xFFFEF9C3)),
-  _CategoryItem('Food & Snacks', '🍿', 'food-snacks', Color(0xFFFFEDD5)),
-  _CategoryItem('Stationery', '📚', 'stationery', Color(0xFFE0F2FE)),
-  _CategoryItem('Toys & Games', '🧸', 'toys-games', Color(0xFFF3E8FF)),
+// ── 4. Shop by Category — driven by the real category tree (same source as the
+// "View All" /categories screen and the backend), not a fixed guess-list. The old
+// hardcoded tiles (grocery/fruits-veg/beauty/home-kitchen/...) didn't match any
+// actual seeded department slug except fashion/electronics by coincidence, so tapping
+// most of them opened a department page with nothing in it, and this grid never
+// agreed with what "View All" showed. One tile background rotates through a small
+// fixed palette since the backend doesn't supply per-category colors.
+const _categoryTileColors = [
+  Color(0xFFDCFCE7), Color(0xFFFCE7F3), Color(0xFFEDE9FE), Color(0xFFFEF9C3),
+  Color(0xFFFFEDD5), Color(0xFFE0F2FE), Color(0xFFF3E8FF), Color(0xFFE0E7FF),
 ];
 
-class _CategoryGridSection extends StatelessWidget {
+class _CategoryGridSection extends ConsumerWidget {
   final HomeSection section;
   const _CategoryGridSection({required this.section});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tree = ref.watch(categoryTreeProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -555,50 +547,54 @@ class _CategoryGridSection extends StatelessWidget {
         ),
         SizedBox(
           height: 184,
-          child: GridView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            scrollDirection: Axis.horizontal,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.95,
-            ),
-            itemCount: _standardCategories.length,
-            itemBuilder: (context, i) {
-              final cat = _standardCategories[i];
-              return GestureDetector(
-                onTap: () {
-                  context.push('/catalog?dept=${cat.slug}&title=${Uri.encodeComponent(cat.name)}');
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: cat.bg,
-                        shape: BoxShape.circle,
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x0C000000), blurRadius: 4, offset: Offset(0, 2)),
-                        ],
+          child: tree.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (depts) => GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              scrollDirection: Axis.horizontal,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 10,
+                childAspectRatio: 0.95,
+              ),
+              itemCount: depts.length,
+              itemBuilder: (context, i) {
+                final dept = depts[i];
+                return GestureDetector(
+                  onTap: () {
+                    context.push('/catalog?dept=${dept.slug}&title=${Uri.encodeComponent(dept.name)}');
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: _categoryTileColors[i % _categoryTileColors.length],
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x0C000000), blurRadius: 4, offset: Offset(0, 2)),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(categoryEmoji(dept.slug), style: const TextStyle(fontSize: 24)),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(cat.emoji, style: const TextStyle(fontSize: 24)),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      cat.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              );
-            },
+                      const SizedBox(height: 5),
+                      Text(
+                        dept.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ],

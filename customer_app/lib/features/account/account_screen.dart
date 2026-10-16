@@ -53,11 +53,15 @@ class AccountScreen extends ConsumerWidget {
             ]),
           ),
           const SizedBox(height: 8),
-          // Same destination as the bottom-nav Orders tab (index 3 in app_shell.dart) —
+          // Same destination as the bottom-nav Orders tab (index 4 in app_shell.dart) —
           // switch the shared tab index instead of pushing a second /orders route, so
           // there's one consistent way to get there, not two with different back behavior.
-          _tile(Icons.receipt_long_rounded, 'Your orders',
-              () => ref.read(shellTabProvider.notifier).state = 3),
+          // Account itself is now a pushed /account route (not a tab), so this also
+          // pops back to reveal the shell with Orders selected.
+          _tile(Icons.receipt_long_rounded, 'Your orders', () {
+            ref.read(shellTabProvider.notifier).state = 4;
+            if (context.canPop()) context.pop();
+          }),
           _tile(Icons.location_on_outlined, 'Addresses',
               () => context.push('/addresses')),
           _tile(Icons.storefront_outlined, 'Become a vendor',

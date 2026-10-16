@@ -7,8 +7,8 @@ import '../../data/providers.dart';
 import '../home/home_screen.dart';
 import '../favourites/favourites_screen.dart';
 import '../stores/stores_list_screen.dart';
+import '../catalog/catalog_screen.dart';
 import '../orders/orders_screen.dart';
-import '../account/account_screen.dart';
 
 /// Selected bottom-nav tab. Exposed so other screens (e.g. the home avatar)
 /// can jump straight to a tab like Account without a separate route.
@@ -21,18 +21,21 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  // Home · Favourites · Stores · Orders · Account.
+  // Home · Stores · Products · Favourites · Orders.
   // Categories dropped as its own tab — it's a full duplicate of Home's "Shop by
   // Category" section; that section's "View All" already pushes to /categories, so
-  // nothing is lost, just promoted from a tab to a one-tap-away screen. Favourites
-  // takes its place: one tab for both saved items and saved stores (see
-  // favourites_screen.dart) instead of no nav entry for either.
+  // nothing is lost, just promoted from a tab to a one-tap-away screen. Account
+  // dropped too — it's reachable from the avatar at the top of Home (pushes /account),
+  // so it doesn't need a second, permanent slot in the bar. Products is a new tab:
+  // CatalogScreen with no category/dept filter, i.e. "browse everything" — the
+  // `searchable` flag it already supports was built for exactly this but was never
+  // wired to a route before now.
   static const _tabs = [
     HomeScreen(),
-    FavouritesScreen(),
     StoresListScreen(),
+    CatalogScreen(searchable: true, title: 'Products'),
+    FavouritesScreen(),
     OrdersScreen(),
-    AccountScreen(),
   ];
 
   StreamSubscription<Map<String, dynamic>>? _notifSub;
@@ -98,10 +101,10 @@ class _AppShellState extends ConsumerState<AppShell> {
           height: 60,
           destinations: [
             dest(Icons.home_outlined, Icons.home_rounded, 'Home'),
-            dest(Icons.favorite_border_rounded, Icons.favorite_rounded, 'Favourites'),
             dest(Icons.storefront_outlined, Icons.storefront_rounded, 'Stores'),
+            dest(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Products'),
+            dest(Icons.favorite_border_rounded, Icons.favorite_rounded, 'Favourites'),
             dest(Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
-            dest(Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
           ],
         ),
       ),

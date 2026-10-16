@@ -10,6 +10,7 @@ import 'features/search/search_screen.dart';
 import 'features/cart/cart_screen.dart';
 import 'features/checkout/checkout_screen.dart';
 import 'features/checkout/addresses_screen.dart';
+import 'features/account/account_screen.dart';
 import 'features/orders/orders_screen.dart';
 import 'features/orders/order_detail_screen.dart';
 import 'features/orders/order_success_screen.dart';
@@ -57,6 +58,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/cart', builder: (_, __) => const CartScreen()),
     GoRoute(path: '/checkout', builder: (_, __) => const CheckoutScreen()),
     GoRoute(path: '/addresses', builder: (_, __) => const AddressesScreen()),
+    GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
     GoRoute(path: '/orders', builder: (_, __) => const OrdersScreen()),
     GoRoute(path: '/order/:id', builder: (_, s) => OrderDetailScreen(orderId: s.pathParameters['id']!)),
     GoRoute(

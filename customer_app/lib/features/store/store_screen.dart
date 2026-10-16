@@ -3,16 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../data/catalog_repository.dart';
 import '../../models/category.dart';
 import '../../models/product.dart';
+import '../../models/store.dart';
 import '../../shared/category_emoji.dart';
 import '../../shared/widgets/product_card.dart';
+import '../../shared/widgets/shimmer.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../favourites/store_favourite_controller.dart';
+
+const double _kHeroHeight = 220;
 
 class StoreScreen extends ConsumerStatefulWidget {
   final String slug;
@@ -23,15 +28,25 @@ class StoreScreen extends ConsumerStatefulWidget {
 
 class _StoreScreenState extends ConsumerState<StoreScreen> {
   String? _catId; // null = All
+  bool _descExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(storeProvider(widget.slug));
     return Scaffold(
+      backgroundColor: Colors.white,
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            Scaffold(appBar: AppBar(), body: Center(child: Text('$e'))),
+        loading: () => const _StoreSkeleton(),
+        error: (e, _) => Scaffold(
+          appBar: AppBar(),
+          body: Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.error_outline_rounded, size: 40, color: BrandColors.textMuted),
+              const SizedBox(height: 10),
+              Text('$e', style: const TextStyle(color: BrandColors.textMuted)),
+            ]),
+          ),
+        ),
         data: (data) => _content(context, data),
       ),
     );
@@ -53,123 +68,72 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         ? data.products
         : data.products.where((p) => p.categoryId == _catId).toList();
 
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          // Top bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 6, 0),
-            child: Row(children: [
-              IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  onPressed: () => Navigator.of(context).maybePop()),
-              Expanded(
-                  child: Text(s.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 18))),
-              _StoreFavouriteButton(storeId: s.id),
-              const WishlistButton(color: BrandColors.ink),
-              const CartButton(color: BrandColors.ink),
-            ]),
+    return NestedScrollView(
+      headerSliverBuilder: (context, _) => [
+        SliverAppBar(
+          pinned: true,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          elevation: 0.5,
+          expandedHeight: _kHeroHeight,
+          leading: _CircleIconButton(
+            icon: Icons.arrow_back_rounded,
+            onTap: () => Navigator.of(context).maybePop(),
           ),
-          // Cover carousel (compact, rounded)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                  height: 118, child: _CoverCarousel(images: s.coverImages)),
+          title: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: BrandColors.ink)),
+          actions: [
+            _StoreFavouriteButton(storeId: s.id),
+            const WishlistButton(color: BrandColors.ink),
+            const CartButton(color: BrandColors.ink),
+            const SizedBox(width: 4),
+          ],
+          flexibleSpace: FlexibleSpaceBar(
+            collapseMode: CollapseMode.pin,
+            background: _CoverCarousel(images: s.coverImages),
+          ),
+        ),
+        SliverToBoxAdapter(child: _InfoCard(s: s, productCount: data.products.length, expanded: _descExpanded,
+            onToggleDesc: () => setState(() => _descExpanded = !_descExpanded))),
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 18, 16, 8),
+            child: Text('Menu', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          ),
+        ),
+      ],
+      body: leaves.isEmpty
+          ? _grid(products)
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _rail(leaves),
+                Expanded(child: _grid(products)),
+              ],
             ),
-          ),
-          // Info strip: logo + verified + count
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-            child: Row(children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: BrandColors.border)),
-                clipBehavior: Clip.antiAlias,
-                child: s.logo != null
-                    ? CachedNetworkImage(imageUrl: s.logo!, fit: BoxFit.cover)
-                    : Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(gradient: context.brand.gradient),
-                        child: Text(s.name.isNotEmpty ? s.name[0] : '?',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900))),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const Icon(Icons.verified_rounded,
-                          size: 15, color: BrandColors.success),
-                      const SizedBox(width: 3),
-                      const Text('Verified',
-                          style: TextStyle(
-                              color: BrandColors.success,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 8),
-                      Text('${data.products.length} products',
-                          style: const TextStyle(
-                              color: BrandColors.textMuted, fontSize: 12)),
-                    ]),
-                    Text(
-                        [
-                          if (s.vendorType != null) s.vendorType,
-                          if (s.address?['city'] != null) s.address!['city']
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: BrandColors.textMuted, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ]),
-          ),
-          const Divider(height: 1),
-          // Left category rail + product grid
-          Expanded(
-            child: leaves.isEmpty
-                ? _grid(products)
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _rail(leaves),
-                      Expanded(child: _grid(products)),
-                    ],
-                  ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _grid(List<Product> products) {
     if (products.isEmpty) {
       return const Center(
-          child: Text('No products here',
-              style: TextStyle(color: BrandColors.textMuted)));
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('🧺', style: TextStyle(fontSize: 44)),
+            SizedBox(height: 10),
+            Text('No products in this category', style: TextStyle(color: BrandColors.textMuted, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      );
     }
     return GridView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           childAspectRatio: 0.62,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8),
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10),
       itemCount: products.length,
       itemBuilder: (_, i) => ProductCard(product: products[i]),
     );
@@ -177,10 +141,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
   Widget _rail(List<CatNode> leaves) {
     return Container(
-      width: 84,
-      color: const Color(0xFFF0F7F2),
+      width: 86,
+      color: const Color(0xFFF6F9F7),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+        padding: const EdgeInsets.fromLTRB(0, 10, 0, 20),
         children: [
           _railTile('All', null, null, _catId == null),
           for (final n in leaves)
@@ -197,7 +161,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       onTap: () => setState(() => _catId = id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: selected ? Colors.white : Colors.transparent,
           border: Border(
@@ -207,8 +171,8 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         child: Column(
           children: [
             Container(
-              width: 50,
-              height: 50,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: selected ? b.soft : Colors.white,
                 shape: BoxShape.circle,
@@ -216,11 +180,14 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     color: selected
                         ? Color.lerp(b.soft, b.primary, 0.35)!
                         : const Color(0xFFE4EFE8)),
+                boxShadow: selected
+                    ? [const BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 2))]
+                    : null,
               ),
               alignment: Alignment.center,
               child: Text(
                   name == 'All' && slug == null ? '🛍️' : categoryEmoji(slug),
-                  style: const TextStyle(fontSize: 21)),
+                  style: const TextStyle(fontSize: 22)),
             ),
             const SizedBox(height: 6),
             Text(name,
@@ -235,6 +202,174 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Floating circular icon button used over the hero image (back / favourite / cart).
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color? iconColor;
+  const _CircleIconButton({required this.icon, required this.onTap, this.iconColor});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 1,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 20, color: iconColor ?? BrandColors.ink),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The storefront identity card — logo, name, verified badge, rating, delivery/
+/// location, and an expandable description. Sits directly under the hero image,
+/// everything a customer needs to decide "is this the right shop" before scrolling
+/// into the menu.
+class _InfoCard extends StatelessWidget {
+  final StoreProfile s;
+  final int productCount;
+  final bool expanded;
+  final VoidCallback onToggleDesc;
+  const _InfoCard({required this.s, required this.productCount, required this.expanded, required this.onToggleDesc});
+
+  @override
+  Widget build(BuildContext context) {
+    final city = s.address?['city']?.toString();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: BrandColors.border),
+                    boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 2))]),
+                clipBehavior: Clip.antiAlias,
+                child: s.logo != null
+                    ? CachedNetworkImage(imageUrl: s.logo!, fit: BoxFit.cover)
+                    : Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(gradient: context.brand.gradient),
+                        child: Text(s.name.isNotEmpty ? s.name[0] : '?',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 19)),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        const _VerifiedBadge(),
+                        if (s.ratingCount > 0) _RatingPill(avg: s.ratingAvg, count: s.ratingCount),
+                        Text('$productCount products',
+                            style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+                      ],
+                    ),
+                    if (s.vendorType != null || city != null) ...[
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        const Icon(Icons.storefront_outlined, size: 13, color: BrandColors.textMuted),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                              [if (s.vendorType != null) s.vendorType, if (city != null) city].join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+                        ),
+                      ]),
+                    ],
+                  ],
+                ),
+              ),
+              if (s.contactPhone != null) _CircleIconButton(
+                icon: Icons.call_rounded,
+                iconColor: context.brand.primary,
+                onTap: () => launchUrl(Uri.parse('tel:${s.contactPhone}')),
+              ),
+            ],
+          ),
+          if (s.description != null && s.description!.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: onToggleDesc,
+              child: Text(
+                s.description!,
+                maxLines: expanded ? null : 2,
+                overflow: expanded ? null : TextOverflow.ellipsis,
+                style: const TextStyle(color: BrandColors.textMuted, fontSize: 13, height: 1.35),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerifiedBadge extends StatelessWidget {
+  const _VerifiedBadge();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+          color: const Color(0xFFE7F6EC), borderRadius: BorderRadius.circular(6)),
+      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.verified_rounded, size: 13, color: BrandColors.success),
+        SizedBox(width: 3),
+        Text('Verified', style: TextStyle(color: BrandColors.success, fontSize: 11.5, fontWeight: FontWeight.w800)),
+      ]),
+    );
+  }
+}
+
+/// Star-rating chip — ★ avg (count), rounded to the nearest 0.5 star.
+class _RatingPill extends StatelessWidget {
+  final double avg;
+  final int count;
+  const _RatingPill({required this.avg, required this.count});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(color: const Color(0xFFFFF7E0), borderRadius: BorderRadius.circular(6)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.star_rounded, size: 14, color: BrandColors.star),
+        const SizedBox(width: 2),
+        Text('${avg.toStringAsFixed(1)} ($count)',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF8A6D00))),
+      ]),
     );
   }
 }
@@ -286,20 +421,25 @@ class _CoverCarouselState extends State<_CoverCarousel> {
           controller: _ctrl,
           onPageChanged: (i) => setState(() => _page = i),
           itemCount: widget.images.length,
-          itemBuilder: (_, i) =>
-              CachedNetworkImage(imageUrl: widget.images[i], fit: BoxFit.cover),
+          itemBuilder: (_, i) => CachedNetworkImage(
+            imageUrl: widget.images[i],
+            fit: BoxFit.cover,
+            placeholder: (_, __) => const Shimmer(radius: 0),
+            errorWidget: (_, __, ___) => Container(decoration: BoxDecoration(gradient: context.brand.gradient)),
+          ),
         ),
         const DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black38]),
+                colors: [Colors.transparent, Colors.black45],
+                stops: [0.5, 1]),
           ),
         ),
         if (widget.images.length > 1)
           Positioned(
-            bottom: 8,
+            bottom: 10,
             left: 0,
             right: 0,
             child: Row(
@@ -331,13 +471,54 @@ class _StoreFavouriteButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFav = ref.watch(favouriteStoresProvider).contains(storeId);
-    return IconButton(
-      icon: Icon(isFav ? Icons.favorite : Icons.favorite_border_rounded,
-          color: isFav ? const Color(0xFFE11D48) : BrandColors.ink),
-      onPressed: () async {
+    return _CircleIconButton(
+      icon: isFav ? Icons.favorite : Icons.favorite_border_rounded,
+      iconColor: isFav ? const Color(0xFFE11D48) : BrandColors.ink,
+      onTap: () async {
         final ok = await ref.read(favouriteStoresProvider.notifier).toggle(storeId);
         if (!ok && context.mounted) context.push('/login');
       },
+    );
+  }
+}
+
+/// Full-page skeleton shown while the store profile loads — matches the real
+/// layout's proportions so there's no visible "jump" once data arrives.
+class _StoreSkeleton extends StatelessWidget {
+  const _StoreSkeleton();
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          const Shimmer(height: _kHeroHeight, radius: 0),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Shimmer(width: 56, height: 56, radius: 28),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Shimmer(height: 18, width: 160),
+                  SizedBox(height: 8),
+                  Shimmer(height: 12, width: 120),
+                ]),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 18),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(14),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2, childAspectRatio: 0.62, crossAxisSpacing: 10, mainAxisSpacing: 10),
+              itemCount: 6,
+              itemBuilder: (_, __) => const ProductCardSkeleton(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
