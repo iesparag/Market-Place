@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/theme.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
 
 class BecomeVendorScreen extends ConsumerStatefulWidget {
   const BecomeVendorScreen({super.key});
@@ -72,8 +73,12 @@ class _BecomeVendorScreenState extends ConsumerState<BecomeVendorScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Become a vendor')),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Become a vendor'),
+        ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -118,8 +123,9 @@ class _BecomeVendorScreenState extends ConsumerState<BecomeVendorScreen> {
           const SizedBox(height: 24),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _label(String t) => Padding(padding: const EdgeInsets.only(top: 12, bottom: 6), child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)));
   Widget _field(TextEditingController c, {bool obscure = false, TextInputType? keyboard}) =>

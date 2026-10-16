@@ -1,5 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'features/shell/app_shell.dart';
+import 'features/now/now_screen.dart';
+import 'shared/widgets/safe_pop_scope.dart';
 import 'features/catalog/catalog_screen.dart';
 import 'features/categories/categories_screen.dart';
 import 'features/categories/department_screen.dart';
@@ -44,6 +47,19 @@ final appRouter = GoRouter(
         sort: s.uri.queryParameters['sort'],
         q: s.uri.queryParameters['q'],
         title: s.uri.queryParameters['title'],
+      ),
+    ),
+    GoRoute(
+      path: '/products',
+      redirect: (_, s) => s.uri.hasQuery ? '/catalog?${s.uri.query}' : '/catalog',
+    ),
+    GoRoute(
+      path: '/now',
+      builder: (_, __) => const SafePopScope(
+        child: Scaffold(
+          body: NowScreen(),
+          bottomNavigationBar: AppBottomNav(activeTab: 'Now'),
+        ),
       ),
     ),
     GoRoute(path: '/categories', builder: (_, __) => const CategoriesScreen()),

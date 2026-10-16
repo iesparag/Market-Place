@@ -8,6 +8,8 @@ import '../../shared/category_emoji.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 /// Drill-in from "Shop by department" → shows THIS department's sub-categories.
 class DepartmentScreen extends ConsumerWidget {
@@ -26,8 +28,12 @@ class DepartmentScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tree = ref.watch(categoryTreeProvider);
-    return Scaffold(
-      appBar: AppBar(actions: const [WishlistButton(), CartButton()]),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          actions: const [WishlistButton(), CartButton()],
+        ),
       body: tree.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(error: e),
@@ -113,6 +119,8 @@ class DepartmentScreen extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
+      bottomNavigationBar: const AppBottomNav(activeTab: 'Products'),
+    ),
+  );
+}
 }

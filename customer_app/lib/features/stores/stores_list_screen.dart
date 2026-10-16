@@ -9,11 +9,14 @@ import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/error_view.dart';
 import '../favourites/store_favourite_controller.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 /// The "Stores" tab — shows all marketplace stores with distance and delivery badges.
 /// Local stores show instant/same-day delivery; intercity stores show standard 5-6 days delivery.
 class StoresListScreen extends ConsumerStatefulWidget {
-  const StoresListScreen({super.key});
+  final bool embedded;
+  const StoresListScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<StoresListScreen> createState() => _StoresListScreenState();
@@ -36,10 +39,11 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
     final b = context.brand;
     final async = ref.watch(vendorsProvider);
 
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        titleSpacing: 12,
+        leading: widget.embedded ? null : const AppBackButton(),
+        titleSpacing: widget.embedded ? 12 : 0,
         title: Container(
           height: 42,
           decoration: BoxDecoration(
@@ -191,7 +195,13 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: widget.embedded
+          ? null
+          : const AppBottomNav(activeTab: 'Stores'),
     );
+
+    if (widget.embedded) return scaffold;
+    return SafePopScope(child: scaffold);
   }
 }
 

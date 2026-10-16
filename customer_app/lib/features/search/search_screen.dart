@@ -9,6 +9,7 @@ import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/suggestion.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final bool autoVoice; // opened via the mic → start listening immediately
@@ -125,10 +126,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final s = _sugg;
     final b = context.brand;
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: TextField(
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          titleSpacing: 0,
+          title: TextField(
           controller: _ctrl,
           autofocus: !widget.autoVoice,
           textInputAction: TextInputAction.search,
@@ -187,6 +190,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             ),
                           ],
                         )),
+      ),
     );
   }
 }

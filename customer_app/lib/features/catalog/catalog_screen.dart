@@ -11,6 +11,9 @@ import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/search_bar_pill.dart';
 import '../../shared/category_emoji.dart';
+import '../../shared/widgets/edge_handle.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 class PriceBand {
   final String label;
@@ -191,8 +194,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   Widget build(BuildContext context) {
     final showSkeleton = _loading && _items.isNotEmpty;
     final count = _items.length + (showSkeleton ? 4 : 0);
-    return Scaffold(
+    final scaffold = Scaffold(
       appBar: AppBar(
+        leading: widget.searchable ? null : const AppBackButton(),
         titleSpacing: widget.searchable ? 12 : null,
         title: widget.searchable
             ? const SearchBarPill()
@@ -213,7 +217,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               ],
             )
           : _body(count),
+      bottomNavigationBar: widget.searchable
+          ? null
+          : const AppBottomNav(activeTab: 'Products'),
     );
+
+    if (widget.searchable) return scaffold;
+    return SafePopScope(child: scaffold);
   }
 
   Widget _body(int count) {
@@ -267,7 +277,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           width: 32,
           color: const Color(0xFFF0F7F2),
           alignment: Alignment.center,
-          child: const _EdgeHandle(collapsed: true),
+          child: const EdgeHandle(collapsed: true),
         ),
       );
     }
@@ -313,7 +323,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                   width: 22,
                   color: Colors.transparent,
                   alignment: Alignment.center,
-                  child: const _EdgeHandle(collapsed: false),
+                  child: const EdgeHandle(collapsed: false),
                 ),
               ),
             ),
@@ -516,42 +526,6 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-/// A small vertical pull-tab — like the Samsung Edge panel handle — used in place of
-/// a chevron for the category rail's collapse/expand toggle.
-class _EdgeHandle extends StatelessWidget {
-  final bool collapsed;
-  const _EdgeHandle({this.collapsed = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 5,
-      height: 48,
-      decoration: BoxDecoration(
-        color: collapsed ? context.brand.primary : const Color(0xFF94A3B8),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x24000000),
-            blurRadius: 4,
-            offset: Offset(1, 1),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Container(
-          width: 1.5,
-          height: 16,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
       ),
     );
   }

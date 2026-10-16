@@ -11,6 +11,7 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/order.dart';
 import 'pay_order_button.dart';
+import '../shell/app_shell.dart';
 
 class _Stage {
   final String label;
@@ -244,6 +245,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNav(),
     ));
   }
 

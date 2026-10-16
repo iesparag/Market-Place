@@ -16,6 +16,9 @@ import '../../shared/widgets/shimmer.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../favourites/store_favourite_controller.dart';
+import '../../shared/widgets/edge_handle.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 const double _kHeroHeight = 220;
 
@@ -29,6 +32,7 @@ class StoreScreen extends ConsumerStatefulWidget {
 class _StoreScreenState extends ConsumerState<StoreScreen> {
   String? _catId; // null = All
   bool _descExpanded = false;
+  bool _railCollapsed = false;
   final _scrollCtrl = ScrollController();
   double _titleOpacity = 0;
 
@@ -57,12 +61,18 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(storeProvider(widget.slug));
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: async.when(
-        loading: () => const _StoreSkeleton(),
-        error: (e, _) => Scaffold(appBar: AppBar(), body: ErrorView(error: e)),
-        data: (data) => _content(context, data),
+    return SafePopScope(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: async.when(
+          loading: () => const _StoreSkeleton(),
+          error: (e, _) => Scaffold(
+            appBar: AppBar(leading: const AppBackButton()),
+            body: ErrorView(error: e),
+          ),
+          data: (data) => _content(context, data),
+        ),
+        bottomNavigationBar: const AppBottomNav(activeTab: 'Stores'),
       ),
     );
   }
@@ -94,7 +104,13 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
           expandedHeight: _kHeroHeight,
           leading: _CircleIconButton(
             icon: Icons.arrow_back_rounded,
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () {
+              if (Navigator.of(context).canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
           ),
           title: AnimatedOpacity(
             opacity: _titleOpacity,
@@ -159,16 +175,72 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
   }
 
   Widget _rail(List<CatNode> leaves) {
-    return Container(
-      width: 86,
-      color: const Color(0xFFF6F9F7),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 10, 0, 20),
-        children: [
-          _railTile('All', null, null, _catId == null),
-          for (final n in leaves)
-            _railTile(n.name, n.slug, n.id, _catId == n.id),
-        ],
+    if (_railCollapsed) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _railCollapsed = false),
+        onHorizontalDragUpdate: (d) {
+          if (d.delta.dx > 3) setState(() => _railCollapsed = false);
+        },
+        onHorizontalDragEnd: (d) {
+          if ((d.primaryVelocity ?? 0) > 50) setState(() => _railCollapsed = false);
+        },
+        child: Container(
+          width: 32,
+          color: const Color(0xFFF6F9F7),
+          alignment: Alignment.center,
+          child: const EdgeHandle(collapsed: true),
+        ),
+      );
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragUpdate: (d) {
+        if (d.delta.dx < -3) setState(() => _railCollapsed = true);
+      },
+      onHorizontalDragEnd: (d) {
+        if ((d.primaryVelocity ?? 0) < -50) setState(() => _railCollapsed = true);
+      },
+      child: SizedBox(
+        width: 86,
+        child: Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(right: 14),
+              color: const Color(0xFFF6F9F7),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(0, 10, 0, 20),
+                children: [
+                  _railTile('All', null, null, _catId == null),
+                  for (final n in leaves)
+                    _railTile(n.name, n.slug, n.id, _catId == n.id),
+                ],
+              ),
+            ),
+            // Edge handle — tap OR swipe to collapse, styled like Samsung Edge pull tab
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _railCollapsed = true),
+                onHorizontalDragUpdate: (d) {
+                  if (d.delta.dx < -3) setState(() => _railCollapsed = true);
+                },
+                onHorizontalDragEnd: (d) {
+                  if ((d.primaryVelocity ?? 0) < -50) setState(() => _railCollapsed = true);
+                },
+                child: Container(
+                  width: 22,
+                  color: Colors.transparent,
+                  alignment: Alignment.center,
+                  child: const EdgeHandle(collapsed: false),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -24,12 +24,17 @@ export interface PickedEntity {
   imports: [FormsModule],
   template: `
     <div class="picker">
-      <input class="input" [(ngModel)]="q" (ngModelChange)="search()" [placeholder]="placeholder" />
+      <div class="input-wrap">
+        <input class="input" [(ngModel)]="q" (ngModelChange)="search()" [placeholder]="placeholder" />
+        @if (loading()) {
+          <span class="spinner" title="Searching…"></span>
+        }
+      </div>
       @if (results().length) {
         <div class="dropdown">
           @for (r of results(); track r.id) {
             <div class="row" (click)="pick(r)">
-              @if (r.image) { <img [src]="r.image" /> }
+              @if (r.image) { <img [src]="r.image" alt="" /> }
               <div class="text">
                 <b>{{ r.label }}</b>
                 @if (r.sublabel) { <span class="muted"> · {{ r.sublabel }}</span> }
@@ -38,7 +43,7 @@ export interface PickedEntity {
           }
         </div>
       }
-      @if (picked().length) {
+      @if (!clearOnPick && picked().length) {
         <div class="chips">
           @for (p of picked(); track p.id) {
             <span class="chip">{{ p.label }} <button type="button" (click)="remove(p)">×</button></span>
@@ -50,13 +55,22 @@ export interface PickedEntity {
   styles: [
     `
       .picker { position: relative; }
-      .dropdown { position: absolute; z-index: 20; top: 100%; left: 0; right: 0; background: #fff;
-        border: 1px solid var(--border); border-radius: 10px; margin-top: 4px; max-height: 260px;
-        overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
-      .row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; font-size: 0.88rem; }
-      .row:hover { background: var(--bg, #f6f7f9); }
-      .row img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
-      .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .input-wrap { position: relative; display: flex; align-items: center; }
+      .input-wrap .input { width: 100%; padding-right: 32px; }
+      .spinner { position: absolute; right: 10px; width: 14px; height: 14px; border: 2px solid #cbd5e1;
+        border-top-color: var(--primary, #ea580c); border-radius: 50%; animation: spin 0.6s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .dropdown { position: absolute; z-index: 100; top: 100%; left: 0; right: 0; background: #fff;
+        border: 1px solid var(--border, #cbd5e1); border-radius: 10px; margin-top: 4px; max-height: 280px;
+        overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,.15); }
+      .row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; font-size: 0.88rem;
+        border-bottom: 1px solid #f1f5f9; transition: background 0.15s; }
+      .row:last-child { border-bottom: none; }
+      .row:hover { background: #fff7ed; }
+      .row img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0; border: 1px solid #e2e8f0; }
+      .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+      .text b { color: #0f172a; font-size: 0.9rem; }
+      .text .muted { color: #64748b; font-size: 0.82rem; }
       .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
       .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg, #f1f3f5);
         border-radius: 999px; padding: 4px 6px 4px 10px; font-size: 0.82rem; }
@@ -72,10 +86,12 @@ export class EntityPickerComponent {
   @Input() mapFn: (raw: any) => PickedEntity = (r) => ({ id: r._id, label: r.name });
   @Input() placeholder = 'Search…';
   @Input() multiple = false;
+  @Input() clearOnPick = false;
   @Input() extraParams: Record<string, string> = {};
   @Output() changed = new EventEmitter<PickedEntity[]>();
 
   q = '';
+  loading = signal(false);
   results = signal<PickedEntity[]>([]);
   picked = signal<PickedEntity[]>([]);
   private debounce?: ReturnType<typeof setTimeout>;
@@ -85,17 +101,48 @@ export class EntityPickerComponent {
     const term = this.q.trim();
     if (!term) {
       this.results.set([]);
+      this.loading.set(false);
       return;
     }
+    this.loading.set(true);
     this.debounce = setTimeout(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.api.get<any[]>(this.endpoint, { q: term, ...this.extraParams }).subscribe((rows) => {
-        this.results.set(rows.map(this.mapFn));
+      this.api.get<any>(this.endpoint, { q: term, ...this.extraParams }).subscribe({
+        next: (res: any) => {
+          this.loading.set(false);
+          let list: any[] = [];
+          if (Array.isArray(res)) {
+            list = res;
+          } else if (Array.isArray(res?.items)) {
+            list = res.items;
+          } else if (Array.isArray(res?.data?.items)) {
+            list = res.data.items;
+          } else if (Array.isArray(res?.data)) {
+            list = res.data;
+          } else if (res && typeof res === 'object') {
+            const arr = Object.values(res).find((v) => Array.isArray(v));
+            if (Array.isArray(arr)) list = arr as any[];
+          }
+          this.results.set(list.map(this.mapFn));
+        },
+        error: (err) => {
+          console.error('Search failed in entity-picker', err);
+          this.loading.set(false);
+          this.results.set([]);
+        },
       });
     }, 300);
   }
 
   pick(r: PickedEntity): void {
+    if (this.clearOnPick) {
+      this.changed.emit([r]);
+      this.q = '';
+      this.results.set([]);
+      this.picked.set([]);
+      return;
+    }
+
     if (this.multiple) {
       if (!this.picked().some((p) => p.id === r.id)) this.picked.update((arr) => [...arr, r]);
       this.q = '';
@@ -119,3 +166,4 @@ export class EntityPickerComponent {
     this.changed.emit([]);
   }
 }
+

@@ -6,21 +6,29 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/category.dart';
 import '../../shared/category_emoji.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tree = ref.watch(categoryTreeProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Categories')),
-      body: tree.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorView(error: e),
-        data: (nodes) => ListView(
-          padding: const EdgeInsets.all(12),
-          children: nodes.map((d) => _Department(node: d)).toList(),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Categories'),
         ),
+        body: tree.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErrorView(error: e),
+          data: (nodes) => ListView(
+            padding: const EdgeInsets.all(12),
+            children: nodes.map((d) => _Department(node: d)).toList(),
+          ),
+        ),
+        bottomNavigationBar: const AppBottomNav(),
       ),
     );
   }

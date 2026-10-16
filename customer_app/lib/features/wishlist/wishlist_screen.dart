@@ -8,6 +8,8 @@ import '../../data/providers.dart';
 import '../../models/product.dart';
 import '../../shared/widgets/product_card.dart';
 import 'wishlist_controller.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 final _wishlistProductsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
   final data = await ref.read(apiClientProvider).get('/wishlist') as List;
@@ -20,8 +22,12 @@ class WishlistScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final ids = ref.watch(wishlistProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Wishlist')),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Wishlist'),
+        ),
       body: user == null
           ? _SignIn(onSignIn: () => context.push('/login'))
           : ref.watch(_wishlistProductsProvider).when(
@@ -43,6 +49,8 @@ class WishlistScreen extends ConsumerWidget {
                 );
               },
             ),
+        bottomNavigationBar: const AppBottomNav(),
+      ),
     );
   }
 }

@@ -43,24 +43,35 @@ final shellNavItemsProvider = Provider.autoDispose<List<NavItem>>((ref) {
     const NavItem(
         icon: Icons.favorite_border_rounded, selectedIcon: Icons.favorite_rounded, label: 'Favourites', screen: FavouritesScreen()),
     const NavItem(
-        icon: Icons.storefront_outlined, selectedIcon: Icons.storefront_rounded, label: 'Stores', screen: StoresListScreen()),
+        icon: Icons.storefront_outlined, selectedIcon: Icons.storefront_rounded, label: 'Stores', screen: StoresListScreen(embedded: true)),
   ];
 });
 
 /// Shared bottom navigation bar that can be rendered on root shell and pushed screens (like Orders).
 class AppBottomNav extends ConsumerWidget {
   final int? selectedIndex;
-  const AppBottomNav({super.key, this.selectedIndex});
+  final String? activeTab;
+  const AppBottomNav({super.key, this.selectedIndex, this.activeTab});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(shellNavItemsProvider);
-    final int rawIndex = selectedIndex ?? ref.watch(shellTabProvider);
-    final index = items.isEmpty ? 0 : rawIndex.clamp(0, items.length - 1);
+    int index;
+    if (activeTab != null) {
+      final found = items.indexWhere(
+          (it) => it.label.toLowerCase() == activeTab!.toLowerCase());
+      index = found >= 0
+          ? found
+          : (selectedIndex ?? ref.watch(shellTabProvider));
+    } else {
+      final int rawIndex = selectedIndex ?? ref.watch(shellTabProvider);
+      index = rawIndex;
+    }
+    final clampedIndex = items.isEmpty ? 0 : index.clamp(0, items.length - 1);
     final b = context.brand;
 
     return NavigationBar(
-      selectedIndex: index,
+      selectedIndex: clampedIndex,
       onDestinationSelected: (i) {
         ref.read(shellTabProvider.notifier).state = i;
         context.go('/');

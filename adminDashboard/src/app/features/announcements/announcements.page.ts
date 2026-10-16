@@ -141,6 +141,7 @@ interface CampaignHistoryItem {
             endpoint="/products"
             placeholder="Search & add products to carousel (type title or category)…"
             [mapFn]="productMapFn"
+            [clearOnPick]="true"
             (changed)="onProductAdded($event)" />
 
           <div class="product-pills-list">
@@ -938,18 +939,29 @@ export class AnnouncementsPage implements OnInit {
     sublabel: r.email || r.phone,
   });
 
-  productMapFn = (r: { _id: string; title?: string; name?: string; slug: string; minPrice?: number; price?: number; images?: string[] }): PickedEntity => ({
-    id: r._id,
-    label: r.title || r.name || 'Product',
-    image: r.images?.[0],
-    meta: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  productMapFn = (r: any): PickedEntity => {
+    const rawPrice = r.minPrice ?? r.variants?.[0]?.price ?? r.price ?? 59900;
+    const price = rawPrice > 1000 ? Math.round(rawPrice / 100) : rawPrice;
+    const rawCompare = r.variants?.[0]?.compareAtPrice;
+    const originalPrice = rawCompare && rawCompare > 1000 ? Math.round(rawCompare / 100) : price * 2;
+    const title = r.title || r.name || 'Product';
+    const image = r.images?.[0] || r.variants?.[0]?.image || '';
+    return {
       id: r._id,
-      title: r.title || r.name || 'Product',
-      slug: r.slug,
-      price: (r.minPrice ?? r.price ?? 59900) > 1000 ? Math.round((r.minPrice ?? r.price ?? 59900) / 100) : (r.minPrice ?? r.price ?? 599),
-      image: r.images?.[0],
-    },
-  });
+      label: title,
+      sublabel: `₹${price}${r.brand ? ' · ' + r.brand : ''}`,
+      image,
+      meta: {
+        id: r._id,
+        title,
+        slug: r.slug,
+        price,
+        originalPrice,
+        image,
+      },
+    };
+  };
 
   storeMapFn = (r: { _id: string; name: string; slug: string; logo?: string; vendorType?: string }): PickedEntity => ({
     id: r._id,

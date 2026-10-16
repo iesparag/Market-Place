@@ -3,14 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Account'),
+        ),
       body: ListView(
         children: [
           Container(
@@ -90,8 +96,10 @@ class AccountScreen extends ConsumerWidget {
                       TextStyle(color: BrandColors.textMuted, fontSize: 12))),
         ],
       ),
-    );
-  }
+      bottomNavigationBar: const AppBottomNav(),
+    ),
+  );
+}
 
   Widget _tile(IconData icon, String label, VoidCallback onTap,
           {bool danger = false}) =>

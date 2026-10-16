@@ -9,6 +9,8 @@ import '../../data/providers.dart';
 import '../../models/store.dart';
 import '../../models/address.dart';
 import 'cart_controller.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -26,14 +28,16 @@ class CartScreen extends ConsumerWidget {
       groups.putIfAbsent(l.storeId, () => []).add(l);
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your cart'),
-        actions: [
-          if (lines.isNotEmpty)
-            TextButton(onPressed: cart.clear, child: const Text('Clear')),
-        ],
-      ),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Your cart'),
+          actions: [
+            if (lines.isNotEmpty)
+              TextButton(onPressed: cart.clear, child: const Text('Clear')),
+          ],
+        ),
       body: lines.isEmpty
           ? _EmptyCart(onShop: () => context.go('/'))
           : ListView(
@@ -51,7 +55,7 @@ class CartScreen extends ConsumerWidget {
               ],
             ),
       bottomNavigationBar: lines.isEmpty
-          ? null
+          ? const AppBottomNav()
           : SafeArea(
               child: Container(
                 padding: const EdgeInsets.all(14),
@@ -84,6 +88,7 @@ class CartScreen extends ConsumerWidget {
                 ]),
               ),
             ),
+      ),
     );
   }
 }

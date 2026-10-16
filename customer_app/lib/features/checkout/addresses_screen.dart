@@ -7,6 +7,7 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/address.dart';
 import 'places_search_field.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
 
 
 const _addressTypes = ['Home', 'Work', 'Other'];
@@ -17,8 +18,12 @@ class AddressesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Addresses')),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Addresses'),
+        ),
       floatingActionButton: user == null ? null : FloatingActionButton.extended(
         onPressed: () => _openSheet(context, ref),
         backgroundColor: context.brand.primary,
@@ -131,6 +136,7 @@ class AddressesScreen extends ConsumerWidget {
                       },
                     ),
             ),
+      ),
     );
   }
 

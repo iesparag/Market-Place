@@ -10,6 +10,7 @@ import '../../models/order.dart';
 import '../../models/support.dart';
 import '../../models/suggestion.dart';
 import 'support_controller.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
 
 /// Predefined quick-help prompts (the "predrine options"). "Other" = just type.
 const _quickIntents = <String>[
@@ -132,11 +133,13 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
     final state = ref.watch(supportControllerProvider);
     ref.listen(supportControllerProvider, (_, __) => _jumpToBottom());
 
-    return Scaffold(
-      backgroundColor: context.brand.canvas,
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(children: [
+    return SafePopScope(
+      child: Scaffold(
+        backgroundColor: context.brand.canvas,
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          titleSpacing: 0,
+          title: Row(children: [
           CircleAvatar(
             radius: 16,
             backgroundColor: context.brand.soft,
@@ -173,8 +176,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
           _chatTab(context, state),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ── BigBasket-style Help Center Tab (Recent Orders + FAQs + Helpline) ────────
   Widget _helpCenterTab(BuildContext context) {

@@ -9,10 +9,30 @@ import 'router.dart';
 
 const _themeCacheKey = 'cached_theme_json';
 
+void _handleNotificationLink(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) {
+    appRouter.go('/');
+    return;
+  }
+  final uri = Uri.tryParse(trimmed);
+  String target = trimmed;
+  if (uri != null && uri.hasScheme) {
+    target = uri.path;
+    if (uri.hasQuery) {
+      target = '$target?${uri.query}';
+    }
+  }
+  if (!target.startsWith('/')) {
+    target = '/$target';
+  }
+  appRouter.go(target);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initPush();
-  listenForNotificationTaps((link) => appRouter.go(link));
+  listenForNotificationTaps(_handleNotificationLink);
   final prefs = await SharedPreferences.getInstance();
   runApp(ProviderScope(
     overrides: [sharedPrefsProvider.overrideWithValue(prefs)],

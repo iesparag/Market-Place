@@ -7,6 +7,8 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../shared/widgets/store_favourite_card.dart';
 import 'store_favourite_controller.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 /// Mirrors wishlist_screen.dart's shape exactly, for the store-favourites equivalent.
 class FavouriteStoresScreen extends ConsumerWidget {
@@ -15,8 +17,12 @@ class FavouriteStoresScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
     final ids = ref.watch(favouriteStoresProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Favourite stores')),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Favourite stores'),
+        ),
       body: user == null
           ? _SignIn(onSignIn: () => context.push('/login'))
           : ref.watch(favouriteStoreVendorsProvider).when(
@@ -37,6 +43,8 @@ class FavouriteStoresScreen extends ConsumerWidget {
                 );
               },
             ),
+        bottomNavigationBar: const AppBottomNav(),
+      ),
     );
   }
 }

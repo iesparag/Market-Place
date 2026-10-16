@@ -12,6 +12,7 @@ import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/veg_mark.dart';
 import '../../shared/widgets/error_view.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
 
 class ProductScreen extends ConsumerStatefulWidget {
   final String slug;
@@ -27,14 +28,17 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(productProvider(widget.slug));
-    return Scaffold(
-      appBar: AppBar(
-          title: const Text('Product'),
-          actions: const [WishlistButton(), CartButton()]),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorView(error: e),
-        data: (p) => _content(context, p),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+            leading: const AppBackButton(),
+            title: const Text('Product'),
+            actions: const [WishlistButton(), CartButton()]),
+        body: async.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErrorView(error: e),
+          data: (p) => _content(context, p),
+        ),
       ),
     );
   }

@@ -8,15 +8,19 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/app_notification.dart';
 import '../../shared/widgets/error_view.dart';
+import '../../shared/widgets/safe_pop_scope.dart';
+import '../shell/app_shell.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final list = ref.watch(notificationsProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
+    return SafePopScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: const Text('Notifications'),
         actions: [
           list.maybeWhen(
             data: (items) => items.any((n) => !n.read)
@@ -52,8 +56,10 @@ class NotificationsScreen extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
+      bottomNavigationBar: const AppBottomNav(),
+    ),
+  );
+}
 }
 
 class _NotificationTile extends ConsumerWidget {
