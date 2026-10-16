@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../data/catalog_repository.dart';
@@ -11,6 +12,7 @@ import '../../shared/category_emoji.dart';
 import '../../shared/widgets/product_card.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
+import '../favourites/store_favourite_controller.dart';
 
 class StoreScreen extends ConsumerStatefulWidget {
   final String slug;
@@ -68,6 +70,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontWeight: FontWeight.w800, fontSize: 18))),
+              _StoreFavouriteButton(storeId: s.id),
               const WishlistButton(color: BrandColors.ink),
               const CartButton(color: BrandColors.ink),
             ]),
@@ -315,6 +318,26 @@ class _CoverCarouselState extends State<_CoverCarousel> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Favourite toggle for a store, same provider/toggle call as the home screen's
+/// nearby-store cards — this is the detail-page equivalent of that heart, since the
+/// store list and store detail previously had no way to favourite a store at all.
+class _StoreFavouriteButton extends ConsumerWidget {
+  final String storeId;
+  const _StoreFavouriteButton({required this.storeId});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFav = ref.watch(favouriteStoresProvider).contains(storeId);
+    return IconButton(
+      icon: Icon(isFav ? Icons.favorite : Icons.favorite_border_rounded,
+          color: isFav ? const Color(0xFFE11D48) : BrandColors.ink),
+      onPressed: () async {
+        final ok = await ref.read(favouriteStoresProvider.notifier).toggle(storeId);
+        if (!ok && context.mounted) context.push('/login');
+      },
     );
   }
 }

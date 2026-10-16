@@ -8,6 +8,7 @@ import '../../models/store.dart';
 import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/search_bar_pill.dart';
+import '../favourites/store_favourite_controller.dart';
 
 /// The "Stores" tab — every approved vendor, tap to open the storefront.
 class StoresListScreen extends ConsumerWidget {
@@ -39,11 +40,12 @@ class StoresListScreen extends ConsumerWidget {
   }
 }
 
-class _StoreRow extends StatelessWidget {
+class _StoreRow extends ConsumerWidget {
   final Vendor vendor;
   const _StoreRow({required this.vendor});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFav = ref.watch(favouriteStoresProvider).contains(vendor.id);
     return GestureDetector(
       onTap: () => context.push('/store/${vendor.slug}'),
       child: Container(
@@ -97,6 +99,14 @@ class _StoreRow extends StatelessWidget {
                   ),
               ],
             ),
+          ),
+          IconButton(
+            icon: Icon(isFav ? Icons.favorite : Icons.favorite_border_rounded,
+                color: isFav ? const Color(0xFFE11D48) : BrandColors.textMuted),
+            onPressed: () async {
+              final ok = await ref.read(favouriteStoresProvider.notifier).toggle(vendor.id);
+              if (!ok && context.mounted) context.push('/login');
+            },
           ),
           const Icon(Icons.chevron_right_rounded, color: BrandColors.textMuted),
         ]),
