@@ -122,82 +122,118 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   }
 }
 
-/// A category icon chip that pops in around the logo — headphones, sabji/veggies, clothes, etc.
-/// like BigBasket / Blinkit / Zepto splash animations with gentle floating dynamics.
-class _OrbitItem {
-  final IconData icon;
+/// Rich Category & Event Badges orbiting and overlapping around the central brand mark
+class _OrbitBadge {
+  final IconData? icon;
+  final String? emoji;
   final String label;
   final Color iconColor;
   final Color bgColor;
   final Alignment align;
   final double startAt;
-  final double phase; // phase shift for floating bobbing motion
+  final double phase;
+  final bool isEventBadge;
+  final String? subtext;
 
-  const _OrbitItem({
-    required this.icon,
+  const _OrbitBadge({
+    this.icon,
+    this.emoji,
     required this.label,
     required this.iconColor,
     required this.bgColor,
     required this.align,
     required this.startAt,
     this.phase = 0.0,
+    this.isEventBadge = false,
+    this.subtext,
   });
 }
 
-const _orbitItems = [
-  _OrbitItem(
-    icon: Icons.headphones_rounded,
-    label: 'Audio',
-    iconColor: Color(0xFF6366F1), // Indigo
-    bgColor: Color(0xFFEEF2FF),
-    align: Alignment(-0.95, -0.85),
-    startAt: 0.08,
-    phase: 0.0,
-  ),
-  _OrbitItem(
-    icon: Icons.checkroom_rounded,
-    label: 'Fashion',
-    iconColor: Color(0xFFEC4899), // Pink/Rose
-    bgColor: Color(0xFFFDF2F8),
-    align: Alignment(0.95, -0.85),
-    startAt: 0.16,
-    phase: 1.5,
-  ),
-  _OrbitItem(
-    icon: Icons.eco_rounded,
-    label: 'Sabji',
-    iconColor: Color(0xFF10B981), // Emerald
-    bgColor: Color(0xFFECFDF5),
-    align: Alignment(-1.05, 0.15),
-    startAt: 0.24,
-    phase: 3.0,
-  ),
-  _OrbitItem(
+const _orbitBadges = [
+  // ── Big Category Badges (matching home category grid) ──
+  _OrbitBadge(
     icon: Icons.shopping_basket_rounded,
+    emoji: '🛒',
     label: 'Grocery',
-    iconColor: Color(0xFFF59E0B), // Amber
-    bgColor: Color(0xFFFFFBEB),
-    align: Alignment(1.05, 0.15),
-    startAt: 0.32,
-    phase: 4.5,
+    iconColor: Color(0xFFD97706),
+    bgColor: Color(0xFFFEF3C7),
+    align: Alignment(1.15, -0.35),
+    startAt: 0.12,
+    phase: 0.5,
   ),
-  _OrbitItem(
-    icon: Icons.soup_kitchen_rounded,
-    label: 'Home',
-    iconColor: Color(0xFF0D9488), // Teal
-    bgColor: Color(0xFFCCFBF1),
-    align: Alignment(-0.85, 0.95),
-    startAt: 0.38,
-    phase: 2.0,
+  _OrbitBadge(
+    icon: Icons.checkroom_rounded,
+    emoji: '👗',
+    label: 'Fashion',
+    iconColor: Color(0xFFDB2777),
+    bgColor: Color(0xFFFCE7F3),
+    align: Alignment(0.85, -0.98),
+    startAt: 0.18,
+    phase: 2.2,
   ),
-  _OrbitItem(
+  _OrbitBadge(
+    icon: Icons.eco_rounded,
+    emoji: '🥦',
+    label: 'Fresh Sabji',
+    iconColor: Color(0xFF059669),
+    bgColor: Color(0xFFD1FAE5),
+    align: Alignment(-1.15, -0.25),
+    startAt: 0.22,
+    phase: 3.8,
+  ),
+  _OrbitBadge(
     icon: Icons.smartphone_rounded,
+    emoji: '📱',
     label: 'Tech',
-    iconColor: Color(0xFF0284C7), // Sky Blue
+    iconColor: Color(0xFF0284C7),
     bgColor: Color(0xFFE0F2FE),
-    align: Alignment(0.85, 0.95),
-    startAt: 0.44,
-    phase: 5.0,
+    align: Alignment(0.92, 0.75),
+    startAt: 0.28,
+    phase: 5.1,
+  ),
+  _OrbitBadge(
+    icon: Icons.headphones_rounded,
+    emoji: '🎧',
+    label: 'Audio',
+    iconColor: Color(0xFF6366F1),
+    bgColor: Color(0xFFEDE9FE),
+    align: Alignment(-0.85, -0.98),
+    startAt: 0.10,
+    phase: 1.0,
+  ),
+  _OrbitBadge(
+    icon: Icons.local_pizza_rounded,
+    emoji: '🍕',
+    label: 'Food & Cafe',
+    iconColor: Color(0xFFEA580C),
+    bgColor: Color(0xFFFFEDD5),
+    align: Alignment(-0.88, 0.78),
+    startAt: 0.32,
+    phase: 4.2,
+  ),
+
+  // ── Overlapping Event & Offer Badges ──
+  _OrbitBadge(
+    icon: Icons.bolt_rounded,
+    label: '⚡ 10-Min Now',
+    iconColor: Color(0xFFB45309),
+    bgColor: Color(0xFFFEF08A),
+    align: Alignment(-0.02, -1.18),
+    startAt: 0.36,
+    phase: 1.8,
+    isEventBadge: true,
+    subtext: 'Instant Delivery',
+  ),
+  _OrbitBadge(
+    icon: Icons.celebration_rounded,
+    label: '🎉 Mega Sale',
+    iconColor: Color(0xFFBE185D),
+    bgColor: Color(0xFFFFE4E6),
+    align: Alignment(0.05, 1.18),
+    startAt: 0.42,
+    phase: 3.4,
+    isEventBadge: true,
+    subtext: 'Up to 80% OFF',
   ),
 ];
 
@@ -209,8 +245,8 @@ class _Mark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 250,
-      height: 250,
+      width: 320,
+      height: 320,
       child: Lottie.asset(
         'assets/lottie/splash.json',
         repeat: false,
@@ -220,20 +256,36 @@ class _Mark extends StatelessWidget {
   }
 
   Widget _fallback() {
-    final ringFade = CurvedAnimation(parent: progress, curve: const Interval(0, 0.4, curve: Curves.easeOut));
-    final ringScale = Tween(begin: 0.3, end: 1.0)
-        .animate(CurvedAnimation(parent: progress, curve: const Interval(0, 0.5, curve: Curves.easeOutBack)));
+    final ringFade = CurvedAnimation(parent: progress, curve: const Interval(0, 0.45, curve: Curves.easeOut));
+    final ringScale = Tween(begin: 0.25, end: 1.0)
+        .animate(CurvedAnimation(parent: progress, curve: const Interval(0, 0.55, curve: Curves.easeOutBack)));
     final logoFade = CurvedAnimation(parent: progress, curve: const Interval(0.05, 0.3, curve: Curves.easeOut));
     final logoScale = Tween(begin: 0.3, end: 1.0)
-        .animate(CurvedAnimation(parent: progress, curve: const Interval(0.05, 0.55, curve: Curves.elasticOut)));
+        .animate(CurvedAnimation(parent: progress, curve: const Interval(0.05, 0.58, curve: Curves.elasticOut)));
 
     return SizedBox(
-      width: 250,
-      height: 250,
+      width: 320,
+      height: 320,
       child: Stack(
         alignment: Alignment.center,
+        clipBehavior: Clip.none,
         children: [
-          // Outer pulse glow
+          // Outer decorative glowing ring
+          FadeTransition(
+            opacity: ringFade,
+            child: ScaleTransition(
+              scale: ringScale,
+              child: Container(
+                width: 270,
+                height: 270,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.8),
+                ),
+              ),
+            ),
+          ),
+          // Middle orbital ring
           FadeTransition(
             opacity: ringFade,
             child: ScaleTransition(
@@ -243,51 +295,48 @@ class _Mark extends StatelessWidget {
                 height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 2),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 2),
                 ),
               ),
             ),
           ),
-          // Inner halo
+          // Inner halo glow
           FadeTransition(
             opacity: ringFade,
             child: ScaleTransition(
               scale: ringScale,
               child: Container(
-                width: 150,
-                height: 150,
+                width: 140,
+                height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.14),
+                  color: Colors.white.withValues(alpha: 0.15),
                 ),
               ),
             ),
           ),
-          // Category shopping chips orbiting around the logo
-          for (final item in _orbitItems)
-            Align(
-              alignment: item.align,
-              child: _OrbitChip(
-                progress: progress,
-                item: item,
-              ),
-            ),
-          // Central Brand Mark
+
+          // Central Brand Mark (Clean 3D store card with depth)
           FadeTransition(
             opacity: logoFade,
             child: ScaleTransition(
               scale: logoScale,
               child: Container(
-                width: 98,
-                height: 98,
+                width: 104,
+                height: 104,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 28,
-                      offset: const Offset(0, 12),
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 30,
+                      offset: const Offset(0, 14),
+                    ),
+                    BoxShadow(
+                      color: brand.primary.withValues(alpha: 0.3),
+                      blurRadius: 18,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -295,11 +344,11 @@ class _Mark extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.storefront_rounded, color: brand.primary, size: 48),
-                    const SizedBox(height: 2),
+                    Icon(Icons.storefront_rounded, color: brand.primary, size: 52),
+                    const SizedBox(height: 3),
                     Container(
-                      width: 28,
-                      height: 3,
+                      width: 32,
+                      height: 3.5,
                       decoration: BoxDecoration(
                         color: brand.primary,
                         borderRadius: BorderRadius.circular(2),
@@ -310,40 +359,52 @@ class _Mark extends StatelessWidget {
               ),
             ),
           ),
+
+          // Category shopping badges + overlapping event badges orbiting around
+          for (final badge in _orbitBadges)
+            Align(
+              alignment: badge.align,
+              child: _OrbitBadgeView(
+                progress: progress,
+                badge: badge,
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _OrbitChip extends StatelessWidget {
+class _OrbitBadgeView extends StatelessWidget {
   final Animation<double> progress;
-  final _OrbitItem item;
+  final _OrbitBadge badge;
 
-  const _OrbitChip({
+  const _OrbitBadgeView({
     required this.progress,
-    required this.item,
+    required this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
     final fade = CurvedAnimation(
       parent: progress,
-      curve: Interval(item.startAt, (item.startAt + 0.3).clamp(0.0, 1.0), curve: Curves.easeOut),
+      curve: Interval(badge.startAt, (badge.startAt + 0.25).clamp(0.0, 1.0), curve: Curves.easeOut),
     );
     final scale = Tween(begin: 0.1, end: 1.0).animate(
       CurvedAnimation(
         parent: progress,
-        curve: Interval(item.startAt, (item.startAt + 0.35).clamp(0.0, 1.0), curve: Curves.elasticOut),
+        curve: Interval(badge.startAt, (badge.startAt + 0.35).clamp(0.0, 1.0), curve: Curves.elasticOut),
       ),
     );
 
     return AnimatedBuilder(
       animation: progress,
       builder: (context, child) {
-        // Subtle floating bobbing motion using sine wave
-        final t = progress.value * 6.28 + item.phase;
-        final dy = (progress.value > item.startAt + 0.2) ? (3.5 * (1 - (progress.value - 0.5).abs()) * (t % 2 == 0 ? 1 : -1)) : 0.0;
+        // Organic gentle floating motion
+        final t = progress.value * 6.28 + badge.phase;
+        final dy = (progress.value > badge.startAt + 0.15)
+            ? (4.0 * (1 - (progress.value - 0.5).abs()) * (t % 2 == 0 ? 1 : -1))
+            : 0.0;
 
         return Transform.translate(
           offset: Offset(0, dy),
@@ -356,44 +417,108 @@ class _OrbitChip extends StatelessWidget {
           ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: item.bgColor, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+      child: badge.isEventBadge ? _buildEventBadge() : _buildCategoryBadge(),
+    );
+  }
+
+  /// Big category icon bubble (matching category grid with depth)
+  Widget _buildCategoryBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: badge.bgColor, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: badge.bgColor,
+              shape: BoxShape.circle,
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: item.bgColor,
-                shape: BoxShape.circle,
+            alignment: Alignment.center,
+            child: badge.emoji != null
+                ? Text(badge.emoji!, style: const TextStyle(fontSize: 18))
+                : Icon(badge.icon, size: 18, color: badge.iconColor),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            badge.label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: badge.iconColor,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Special Overlapping Event / Deal Badge (e.g. 10-Min Delivery, Mega Sale)
+  Widget _buildEventBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: badge.iconColor.withValues(alpha: 0.35), width: 1.6),
+        boxShadow: [
+          BoxShadow(
+            color: badge.iconColor.withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: badge.bgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(badge.icon, size: 16, color: badge.iconColor),
+          ),
+          const SizedBox(width: 6),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                badge.label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w900,
+                  color: badge.iconColor,
+                ),
               ),
-              alignment: Alignment.center,
-              child: Icon(item.icon, size: 16, color: item.iconColor),
-            ),
-            const SizedBox(width: 5),
-            Text(
-              item.label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: item.iconColor,
-              ),
-            ),
-          ],
-        ),
+              if (badge.subtext != null)
+                Text(
+                  badge.subtext!,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF475569),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

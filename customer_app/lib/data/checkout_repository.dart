@@ -56,11 +56,14 @@ class CheckoutRepository {
     required List<CartLine> lines,
     Address? address,
     Map<String, String>? storeInstructions,
+    Map<String, VendorDeliverySlot>? deliverySlots,
   }) async {
     final items = lines.map((l) => {'productId': l.productId, 'variantSku': l.variantSku, 'qty': l.qty}).toList();
     final data = await api.post('/orders', body: {
       'items': items,
       if (storeInstructions != null && storeInstructions.isNotEmpty) 'storeInstructions': storeInstructions,
+      if (deliverySlots != null && deliverySlots.isNotEmpty)
+        'deliverySlots': deliverySlots.map((k, v) => MapEntry(k, v.toJson())),
       if (address != null)
         'shippingAddress': {
           'line1': address.line1, 'city': address.city,

@@ -14,6 +14,10 @@ class Vendor {
   final int productCount;
   final double? distanceMeters;
   final bool isOpenNow;
+  final bool isLocal;
+  final bool isNowEligible;
+  final String? deliveryType;
+  final String? estimatedDelivery;
 
   Vendor({
     required this.id,
@@ -28,6 +32,10 @@ class Vendor {
     required this.productCount,
     this.distanceMeters,
     this.isOpenNow = true,
+    this.isLocal = false,
+    this.isNowEligible = false,
+    this.deliveryType,
+    this.estimatedDelivery,
   });
 
   factory Vendor.fromJson(Map<String, dynamic> j) => Vendor(
@@ -43,6 +51,10 @@ class Vendor {
         productCount: _int(j['productCount']),
         distanceMeters: (j['distanceMeters'] as num?)?.toDouble(),
         isOpenNow: j['isOpenNow'] != false,
+        isLocal: j['isLocal'] == true,
+        isNowEligible: j['isNowEligible'] == true,
+        deliveryType: j['deliveryType']?.toString(),
+        estimatedDelivery: j['estimatedDelivery']?.toString(),
       );
 }
 

@@ -3,6 +3,7 @@ import { env } from '../../config/env.js';
 import { Product } from '../products/product.model.js';
 import { Category } from '../categories/category.model.js';
 import { Store, isStoreOpenNow } from '../stores/store.model.js';
+import { haversineKm } from '../../common/geo.js';
 
 export interface GeoQuery {
   lat?: number;
@@ -139,57 +140,68 @@ export const catalogService = {
    * via Places yet) rather than falsely placing them at [0,0].
    */
   async listStores(geo: GeoQuery = {}) {
-    let stores: Record<string, unknown>[];
-    if (geo.lat != null && geo.lng != null) {
-      stores = await Store.aggregate([
-        {
-          $geoNear: {
-            near: { type: 'Point', coordinates: [geo.lng, geo.lat] },
-            distanceField: 'distanceMeters',
-            spherical: true,
-            maxDistance: env.SERVICEABLE_RADIUS_KM * 1000,
-            query: { status: 'approved' },
-          },
-        },
-        {
-          $project: {
-            name: 1,
-            slug: 1,
-            description: 1,
-            vendorType: 1,
-            logo: 1,
-            banner: 1,
-            ratingAvg: 1,
-            ratingCount: 1,
-            distanceMeters: 1,
-            availabilityStatus: 1,
-            operatingHours: 1,
-            holidays: 1,
-          },
-        },
-      ]);
-    } else {
-      stores = await Store.find({ status: 'approved' })
-        .select('name slug description vendorType logo banner ratingAvg ratingCount availabilityStatus operatingHours holidays')
-        .sort({ createdAt: -1 })
-        .lean();
-    }
+    const allStores = await Store.find({ status: 'approved' })
+      .select('name slug description vendorType logo banner ratingAvg ratingCount availabilityStatus operatingHours holidays location address')
+      .sort({ createdAt: -1 })
+      .lean();
+
     const counts = await Product.aggregate<{ _id: string; n: number }>([
       {
         $match: {
           status: 'active',
           visibility: 'public',
-          storeId: { $in: stores.map((s) => s._id) },
+          storeId: { $in: allStores.map((s) => s._id) },
         },
       },
       { $group: { _id: '$storeId', n: { $sum: 1 } } },
     ]);
     const countMap = new Map(counts.map((c) => [String(c._id), c.n]));
-    return stores.map((s) => {
+
+    const enriched = allStores.map((s) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { availabilityStatus, operatingHours, holidays, ...rest } = s as Record<string, unknown>;
-      return { ...rest, productCount: countMap.get(String(s._id)) ?? 0, isOpenNow: isStoreOpenNow(s as never) };
+      const { availabilityStatus, operatingHours, holidays, location, ...rest } = s as Record<string, unknown>;
+
+      let distanceMeters: number | undefined;
+      const coords = (location as { coordinates?: [number, number] })?.coordinates;
+      if (geo.lat != null && geo.lng != null && coords && coords.length === 2) {
+        const [lng, lat] = coords;
+        if (lat != null && lng != null) {
+          const distanceKm = haversineKm({ lat: geo.lat, lng: geo.lng }, { lat, lng });
+          distanceMeters = Math.round(distanceKm * 1000);
+        }
+      }
+
+      const isOpen = isStoreOpenNow(s as never);
+      const isLocal = distanceMeters != null ? distanceMeters <= env.SERVICEABLE_RADIUS_KM * 1000 : false;
+      const isNowEligible = isLocal && isOpen && distanceMeters != null && distanceMeters <= env.NOW_RADIUS_KM * 1000;
+      const estimatedDelivery = isNowEligible
+        ? '⚡ 15–30 mins'
+        : isLocal
+          ? '⚡ Delivery today'
+          : '📦 Estimated 5–6 days';
+
+      return {
+        ...rest,
+        distanceMeters,
+        isLocal,
+        isNowEligible,
+        deliveryType: isLocal ? 'instant' : 'standard',
+        estimatedDelivery,
+        productCount: countMap.get(String(s._id)) ?? 0,
+        isOpenNow: isOpen,
+      };
     });
+
+    if (geo.lat != null && geo.lng != null) {
+      enriched.sort((a, b) => {
+        if (a.distanceMeters != null && b.distanceMeters != null) return a.distanceMeters - b.distanceMeters;
+        if (a.distanceMeters != null) return -1;
+        if (b.distanceMeters != null) return 1;
+        return 0;
+      });
+    }
+
+    return enriched;
   },
 
   /**

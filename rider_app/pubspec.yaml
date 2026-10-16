@@ -1,7 +1,7 @@
 name: rider_app
 description: Marketplace delivery rider app — accept jobs, navigate, deliver.
 publish_to: 'none'
-version: 1.0.0+12
+version: 1.0.0+13
 
 environment:
   sdk: ^3.10.7

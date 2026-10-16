@@ -29,6 +29,7 @@ export interface CreateOrderInput {
   items: OrderItemInput[];
   couponCode?: string;
   storeInstructions?: Record<string, string>;
+  deliverySlots?: Record<string, { type: string; slot?: string; date?: string }>;
   contact?: { name?: string; phone?: string; email?: string };
   shippingAddress?: {
     line1?: string; line2?: string; landmark?: string; city?: string; state?: string; pincode?: string;
@@ -118,22 +119,39 @@ export const ordersService = {
     // Same env.SERVICEABLE_RADIUS_KM threshold as the home feed's nearby-vendor search
     // (catalog.service.ts) — one radius, one meaning, enforced at both browse AND
     // checkout time.
+    // Vendor-to-customer deliverability & slot resolution:
+    // If a store is within local radius (env.SERVICEABLE_RADIUS_KM), order uses the vendor's local
+    // slot (defaulting to 'now' / express 15-30 mins, or customer-chosen scheduled slot).
+    // If a store is in another city or beyond local radius, it is accepted as Standard Intercity Delivery
+    // (estimated 5-6 business days). Orders are NEVER rejected due to distance.
     const destLat = input.shippingAddress?.lat;
     const destLng = input.shippingAddress?.lng;
+    const deliverySlots = new Map<string, { type: string; slot?: string; date?: string; estimatedDelivery: string }>();
+
     if (destLat != null && destLng != null) {
       const dest = { lat: destLat, lng: destLng };
       const stores = await Store.find({ _id: { $in: storeIds } }).select('name location').lean();
-      const tooFar = stores.filter((s) => {
+      for (const s of stores) {
+        const storeIdStr = String(s._id);
         const [lng, lat] = s.location?.coordinates ?? [];
-        if (lng == null || lat == null) return false; // not geocoded yet — can't vouch, don't block
-        const distanceKm = haversineKm(dest, { lat, lng });
-        return distanceKm > env.SERVICEABLE_RADIUS_KM;
-      });
-      if (tooFar.length) {
-        throw AppError.badRequest(
-          'OUT_OF_DELIVERY_RANGE',
-          `${tooFar.map((s) => s.name).join(', ')} ${tooFar.length > 1 ? "don't" : "doesn't"} deliver to your selected address`,
-        );
+        const isLocal = (lng != null && lat != null) ? haversineKm(dest, { lat, lng }) <= env.SERVICEABLE_RADIUS_KM : true;
+        if (!isLocal) {
+          deliverySlots.set(storeIdStr, {
+            type: 'standard',
+            slot: '5-6 business days',
+            estimatedDelivery: '📦 Estimated 5–6 days',
+          });
+        } else {
+          const clientSlot = input.deliverySlots?.[storeIdStr];
+          deliverySlots.set(storeIdStr, {
+            type: clientSlot?.type ?? 'now',
+            slot: clientSlot?.slot ?? (clientSlot?.type === 'scheduled' ? 'Scheduled' : '⚡ 15–30 mins'),
+            date: clientSlot?.date,
+            estimatedDelivery: clientSlot?.type === 'scheduled'
+              ? `Scheduled (${clientSlot.date ?? 'Next 1–3 days'})`
+              : '⚡ 15–30 mins',
+          });
+        }
       }
     }
 
@@ -157,6 +175,7 @@ export const ordersService = {
       items: lines,
       storeIds,
       storeInstructions: input.storeInstructions,
+      deliverySlots,
       couponCode,
       amounts: { itemsTotal, discount, tax, delivery, grandTotal },
       contact: input.contact,

@@ -71,7 +71,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           final historyAsync = ref.watch(historyProvider);
           return historyAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => const Center(
+            error: (error, stackTrace) => const Center(
                 child: Text('This task is no longer in your queue.', style: TextStyle(color: RiderColors.textMuted))),
             data: (history) {
               final past = history.where((t) => t.id == widget.taskId).firstOrNull;

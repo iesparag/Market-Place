@@ -33,10 +33,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         );
       }
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
@@ -62,7 +63,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: tasks.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _TaskCard(
                     task: tasks[i],
                     busy: _busyId == tasks[i].id,

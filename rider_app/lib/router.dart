@@ -9,11 +9,11 @@ import 'features/tasks/task_detail_screen.dart';
 final appRouter = GoRouter(
   initialLocation: '/splash',
   routes: [
-    GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
-    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-    GoRoute(path: '/', builder: (_, __) => const RiderShell()),
-    GoRoute(path: '/offers', builder: (_, __) => const OffersScreen()),
-    GoRoute(path: '/tasks', builder: (_, __) => const TasksScreen()),
-    GoRoute(path: '/tasks/:id', builder: (_, s) => TaskDetailScreen(taskId: s.pathParameters['id']!)),
+    GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(path: '/', builder: (context, state) => const RiderShell()),
+    GoRoute(path: '/offers', builder: (context, state) => const OffersScreen()),
+    GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
+    GoRoute(path: '/tasks/:id', builder: (context, state) => TaskDetailScreen(taskId: state.pathParameters['id']!)),
   ],
 );

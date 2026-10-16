@@ -27,6 +27,7 @@ const orderSchema = new Schema(
     // doesn't apply to the others. Copied onto each DeliveryTask at createForOrder()
     // time so the vendor sees exactly their own instruction, not the whole map.
     storeInstructions: { type: Map, of: String, default: undefined },
+    deliverySlots: { type: Map, of: Object, default: undefined },
     couponCode: String,
     amounts: {
       itemsTotal: Number,

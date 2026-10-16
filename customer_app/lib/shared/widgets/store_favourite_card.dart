@@ -33,14 +33,20 @@ class StoreFavouriteCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 72,
+              height: 76,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   Container(
-                    color: const Color(0xFFF1F5F9),
+                    color: const Color(0xFFF8FAFC),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     child: vendor.logo != null
-                        ? CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.cover)
+                        ? Center(
+                            child: CachedNetworkImage(
+                              imageUrl: vendor.logo!,
+                              fit: BoxFit.contain,
+                            ),
+                          )
                         : Container(
                             decoration: BoxDecoration(gradient: b.gradient),
                             child: Center(

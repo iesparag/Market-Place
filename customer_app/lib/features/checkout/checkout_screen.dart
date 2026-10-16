@@ -76,6 +76,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             lines: lines,
             address: addr,
             storeInstructions: ref.read(cartInstructionsProvider),
+            deliverySlots: ref.read(cartDeliverySlotsProvider),
           );
       orderId = order.id;
       orderNumber = order.number;

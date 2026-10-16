@@ -173,3 +173,44 @@ class CartInstructionsController extends StateNotifier<Map<String, String>> {
 
 final cartInstructionsProvider =
     StateNotifierProvider<CartInstructionsController, Map<String, String>>((ref) => CartInstructionsController());
+
+/// Slot selection per vendor on the cart screen:
+/// - Local stores: 'now' (default, 15-30 mins) or 'scheduled' (next 1, 2, 3 days with morning/afternoon/evening slots)
+/// - Non-local / intercity stores: 'standard' (estimated 5-6 business days)
+class VendorDeliverySlot {
+  final String type; // 'now' | 'scheduled' | 'standard'
+  final String? date;
+  final String? slot;
+  final String label;
+
+  const VendorDeliverySlot({
+    required this.type,
+    this.date,
+    this.slot,
+    required this.label,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        if (date != null) 'date': date,
+        if (slot != null) 'slot': slot,
+        'label': label,
+      };
+}
+
+class CartDeliverySlotsController extends StateNotifier<Map<String, VendorDeliverySlot>> {
+  CartDeliverySlotsController() : super({});
+
+  void setSlot(String storeId, VendorDeliverySlot slot) {
+    state = {...state, storeId: slot};
+  }
+
+  void clear() {
+    state = {};
+  }
+}
+
+final cartDeliverySlotsProvider =
+    StateNotifierProvider<CartDeliverySlotsController, Map<String, VendorDeliverySlot>>(
+        (ref) => CartDeliverySlotsController());
+

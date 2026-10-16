@@ -58,11 +58,11 @@ Stream<String>? fcmTokenRefreshStream() {
 void listenForNotificationTaps(void Function(String link) onLink) {
   try {
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final link = message.data['link'] as String?;
+      final link = (message.data['actionLink'] as String?) ?? (message.data['link'] as String?);
       if (link != null && link.isNotEmpty) onLink(link);
     });
     FirebaseMessaging.instance.getInitialMessage().then((message) {
-      final link = message?.data['link'] as String?;
+      final link = (message?.data['actionLink'] as String?) ?? (message?.data['link'] as String?);
       if (link != null && link.isNotEmpty) onLink(link);
     });
   } catch (_) {/* Firebase not configured on this build — push just won't deep-link */}

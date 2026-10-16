@@ -68,7 +68,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: offers.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _OfferCard(
                     task: offers[i],
                     busy: _busyId == offers[i].id,

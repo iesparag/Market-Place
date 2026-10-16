@@ -682,7 +682,12 @@ class _NearbyStoreCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   vendor.logo != null
-                      ? CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.cover)
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Center(
+                            child: CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.contain),
+                          ),
+                        )
                       : Container(
                           decoration: BoxDecoration(gradient: b.gradient),
                           child: Center(
@@ -1100,7 +1105,12 @@ class _PopularStoreCard extends StatelessWidget {
               height: 64,
               color: const Color(0xFFF1F5F9),
               child: vendor.logo != null
-                  ? CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.cover, width: double.infinity)
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      child: Center(
+                        child: CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.contain),
+                      ),
+                    )
                   : Container(
                       decoration: BoxDecoration(gradient: b.gradient),
                       child: Center(

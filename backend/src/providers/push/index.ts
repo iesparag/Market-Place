@@ -6,9 +6,13 @@ export interface PushMessage {
   tokens: string[];
   title: string;
   body: string;
-  /** Big-picture / hero image — rendered natively by Android & iOS once the device
-   * downloads it, no extra client code needed (foreground-in-app pushes excepted). */
+  /** Big-picture / hero image — rendered natively by Android & iOS */
   imageUrl?: string;
+  subtitle?: string;
+  actionText?: string;
+  actionLink?: string;
+  channelId?: string;
+  priority?: 'high' | 'normal';
   data?: Record<string, string>;
 }
 
@@ -36,22 +40,45 @@ export const pushProvider = {
   async send(msg: PushMessage): Promise<void> {
     if (!msg.tokens.length) return;
     if (!fcmConfigured) {
-      logger.info({ count: msg.tokens.length, title: msg.title }, '[push] would send FCM push — set FIREBASE_* to deliver');
+      logger.info({ count: msg.tokens.length, title: msg.title, subtitle: msg.subtitle }, '[push] would send FCM push — set FIREBASE_* to deliver');
       return;
     }
     try {
       await getApp().messaging().sendEachForMulticast({
         tokens: msg.tokens,
-        notification: { title: msg.title, body: msg.body, imageUrl: msg.imageUrl },
-        // Android renders the image as a big-picture notification automatically from
-        // `notification.imageUrl` above; this block is only needed for iOS, which
-        // requires a Notification Service Extension to actually download + attach it
-        // (not built — this app has no iOS release target yet) — harmless to send either way.
-        android: msg.imageUrl ? { notification: { imageUrl: msg.imageUrl } } : undefined,
-        apns: msg.imageUrl
-          ? { payload: { aps: { 'mutable-content': 1 } }, fcmOptions: { imageUrl: msg.imageUrl } }
-          : undefined,
-        data: msg.data ?? {},
+        notification: {
+          title: msg.title,
+          body: msg.body,
+          imageUrl: msg.imageUrl,
+        },
+        android: {
+          priority: msg.priority === 'normal' ? 'normal' : 'high',
+          notification: {
+            channelId: msg.channelId ?? 'promotions',
+            color: '#EA580C',
+            defaultSound: true,
+            defaultVibrateTimings: true,
+            ...(msg.imageUrl ? { imageUrl: msg.imageUrl } : {}),
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              'mutable-content': 1,
+              sound: 'default',
+            },
+          },
+          ...(msg.imageUrl ? { fcmOptions: { imageUrl: msg.imageUrl } } : {}),
+        },
+        data: {
+          ...(msg.data ?? {}),
+          title: msg.title,
+          body: msg.body,
+          ...(msg.imageUrl ? { imageUrl: msg.imageUrl } : {}),
+          ...(msg.subtitle ? { subtitle: msg.subtitle } : {}),
+          ...(msg.actionText ? { actionText: msg.actionText } : {}),
+          ...(msg.actionLink ? { actionLink: msg.actionLink } : {}),
+        },
       });
     } catch (err) {
       logger.error({ err }, '[push] FCM send failed');
