@@ -21,11 +21,13 @@ class ProductCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ft = foodTypeOf(product.attributes, product.foodType);
     final v = _cheapest;
-    final single = product.variants.length == 1;
+    final targetVariant = v ?? (product.variants.isNotEmpty ? product.variants.first : null);
+    final sku = targetVariant?.sku ?? 'default';
+    final price = (targetVariant != null && targetVariant.price > 0) ? targetVariant.price : product.minPrice;
     final b = context.brand;
     ref.watch(cartProvider); // rebuild on cart changes
     final cart = ref.read(cartProvider.notifier);
-    final qty = (single && v != null) ? cart.qtyOf(product.id, v.sku) : 0;
+    final qty = cart.qtyOf(product.id, sku);
 
     return GestureDetector(
       onTap: () => context.push('/p/${product.slug}'),
@@ -125,10 +127,12 @@ class ProductCard extends ConsumerWidget {
                     child: qty > 0
                         ? _Stepper(
                             qty: qty,
-                            onDec: () =>
-                                cart.setQty('${product.id}|${v!.sku}', qty - 1),
-                            onInc: () =>
-                                cart.setQty('${product.id}|${v!.sku}', qty + 1),
+                            onDec: () => cart.setQty(
+                                '${product.id}|$sku',
+                                qty - 1),
+                            onInc: () => cart.setQty(
+                                '${product.id}|$sku',
+                                qty + 1),
                           )
                         : OutlinedButton(
                             style: OutlinedButton.styleFrom(
@@ -146,20 +150,27 @@ class ProductCard extends ConsumerWidget {
                                   letterSpacing: 0.5),
                             ),
                             onPressed: () {
-                              if (single && v != null) {
-                                cart.add(CartLine(
-                                  productId: product.id,
-                                  variantSku: v.sku,
-                                  title: product.title,
-                                  image: product.firstImage,
-                                  storeId: product.storeId,
-                                  storeName: product.store?.name,
-                                  price: v.price,
-                                  qty: 1,
-                                ));
-                              } else {
-                                context.push('/p/${product.slug}');
-                              }
+                              cart.add(CartLine(
+                                productId: product.id,
+                                variantSku: sku,
+                                title: product.title,
+                                image: product.firstImage,
+                                storeId: product.storeId,
+                                storeName: product.store?.name,
+                                price: price,
+                                qty: 1,
+                              ));
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Added "${product.title}" to cart'),
+                                  duration: const Duration(seconds: 2),
+                                  action: SnackBarAction(
+                                    label: 'VIEW CART',
+                                    onPressed: () => context.push('/cart'),
+                                  ),
+                                ),
+                              );
                             },
                             child: const Text('ADD'),
                           ),

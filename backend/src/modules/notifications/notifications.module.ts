@@ -21,6 +21,22 @@ const notificationSchema = new Schema(
     image: { type: String, default: '' }, // hero image — product/vendor photo or campaign art
     actionText: { type: String, default: '' },
     actionLink: { type: String, default: '' },
+    layout: { type: String, default: 'standard' }, // standard | big_picture | product_showcase | store_spotlight
+    products: [
+      {
+        id: { type: String },
+        title: { type: String },
+        slug: { type: String },
+        price: { type: Number },
+        originalPrice: { type: Number },
+        image: { type: String },
+      },
+    ],
+    storeId: { type: String, default: '' },
+    storeSlug: { type: String, default: '' },
+    storeName: { type: String, default: '' },
+    storeLogo: { type: String, default: '' },
+    couponCode: { type: String, default: '' },
     read: { type: Boolean, default: false, index: true },
   },
   { timestamps: true },
@@ -36,6 +52,22 @@ const broadcastCampaignSchema = new Schema(
     image: { type: String, default: '' },
     link: { type: String, default: '' },
     actionText: { type: String, default: 'SHOP NOW' },
+    layout: { type: String, default: 'standard' },
+    products: [
+      {
+        id: { type: String },
+        title: { type: String },
+        slug: { type: String },
+        price: { type: Number },
+        originalPrice: { type: Number },
+        image: { type: String },
+      },
+    ],
+    storeId: { type: String, default: '' },
+    storeSlug: { type: String, default: '' },
+    storeName: { type: String, default: '' },
+    storeLogo: { type: String, default: '' },
+    couponCode: { type: String, default: '' },
     audience: { type: String, default: 'customers' },
     targetCity: { type: String, default: '' },
     recipientsCount: { type: Number, default: 0 },
@@ -74,6 +106,13 @@ export async function notify(
     actionText?: string;
     actionLink?: string;
     priority?: 'high' | 'normal';
+    layout?: string;
+    products?: Array<{ id: string; title: string; slug: string; price: number; originalPrice?: number; image?: string }>;
+    storeId?: string;
+    storeSlug?: string;
+    storeName?: string;
+    storeLogo?: string;
+    couponCode?: string;
   },
 ): Promise<void> {
   const doc = await Notification.create({ userId, ...data });
@@ -88,12 +127,14 @@ export async function notify(
   );
   const tokens = (await DeviceToken.find({ userId }).select('token').lean()).map((t) => t.token);
   if (tokens.length) {
+    const firstProd = data.products && data.products.length ? data.products[0] : undefined;
+    const heroImage = data.image || firstProd?.image;
     void pushProvider.send({
       tokens,
       title: data.title,
       subtitle: data.subtitle,
       body: data.body ?? '',
-      imageUrl: data.image || undefined,
+      imageUrl: heroImage,
       actionText: data.actionText,
       actionLink: data.actionLink || data.link,
       priority: data.priority ?? 'high',
@@ -101,6 +142,11 @@ export async function notify(
         link: data.link ?? '/',
         actionLink: data.actionLink ?? data.link ?? '/',
         actionText: data.actionText ?? 'SHOP NOW',
+        layout: data.layout ?? 'standard',
+        products: data.products ? JSON.stringify(data.products) : '[]',
+        storeSlug: data.storeSlug ?? '',
+        storeName: data.storeName ?? '',
+        couponCode: data.couponCode ?? '',
       },
     });
   }
@@ -116,7 +162,21 @@ notificationsRoutes.get('/', asyncHandler(async (req, res) => {
     .limit(30)
     .lean();
   ok(res, items.map((n) => ({
-    _id: String(n._id), type: n.type, title: n.title, body: n.body, link: n.link, image: n.image, read: n.read, createdAt: n.createdAt,
+    _id: String(n._id),
+    type: n.type,
+    title: n.title,
+    subtitle: n.subtitle,
+    body: n.body,
+    link: n.link,
+    image: n.image,
+    layout: n.layout ?? 'standard',
+    products: n.products ?? [],
+    storeSlug: n.storeSlug ?? '',
+    storeName: n.storeName ?? '',
+    storeLogo: n.storeLogo ?? '',
+    couponCode: n.couponCode ?? '',
+    read: n.read,
+    createdAt: n.createdAt,
   })));
 }));
 
@@ -161,6 +221,13 @@ notificationsRoutes.post('/test', authorize('notification:manage'), asyncHandler
   const link = String(req.body.link ?? '/');
   const image = String(req.body.image ?? '');
   const actionText = String(req.body.actionText ?? 'SHOP NOW');
+  const layout = String(req.body.layout ?? 'standard');
+  const products = Array.isArray(req.body.products) ? req.body.products : [];
+  const storeId = String(req.body.storeId ?? '');
+  const storeSlug = String(req.body.storeSlug ?? '');
+  const storeName = String(req.body.storeName ?? '');
+  const storeLogo = String(req.body.storeLogo ?? '');
+  const couponCode = String(req.body.couponCode ?? '');
 
   await notify(req.user!.id, {
     type: 'promo',
@@ -172,6 +239,13 @@ notificationsRoutes.post('/test', authorize('notification:manage'), asyncHandler
     actionText,
     actionLink: link,
     priority: 'high',
+    layout,
+    products,
+    storeId,
+    storeSlug,
+    storeName,
+    storeLogo,
+    couponCode,
   });
 
   const devices = await DeviceToken.countDocuments({ userId: req.user!.id });
@@ -190,6 +264,13 @@ notificationsRoutes.post('/broadcast', authorize('notification:manage'), asyncHa
   const actionLink = String(req.body.actionLink ?? link);
   const audience = String(req.body.audience ?? 'customers');
   const targetCity = String(req.body.targetCity ?? '').trim();
+  const layout = String(req.body.layout ?? 'standard');
+  const products = Array.isArray(req.body.products) ? req.body.products : [];
+  const storeId = String(req.body.storeId ?? '');
+  const storeSlug = String(req.body.storeSlug ?? '');
+  const storeName = String(req.body.storeName ?? '');
+  const storeLogo = String(req.body.storeLogo ?? '');
+  const couponCode = String(req.body.couponCode ?? '');
 
   let filter: Record<string, unknown> = {};
   if (audience === 'customers') filter = { role: Role.CUSTOMER };
@@ -210,6 +291,13 @@ notificationsRoutes.post('/broadcast', authorize('notification:manage'), asyncHa
       actionText,
       actionLink,
       priority: 'high',
+      layout,
+      products,
+      storeId,
+      storeSlug,
+      storeName,
+      storeLogo,
+      couponCode,
     });
   }
 
@@ -223,6 +311,13 @@ notificationsRoutes.post('/broadcast', authorize('notification:manage'), asyncHa
     image,
     link,
     actionText,
+    layout,
+    products,
+    storeId,
+    storeSlug,
+    storeName,
+    storeLogo,
+    couponCode,
     audience,
     targetCity: targetCity || undefined,
     recipientsCount: users.length,

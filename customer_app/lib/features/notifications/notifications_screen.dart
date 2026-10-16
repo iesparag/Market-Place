@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/app_notification.dart';
@@ -81,52 +82,160 @@ class _NotificationTile extends ConsumerWidget {
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: BrandColors.border)),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (n.image != null)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (n.image != null && n.layout != 'big_picture')
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: n.image!,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => _TypeIcon(type: n.type, brand: b),
+                      ),
+                    )
+                  else
+                    _TypeIcon(type: n.type, brand: b),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(n.title,
+                            style: TextStyle(
+                                fontWeight:
+                                    n.read ? FontWeight.w600 : FontWeight.w800,
+                                fontSize: 14)),
+                        if (n.body.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(n.body,
+                              style: const TextStyle(
+                                  color: BrandColors.textMuted, fontSize: 12.5)),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(DateFormat('d MMM, h:mm a').format(n.createdAt),
+                            style: const TextStyle(
+                                color: BrandColors.textMuted, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  if (!n.read)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 4),
+                      decoration: BoxDecoration(color: b.primary, shape: BoxShape.circle),
+                    ),
+                ],
+              ),
+
+              // Multi-product Showcase Grid/Carousel (Flipkart Style)
+              if (n.products.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 145,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: n.products.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (_, i) {
+                      final p = n.products[i];
+                      return GestureDetector(
+                        onTap: () => context.push('/p/${p.slug}'),
+                        child: Container(
+                          width: 105,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          padding: const EdgeInsets.all(6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: p.image != null
+                                      ? CachedNetworkImage(
+                                          imageUrl: p.image!,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                        )
+                                      : Container(color: const Color(0xFFE2E8F0)),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(p.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Text(rupees(p.price),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: BrandColors.ink)),
+                                  if (p.originalPrice != null && p.originalPrice! > p.price) ...[
+                                    const SizedBox(width: 4),
+                                    Text(rupees(p.originalPrice!),
+                                        style: const TextStyle(fontSize: 9.5, decoration: TextDecoration.lineThrough, color: BrandColors.textMuted)),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+
+              // Store Spotlight Chip
+              if (n.layout == 'store_spotlight' && n.storeSlug != null) ...[
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => context.push('/store/${n.storeSlug}'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: b.soft,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: b.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.storefront_rounded, size: 16, color: b.primaryDark),
+                        const SizedBox(width: 6),
+                        Text(n.storeName ?? 'Visit Store',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: b.primaryDark)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 10, color: b.primaryDark),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // Big Picture Banner
+              if (n.layout == 'big_picture' && n.image != null) ...[
+                const SizedBox(height: 10),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: CachedNetworkImage(
                     imageUrl: n.image!,
-                    width: 48,
-                    height: 48,
+                    height: 120,
+                    width: double.infinity,
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _TypeIcon(type: n.type, brand: b),
                   ),
-                )
-              else
-                _TypeIcon(type: n.type, brand: b),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(n.title,
-                        style: TextStyle(
-                            fontWeight:
-                                n.read ? FontWeight.w600 : FontWeight.w800,
-                            fontSize: 14)),
-                    if (n.body.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(n.body,
-                          style: const TextStyle(
-                              color: BrandColors.textMuted, fontSize: 12.5)),
-                    ],
-                    const SizedBox(height: 6),
-                    Text(DateFormat('d MMM, h:mm a').format(n.createdAt),
-                        style: const TextStyle(
-                            color: BrandColors.textMuted, fontSize: 11)),
-                  ],
                 ),
-              ),
-              if (!n.read)
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(color: b.primary, shape: BoxShape.circle),
-                ),
+              ],
             ],
           ),
         ),

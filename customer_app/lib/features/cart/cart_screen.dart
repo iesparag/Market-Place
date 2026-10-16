@@ -118,9 +118,22 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
   void _initSlot() {
     final stores = ref.read(vendorsProvider).valueOrNull ?? [];
     final v = _findVendor(stores);
-    // If store is local or unstated, allow 'now' / 'scheduled'; if intercity, 'standard'
     final isLocal = v?.isLocal ?? true;
-    if (isLocal) {
+    final isOpen = v?.isOpenNow ?? true;
+
+    if (!isOpen) {
+      // Closed store: Default to scheduled delivery
+      if (mounted) setState(() => _mode = 'scheduled');
+      ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+            widget.storeId,
+            VendorDeliverySlot(
+              type: 'scheduled',
+              date: _selectedDay,
+              slot: _selectedSlot,
+              label: '📅 Scheduled: $_selectedDay ($_selectedSlot)',
+            ),
+          );
+    } else if (isLocal) {
       if (mounted) setState(() => _mode = 'now');
       ref.read(cartDeliverySlotsProvider.notifier).setSlot(
             widget.storeId,
@@ -180,6 +193,25 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
     final stores = ref.watch(vendorsProvider).valueOrNull ?? [];
     final vendor = _findVendor(stores);
     final isLocal = vendor?.isLocal ?? true;
+    final isOpen = vendor?.isOpenNow ?? true;
+
+    // Automatically correct mode if store is closed and mode is 'now'
+    if (!isOpen && _mode == 'now') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _mode = 'scheduled');
+          ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                widget.storeId,
+                VendorDeliverySlot(
+                  type: 'scheduled',
+                  date: _selectedDay,
+                  slot: _selectedSlot,
+                  label: '📅 Scheduled: $_selectedDay ($_selectedSlot)',
+                ),
+              );
+        }
+      });
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -221,7 +253,28 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                       ],
                     ),
                   ),
-                  if (isLocal)
+                  if (!isOpen)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF991B1B)),
+                          SizedBox(width: 3),
+                          Text('Store Closed',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF991B1B))),
+                        ],
+                      ),
+                    )
+                  else if (isLocal)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
@@ -280,43 +333,71 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                 const SizedBox(height: 8),
 
                 if (isLocal) ...[
-                  // Local store: Now (default) or Schedule for later
+                  // Local store: Now or Schedule for later
                   Row(
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: _selectNow,
+                          onTap: isOpen
+                              ? _selectNow
+                              : () {
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Store is closed right now. Please choose Schedule Later.'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
                             decoration: BoxDecoration(
-                              color: _mode == 'now' ? const Color(0xFFFEF3C7) : Colors.white,
+                              color: !isOpen
+                                  ? const Color(0xFFF1F5F9)
+                                  : (_mode == 'now' ? const Color(0xFFFEF3C7) : Colors.white),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: _mode == 'now'
-                                    ? const Color(0xFFF59E0B)
-                                    : const Color(0xFFCBD5E1),
-                                width: _mode == 'now' ? 1.8 : 1,
+                                color: !isOpen
+                                    ? const Color(0xFFE2E8F0)
+                                    : (_mode == 'now'
+                                        ? const Color(0xFFF59E0B)
+                                        : const Color(0xFFCBD5E1)),
+                                width: (_mode == 'now' && isOpen) ? 1.8 : 1,
                               ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text('⚡', style: TextStyle(fontSize: 13)),
+                                Text('⚡',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: !isOpen ? const Color(0xFF94A3B8) : null)),
                                 const SizedBox(width: 4),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('Now (Default)',
-                                        style: TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w900,
-                                          color: _mode == 'now'
-                                              ? const Color(0xFF92400E)
-                                              : const Color(0xFF334155),
-                                        )),
-                                    const Text('15–30 mins',
-                                        style: TextStyle(fontSize: 9.5, color: Color(0xFF64748B))),
+                                    Text(
+                                      !isOpen ? 'Now (Closed)' : 'Now (Default)',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: !isOpen
+                                            ? const Color(0xFF94A3B8)
+                                            : (_mode == 'now'
+                                                ? const Color(0xFF92400E)
+                                                : const Color(0xFF334155)),
+                                      ),
+                                    ),
+                                    Text(
+                                      !isOpen ? 'Opens later' : '15–30 mins',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: !isOpen
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -350,14 +431,16 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('Schedule Later',
-                                        style: TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w900,
-                                          color: _mode == 'scheduled'
-                                              ? const Color(0xFF5B21B6)
-                                              : const Color(0xFF334155),
-                                        )),
+                                    Text(
+                                      !isOpen ? 'Schedule (Default)' : 'Schedule Later',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: _mode == 'scheduled'
+                                            ? const Color(0xFF5B21B6)
+                                            : const Color(0xFF334155),
+                                      ),
+                                    ),
                                     const Text('Next 1–3 days',
                                         style: TextStyle(fontSize: 9.5, color: Color(0xFF64748B))),
                                   ],
@@ -369,6 +452,32 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                       ),
                     ],
                   ),
+
+                  if (!isOpen)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFB91C1C)),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Store is closed right now. Your order will be prepared & delivered in your chosen slot.',
+                              style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: Color(0xFF7F1D1D),
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   // If Schedule for Later is picked, show day + time picker
                   if (_mode == 'scheduled') ...[

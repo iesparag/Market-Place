@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,6 +35,80 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     super.dispose();
   }
 
+  double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
+    const p = 0.017453292519943295; // Math.PI / 180
+    final a = 0.5 -
+        math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
+    return 12742 * math.asin(math.sqrt(a)); // 2 * R; R = 6371 km
+  }
+
+  void _syncSlotsForAddress(Address addr, List<CartLine> lines) {
+    final stores = ref.read(vendorsProvider).valueOrNull ?? [];
+    final storeIds = lines.map((l) => l.storeId).toSet();
+    final currentSlots = ref.read(cartDeliverySlotsProvider);
+
+    for (final sid in storeIds) {
+      final vendor = stores.where((s) => s.id == sid).firstOrNull;
+      if (vendor == null) continue;
+
+      bool isLocal = vendor.isLocal;
+      if (addr.lat != null && addr.lng != null && vendor.lat != null && vendor.lng != null) {
+        final dist = _haversineKm(addr.lat!, addr.lng!, vendor.lat!, vendor.lng!);
+        isLocal = dist <= 15.0;
+      }
+
+      final existing = currentSlots[sid];
+      if (!isLocal) {
+        // Intercity delivery: MUST be standard (5-6 days)
+        if (existing?.type != 'standard') {
+          ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                sid,
+                const VendorDeliverySlot(
+                  type: 'standard',
+                  slot: '5–6 business days',
+                  label: '📦 Standard Delivery (Estimated 5–6 days)',
+                ),
+              );
+        }
+      } else {
+        // Local delivery: if it was standard, adapt to local
+        if (existing?.type == 'standard') {
+          if (!vendor.isOpenNow) {
+            ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                  sid,
+                  const VendorDeliverySlot(
+                    type: 'scheduled',
+                    date: 'Tomorrow',
+                    slot: 'Morning (9:00 AM – 12:00 PM)',
+                    label: '📅 Scheduled: Tomorrow (Morning 9:00 AM – 12:00 PM)',
+                  ),
+                );
+          } else {
+            ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                  sid,
+                  const VendorDeliverySlot(
+                    type: 'now',
+                    slot: '⚡ 15–30 mins',
+                    label: '⚡ Now (Delivery in 15–30 mins)',
+                  ),
+                );
+          }
+        } else if (!vendor.isOpenNow && existing?.type == 'now') {
+          ref.read(cartDeliverySlotsProvider.notifier).setSlot(
+                sid,
+                const VendorDeliverySlot(
+                  type: 'scheduled',
+                  date: 'Tomorrow',
+                  slot: 'Morning (9:00 AM – 12:00 PM)',
+                  label: '📅 Scheduled: Tomorrow (Morning 9:00 AM – 12:00 PM)',
+                ),
+              );
+        }
+      }
+    }
+  }
+
   Address? _pick(List<Address> list) {
     if (list.isEmpty) return null;
     if (_selectedId != null) {
@@ -64,6 +139,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ));
       return;
     }
+    _syncSlotsForAddress(addr, lines);
     setState(() {
       _placing = true;
       _stage = 'placing';
@@ -312,12 +388,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 return _dashedBox('No saved address — tap "Add" to enter your delivery address.');
               }
               final selected = _pick(list);
+              if (selected != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _syncSlotsForAddress(selected, lines);
+                });
+              }
               return Column(
-                children: list.map((a) => _AddressCard(
-                      address: a,
-                      selected: a.id == selected?.id,
-                      onTap: () => setState(() => _selectedId = a.id),
-                    )).toList(),
+                children: [
+                  ...list.map((a) => _AddressCard(
+                        address: a,
+                        selected: a.id == selected?.id,
+                        onTap: () {
+                          setState(() => _selectedId = a.id);
+                          _syncSlotsForAddress(a, lines);
+                        },
+                      )),
+                  if (selected != null)
+                    _DeliveryFulfillmentCard(address: selected, lines: lines),
+                ],
               );
             },
           ),
@@ -575,6 +663,187 @@ class _MethodCard extends StatelessWidget {
             ),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+class _DeliveryFulfillmentCard extends ConsumerWidget {
+  final Address? address;
+  final List<CartLine> lines;
+  const _DeliveryFulfillmentCard({required this.address, required this.lines});
+
+  double _calcDist(double lat1, double lon1, double lat2, double lon2) {
+    const p = 0.017453292519943295;
+    final a = 0.5 -
+        math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
+    return 12742 * math.asin(math.sqrt(a));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (address == null || lines.isEmpty) return const SizedBox.shrink();
+    final stores = ref.watch(vendorsProvider).valueOrNull ?? [];
+    final slots = ref.watch(cartDeliverySlotsProvider);
+    final storeIds = lines.map((l) => l.storeId).toSet();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.local_shipping_outlined, size: 16, color: BrandColors.ink),
+              SizedBox(width: 6),
+              Text(
+                'Delivery Schedule & SLA',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: BrandColors.ink),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final sid in storeIds) ...[
+            Builder(builder: (ctx) {
+              final storeName = lines.firstWhere((l) => l.storeId == sid).storeName ?? 'Store';
+              final vendor = stores.where((s) => s.id == sid).firstOrNull;
+              final slot = slots[sid];
+
+              double? distKm;
+              if (address!.lat != null && address!.lng != null && vendor?.lat != null && vendor?.lng != null) {
+                distKm = _calcDist(address!.lat!, address!.lng!, vendor!.lat!, vendor.lng!);
+              }
+
+              final isStandard = slot?.type == 'standard' || (distKm != null && distKm > 15.0);
+              final isScheduled = slot?.type == 'scheduled';
+
+              if (isStandard) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F9FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBAE6FD)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('📦', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$storeName · Standard Intercity Delivery',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0369A1)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              distKm != null
+                                  ? 'Distance: ~${distKm.round()} km · Estimated 5–6 business days'
+                                  : 'Intercity destination · Estimated 5–6 business days',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF0C4A6E), fontWeight: FontWeight.w500),
+                            ),
+                            if (address!.city.isNotEmpty)
+                              Text(
+                                'Dispatching to ${address!.label} (${address!.city})',
+                                style: const TextStyle(fontSize: 10, color: Color(0xFF0284C7)),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              if (isScheduled) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F3FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFDDD6FE)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.event_available_rounded, size: 16, color: Color(0xFF7C3AED)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$storeName · Scheduled Local Delivery',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF5B21B6)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              slot?.label ?? 'Delivery as per your scheduled slot',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF4C1D95), fontWeight: FontWeight.w500),
+                            ),
+                            if (vendor != null && !vendor.isOpenNow)
+                              const Text(
+                                'Store is currently closed · will prepare order for chosen slot',
+                                style: TextStyle(fontSize: 10, color: Color(0xFF6D28D9)),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // Express Now (15-30 mins)
+              return Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('⚡', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$storeName · Express Now Delivery',
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF92400E)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            distKm != null
+                                ? 'Distance: ~${distKm.toStringAsFixed(1)} km · Delivered in 15–30 mins'
+                                : 'Express local delivery in 15–30 mins',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF78350F), fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
       ),
     );
   }

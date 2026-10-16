@@ -18,6 +18,9 @@ class Vendor {
   final bool isNowEligible;
   final String? deliveryType;
   final String? estimatedDelivery;
+  final double? lat;
+  final double? lng;
+  final String? city;
 
   Vendor({
     required this.id,
@@ -36,26 +39,43 @@ class Vendor {
     this.isNowEligible = false,
     this.deliveryType,
     this.estimatedDelivery,
+    this.lat,
+    this.lng,
+    this.city,
   });
 
-  factory Vendor.fromJson(Map<String, dynamic> j) => Vendor(
-        id: (j['_id'] ?? j['id']).toString(),
-        name: j['name']?.toString() ?? '',
-        slug: j['slug']?.toString() ?? '',
-        description: j['description']?.toString(),
-        vendorType: j['vendorType']?.toString() ?? 'generic',
-        logo: j['logo']?.toString(),
-        deliveryTime: j['deliveryTime']?.toString(),
-        ratingAvg: _dbl(j['ratingAvg']),
-        ratingCount: _int(j['ratingCount']),
-        productCount: _int(j['productCount']),
-        distanceMeters: (j['distanceMeters'] as num?)?.toDouble(),
-        isOpenNow: j['isOpenNow'] != false,
-        isLocal: j['isLocal'] == true,
-        isNowEligible: j['isNowEligible'] == true,
-        deliveryType: j['deliveryType']?.toString(),
-        estimatedDelivery: j['estimatedDelivery']?.toString(),
-      );
+  factory Vendor.fromJson(Map<String, dynamic> j) {
+    final loc = j['location'];
+    final coords = loc is Map ? loc['coordinates'] : null;
+    final parsedLat = coords is List && coords.length == 2
+        ? _dbl(coords[1])
+        : (j['lat'] != null ? _dbl(j['lat']) : null);
+    final parsedLng = coords is List && coords.length == 2
+        ? _dbl(coords[0])
+        : (j['lng'] != null ? _dbl(j['lng']) : null);
+
+    return Vendor(
+      id: (j['_id'] ?? j['id']).toString(),
+      name: j['name']?.toString() ?? '',
+      slug: j['slug']?.toString() ?? '',
+      description: j['description']?.toString(),
+      vendorType: j['vendorType']?.toString() ?? 'generic',
+      logo: j['logo']?.toString(),
+      deliveryTime: j['deliveryTime']?.toString(),
+      ratingAvg: _dbl(j['ratingAvg']),
+      ratingCount: _int(j['ratingCount']),
+      productCount: _int(j['productCount']),
+      distanceMeters: (j['distanceMeters'] as num?)?.toDouble(),
+      isOpenNow: j['isOpenNow'] != false,
+      isLocal: j['isLocal'] == true,
+      isNowEligible: j['isNowEligible'] == true,
+      deliveryType: j['deliveryType']?.toString(),
+      estimatedDelivery: j['estimatedDelivery']?.toString(),
+      lat: parsedLat,
+      lng: parsedLng,
+      city: j['city']?.toString(),
+    );
+  }
 }
 
 /// Full storefront profile (GET /catalog/stores/:slug → { store, products, categoryTree }).

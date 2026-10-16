@@ -77,6 +77,21 @@ const SendSchema = z.object({
   image: z.string().optional(),
   channels: z.array(z.enum(['push', 'whatsapp'])).min(1).default(['push']),
   whatsappTemplateName: z.string().optional(), // must be an 'approved' WhatsAppTemplate
+  layout: z.string().optional(),
+  products: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    slug: z.string(),
+    price: z.number(),
+    originalPrice: z.number().optional(),
+    image: z.string().optional(),
+  })).optional(),
+  storeId: z.string().optional(),
+  storeSlug: z.string().optional(),
+  storeName: z.string().optional(),
+  storeLogo: z.string().optional(),
+  link: z.string().optional(),
+  actionText: z.string().optional(),
 });
 
 export const campaignsRoutes = Router();
@@ -104,6 +119,10 @@ campaignsRoutes.post('/send', asyncHandler(async (req, res) => {
     template = await WhatsAppTemplate.findOne({ name: input.whatsappTemplateName, status: 'approved' });
   }
 
+  const firstProd = input.products && input.products.length ? input.products[0] : undefined;
+  const defaultLink = input.link || (input.storeSlug ? `/store/${input.storeSlug}` : (firstProd ? `/p/${firstProd.slug}` : '/'));
+  const heroImage = input.image || firstProd?.image;
+
   let pushSent = 0;
   let whatsappSent = 0;
   for (const user of users) {
@@ -113,7 +132,21 @@ campaignsRoutes.post('/send', asyncHandler(async (req, res) => {
         : "We've got something new for you — check it out.");
 
     if (input.channels.includes('push')) {
-      await notify(String(user._id), { type: 'promo', title: input.title, body, link: '/', image: input.image });
+      await notify(String(user._id), {
+        type: 'promo',
+        title: input.title,
+        body,
+        link: defaultLink,
+        image: heroImage,
+        layout: input.layout ?? 'standard',
+        products: input.products,
+        storeId: input.storeId,
+        storeSlug: input.storeSlug,
+        storeName: input.storeName,
+        storeLogo: input.storeLogo,
+        couponCode: input.couponCode,
+        actionText: input.actionText ?? 'SHOP NOW',
+      });
       pushSent += 1;
     }
     // WhatsApp is opt-in only (User.whatsappOptIn — Meta policy on unsolicited business
@@ -126,7 +159,7 @@ campaignsRoutes.post('/send', asyncHandler(async (req, res) => {
         languageCode: template.language,
         bodyParams: Array.from({ length: template.variableCount }, (_, i) =>
           i === 0 ? (user.name || 'there') : (input.couponCode ?? '')),
-        headerImageUrl: template.hasImageHeader ? input.image : undefined,
+        headerImageUrl: template.hasImageHeader ? heroImage : undefined,
       });
       if (result.sent) whatsappSent += 1;
     }
