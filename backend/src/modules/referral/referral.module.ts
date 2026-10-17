@@ -6,6 +6,7 @@ import { User } from '../auth/user.model.js';
 import { Order } from '../orders/order.model.js';
 import { creditBonusPoints } from '../loyalty/loyalty.module.js';
 import { getSettings } from '../settings/settings.model.js';
+import { notify } from '../notifications/notifications.module.js';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — easy to read aloud/type
 function randomCode(len = 6): string {
@@ -87,4 +88,10 @@ export async function rewardReferrerForFirstOrder(order: { _id: unknown; custome
     'Referral reward — your invite made their first purchase',
     `referral:${String(order.customerId)}`,
   );
+  void notify(String(customer.referredBy), {
+    type: 'promo',
+    title: '🎉 Referral reward credited!',
+    body: `Your invite made their first purchase — you earned ${settings.referralRewardPoints} loyalty points.`,
+    link: '/refer',
+  });
 }
