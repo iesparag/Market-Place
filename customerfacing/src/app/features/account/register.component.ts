@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -22,6 +22,8 @@ import { AuthService } from '../../core/services/auth.service';
         <label class="label">Password</label>
         <input class="input" type="password" formControlName="password" placeholder="min 8 chars" />
         @if (form.controls.password.touched && form.controls.password.invalid) { <div class="fe">At least 8 characters</div> }
+        <label class="label">Referral code (optional)</label>
+        <input class="input" formControlName="referralCode" placeholder="Got an invite from a friend?" />
         <button class="btn btn-primary" [disabled]="loading()">
           {{ loading() ? 'Creating…' : 'Create account' }}
         </button>
@@ -45,6 +47,7 @@ export class RegisterComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   loading = signal(false);
   error = signal<string | null>(null);
@@ -53,15 +56,22 @@ export class RegisterComponent {
     name: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
+    referralCode: [''],
   });
+
+  constructor() {
+    // Prefill from a shared invite link, e.g. /register?ref=CODE.
+    const ref = this.route.snapshot.queryParamMap.get('ref');
+    if (ref) this.form.patchValue({ referralCode: ref });
+  }
 
   submit(): void {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     this.loading.set(true);
     this.error.set(null);
-    const { name, email, password } = this.form.getRawValue();
-    this.auth.register(name, email, password).subscribe({
+    const { name, email, password, referralCode } = this.form.getRawValue();
+    this.auth.register(name, email, password, referralCode || undefined).subscribe({
       next: () => this.router.navigate(['/']),
       error: (e) => {
         this.error.set(e?.error?.error?.message ?? 'Registration failed');

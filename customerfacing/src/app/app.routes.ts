@@ -74,6 +74,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/account/addresses.component').then((m) => m.AddressesComponent),
   },
   {
+    path: 'account/loyalty',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/account/loyalty.component').then((m) => m.LoyaltyComponent),
+  },
+  {
+    path: 'account/referral',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/account/referral.component').then((m) => m.ReferralComponent),
+  },
+  {
     path: 'order/:id',
     loadComponent: () =>
       import('./features/account/order-confirmation.component').then((m) => m.OrderConfirmationComponent),

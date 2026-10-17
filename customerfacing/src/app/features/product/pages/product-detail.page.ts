@@ -120,6 +120,21 @@ import type { Variant, ModifierGroup } from '@app/shared';
         </div>
       </div>
 
+      @if (fbt().length) {
+        <section class="related">
+          <h2>Frequently bought together</h2>
+          <div class="rgrid">
+            @for (r of fbt(); track r._id) {
+              <a class="card rcard" [routerLink]="['/p', r.slug]">
+                <div class="rthumb">@if (r.images.length) { <img [src]="r.images[0]" alt="" /> } @else { {{ emoji(r) }} }</div>
+                <div class="rtitle">{{ r.title }}</div>
+                <div class="price">₹{{ minPrice(r) / 100 }}</div>
+              </a>
+            }
+          </div>
+        </section>
+      }
+
       @if (p.related?.length) {
         <section class="related">
           <h2>Related products</h2>
@@ -201,6 +216,7 @@ export class ProductDetailPage {
   readonly wl = inject(WishlistService);
 
   product = signal<CatalogProduct | null>(null);
+  fbt = signal<CatalogProduct[]>([]);
   error = signal(false);
   variant = signal<Variant | null>(null);
   mainImage = signal<string | null>(null);
@@ -259,6 +275,7 @@ export class ProductDetailPage {
     if (!value) return;
     this.error.set(false);
     this.product.set(null);
+    this.fbt.set([]);
     this.variant.set(null);
     this.mainImage.set(null);
     this.qty.set(1);
@@ -269,6 +286,10 @@ export class ProductDetailPage {
         this.product.set(p);
         this.variant.set(p.variants.find((v) => v.stock > 0) ?? p.variants[0] ?? null);
         this.mainImage.set(p.images[0] ?? null);
+        this.catalog.getFrequentlyBoughtTogether(p._id).subscribe({
+          next: (r) => this.fbt.set(r),
+          error: () => {},
+        });
       },
       error: () => this.error.set(true),
     });

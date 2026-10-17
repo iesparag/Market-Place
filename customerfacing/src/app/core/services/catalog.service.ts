@@ -32,6 +32,9 @@ export interface CatalogProduct extends Product {
   categoryName?: string;
   foodType?: 'veg' | 'non_veg' | 'egg';
   attributeDefs?: { key: string; label: string; type: string; required?: boolean }[];
+  /** Wishlist-only — set by GET /wishlist to flag a price drop since it was saved. */
+  lastSeenPrice?: number;
+  priceDropped?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -55,6 +58,12 @@ export class CatalogService {
 
   getProduct(slug: string) {
     return this.api.get<CatalogProduct>(`/catalog/products/${slug}`);
+  }
+  /** "Frequently bought together" — co-purchase history (falls back to same-category
+   * products when there isn't enough order history yet). Separate from `related`
+   * (same-category only, embedded on the product payload). */
+  getFrequentlyBoughtTogether(productId: string) {
+    return this.api.get<CatalogProduct[]>(`/catalog/products/${productId}/related`);
   }
   getCategories() {
     return this.api.get<{ name: string; slug: string; appliesTo: string }[]>('/catalog/categories');

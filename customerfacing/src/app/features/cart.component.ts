@@ -1,7 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { AsyncPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CartFacade } from '../store/cart/cart.facade';
+import type { CartLine } from '../store/cart/cart.state';
+import { CatalogService, type CatalogProduct } from '../core/services/catalog.service';
 
 @Component({
   selector: 'app-cart',
@@ -45,6 +48,21 @@ import { CartFacade } from '../store/cart/cart.facade';
             </div>
           }
           <a routerLink="/catalog" class="continue">← Continue shopping</a>
+
+          @if (recs().length) {
+            <section class="recs">
+              <h3>You might also like</h3>
+              <div class="rrow">
+                @for (r of recs(); track r._id) {
+                  <a class="card rc" [routerLink]="['/p', r.slug]">
+                    <div class="rthumb">@if (r.images.length) { <img [src]="r.images[0]" alt="" /> } @else { 🛍️ }</div>
+                    <div class="rtitle">{{ r.title }}</div>
+                    <div class="price">₹{{ (r.variants[0]?.price ?? 0) / 100 }}</div>
+                  </a>
+                }
+              </div>
+            </section>
+          }
         </div>
 
         <!-- Summary -->
@@ -105,6 +123,13 @@ import { CartFacade } from '../store/cart/cart.facade';
 
       .continue { display: inline-block; margin-top: 6px; font-weight: 600; color: var(--brand-700); }
 
+      .recs { margin-top: 28px; }
+      .recs h3 { margin-bottom: 10px; }
+      .rrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+      .rc { transition: transform 0.15s, box-shadow 0.15s; } .rc:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+      .rthumb { height: 100px; display: grid; place-items: center; background: var(--surface-2); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 8px; font-size: 2rem; }
+      .rthumb img { width: 100%; height: 100%; object-fit: cover; } .rtitle { font-weight: 600; font-size: 0.9rem; }
+
       .summary { position: sticky; top: 130px; }
       .sbox h3 { margin-bottom: 14px; }
       .srow { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; font-size: 0.92rem; }
@@ -121,4 +146,23 @@ import { CartFacade } from '../store/cart/cart.facade';
 })
 export class CartComponent {
   readonly cart = inject(CartFacade);
+  private readonly catalog = inject(CatalogService);
+
+  private lines = toSignal(this.cart.lines$, { initialValue: [] as CartLine[] });
+  recs = signal<CatalogProduct[]>([]);
+
+  constructor() {
+    // Recommendations keyed off the first cart line — same co-purchase rail as the
+    // product page, re-fetched only when that line's product actually changes.
+    let lastProductId: string | undefined;
+    effect(() => {
+      const productId = this.lines()[0]?.productId;
+      if (!productId || productId === lastProductId) return;
+      lastProductId = productId;
+      this.catalog.getFrequentlyBoughtTogether(productId).subscribe({
+        next: (r) => this.recs.set(r),
+        error: () => this.recs.set([]),
+      });
+    });
+  }
 }

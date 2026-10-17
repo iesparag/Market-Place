@@ -14,6 +14,8 @@ import { AuthService } from '../../core/services/auth.service';
       <a class="card q" routerLink="/account/orders"><span>📦</span> Your orders</a>
       <a class="card q" routerLink="/account/addresses"><span>📍</span> Addresses</a>
       <a class="card q" routerLink="/account/wishlist"><span>♥</span> Wishlist</a>
+      <a class="card q" routerLink="/account/loyalty"><span>⭐</span> Loyalty points</a>
+      <a class="card q" routerLink="/account/referral"><span>🎁</span> Invite a friend</a>
     </div>
 
     <div class="grid">

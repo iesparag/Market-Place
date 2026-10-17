@@ -17,7 +17,12 @@ import type { CatalogProduct } from '../../core/services/catalog.service';
 
     @if (visible().length) {
       <div class="grid">
-        @for (p of visible(); track p._id) { <app-product-card [p]="p" /> }
+        @for (p of visible(); track p._id) {
+          <div class="cardwrap">
+            @if (p.priceDropped) { <span class="drop">📉 Price drop</span> }
+            <app-product-card [p]="p" />
+          </div>
+        }
       </div>
     } @else {
       <div class="empty card">
@@ -33,6 +38,9 @@ import type { CatalogProduct } from '../../core/services/catalog.service';
       .whead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
       .whead h1 { font-size: 1.6rem; }
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; }
+      .cardwrap { position: relative; }
+      .drop { position: absolute; top: 8px; left: 8px; z-index: 1; background: var(--success); color: #fff;
+              font-size: 0.7rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; }
       .empty { text-align: center; padding: 60px 20px; max-width: 460px; margin: 40px auto; }
       .ei { font-size: 3.2rem; margin-bottom: 10px; }
       .empty h2 { margin-bottom: 6px; } .empty p { margin-bottom: 18px; }

@@ -25,6 +25,15 @@ interface Address { _id: string; label: string; line1: string; city: string; pin
         <a class="btn btn-primary" routerLink="/login">Sign in</a>
       </div>
     } @else {
+      @if (ad()) {
+        <div class="adbanner">
+          <span class="adicon">📣</span>
+          <div>
+            <b>{{ ad()!.title }}</b>
+            @if (ad()!.subtitle) { <div class="small">{{ ad()!.subtitle }}</div> }
+          </div>
+        </div>
+      }
       <div class="wrap">
         <form class="card" [formGroup]="form" (ngSubmit)="place()">
           <h1>Checkout</h1>
@@ -89,10 +98,24 @@ interface Address { _id: string; label: string; line1: string; city: string; pin
             <input class="input" [(ngModel)]="couponCode" [ngModelOptions]="{standalone:true}" placeholder="Coupon code" />
             <button type="button" class="btn btn-sm" (click)="applyCoupon()">Apply</button>
           </div>
-          @if (couponMsg()) { <div class="cmsg" [class.ok]="discount() > 0">{{ couponMsg() }}</div> }
+          @if (couponMsg()) { <div class="cmsg" [class.ok]="couponDiscount() > 0">{{ couponMsg() }}</div> }
+
+          @if (pointsBalance() > 0) {
+            <label class="points">
+              <input type="checkbox" [checked]="usePoints()" (change)="togglePoints($any($event.target).checked)" />
+              <span>
+                @if (usePoints()) {
+                  Using {{ pointsToRedeem() }} points · −₹{{ pointsDiscount() / 100 }}
+                } @else {
+                  You have {{ pointsBalance() }} points (worth ₹{{ pointsBalanceValue() / 100 }})
+                }
+              </span>
+            </label>
+          }
 
           <div class="row"><span>Items</span><span>₹{{ itemsTotal() / 100 }}</span></div>
-          @if (discount() > 0) { <div class="row disc"><span>Discount ({{ appliedCode() }})</span><span>−₹{{ discount() / 100 }}</span></div> }
+          @if (couponDiscount() > 0) { <div class="row disc"><span>Discount ({{ appliedCode() }})</span><span>−₹{{ couponDiscount() / 100 }}</span></div> }
+          @if (pointsDiscount() > 0) { <div class="row disc"><span>Points redeemed</span><span>−₹{{ pointsDiscount() / 100 }}</span></div> }
           <div class="row"><span>Tax</span><span>₹{{ tax() / 100 }}</span></div>
           <div class="row"><span>Delivery</span><span>{{ delivery() === 0 ? 'FREE' : '₹' + delivery() / 100 }}</span></div>
           <div class="row total"><span>Total</span><span class="price">₹{{ grandTotal() / 100 }}</span></div>
@@ -131,6 +154,11 @@ interface Address { _id: string; label: string; line1: string; city: string; pin
       .total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 10px; font-weight: 700; }
       .err { background: var(--danger-bg); color: var(--danger); padding: 10px; border-radius: 8px; }
       .fe { color: var(--danger); font-size: 0.8rem; }
+      .adbanner { display: flex; align-items: center; gap: 10px; background: linear-gradient(135deg, var(--brand-600), var(--brand-700, #c2410c));
+                  color: #fff; padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; }
+      .adicon { font-size: 1.4rem; }
+      .points { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: var(--brand-50, #fff5ef);
+                border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 10px; cursor: pointer; }
     `,
   ],
 })
@@ -159,12 +187,21 @@ export class CheckoutComponent implements OnInit {
   settings = signal<Settings>({ taxPercent: 5, deliveryFee: 4000, freeDeliveryAbove: 50000 });
   couponCode = '';
   appliedCode = signal('');
-  discount = signal(0);
+  couponDiscount = signal(0);
   couponMsg = signal<string | null>(null);
 
-  tax = computed(() => Math.round(((this.itemsTotal() - this.discount()) * this.settings().taxPercent) / 100));
+  ad = signal<{ title: string; subtitle?: string } | null>(null);
+
+  pointsBalance = signal(0);
+  pointsBalanceValue = signal(0);
+  usePoints = signal(false);
+  pointsToRedeem = signal(0);
+  pointsDiscount = signal(0);
+
+  totalDiscount = computed(() => this.couponDiscount() + this.pointsDiscount());
+  tax = computed(() => Math.round(((this.itemsTotal() - this.totalDiscount()) * this.settings().taxPercent) / 100));
   delivery = computed(() => (this.itemsTotal() >= this.settings().freeDeliveryAbove ? 0 : this.settings().deliveryFee));
-  grandTotal = computed(() => this.itemsTotal() - this.discount() + this.tax() + this.delivery());
+  grandTotal = computed(() => this.itemsTotal() - this.totalDiscount() + this.tax() + this.delivery());
 
   form = this.fb.nonNullable.group({
     name: ['', Validators.required], phone: ['', Validators.required],
@@ -189,6 +226,34 @@ export class CheckoutComponent implements OnInit {
         if (def) this.selectAddr(def);
       },
     });
+    // Admin-configured launch ad (Appearance → Ad title/subtitle) — same field the
+    // Flutter app's splash + checkout screens show, resurfaced here too.
+    this.api.get<{ ad?: { title: string; subtitle?: string } }>('/app/config').subscribe({
+      next: (c) => { if (c.ad?.title) this.ad.set(c.ad); },
+      error: () => {},
+    });
+    this.api.get<{ points: number; valuePaise: number }>('/loyalty/balance').subscribe({
+      next: (b) => { this.pointsBalance.set(b.points); this.pointsBalanceValue.set(b.valuePaise); },
+      error: () => {},
+    });
+  }
+
+  togglePoints(use: boolean): void {
+    this.usePoints.set(use);
+    if (!use || this.pointsBalance() <= 0) {
+      this.pointsToRedeem.set(0);
+      this.pointsDiscount.set(0);
+      return;
+    }
+    this.api
+      .post<{ points: number; discount: number }>('/loyalty/redeem-preview', {
+        points: this.pointsBalance(),
+        itemsTotal: this.itemsTotal(),
+      })
+      .subscribe({
+        next: (r) => { this.pointsToRedeem.set(r.points); this.pointsDiscount.set(r.discount); },
+        error: () => { this.usePoints.set(false); },
+      });
   }
 
   selectAddr(a: Address): void {
@@ -216,8 +281,8 @@ export class CheckoutComponent implements OnInit {
   applyCoupon(): void {
     if (!this.couponCode.trim()) return;
     this.api.post<{ code: string; discount: number }>('/coupons/validate', { code: this.couponCode.trim(), itemsTotal: this.itemsTotal() }).subscribe({
-      next: (r) => { this.discount.set(r.discount); this.appliedCode.set(r.code); this.couponMsg.set(`Coupon ${r.code} applied — you save ₹${r.discount / 100}`); },
-      error: (e) => { this.discount.set(0); this.appliedCode.set(''); this.couponMsg.set(e?.message ?? 'Invalid coupon'); },
+      next: (r) => { this.couponDiscount.set(r.discount); this.appliedCode.set(r.code); this.couponMsg.set(`Coupon ${r.code} applied — you save ₹${r.discount / 100}`); },
+      error: (e) => { this.couponDiscount.set(0); this.appliedCode.set(''); this.couponMsg.set(e?.message ?? 'Invalid coupon'); },
     });
   }
 
@@ -271,6 +336,7 @@ export class CheckoutComponent implements OnInit {
         this.api.post<{ _id: string; orderNumber: string }>('/orders', {
           items: lines.map((l) => ({ productId: l.productId, variantSku: l.variantSku, qty: l.qty, modifierNames: l.modifierNames ?? [] })),
           couponCode: this.appliedCode() || undefined,
+          redeemPoints: this.usePoints() ? this.pointsToRedeem() : undefined,
           contact: { name: f.name, phone: f.phone },
           shippingAddress: { line1: f.line1, city: f.city, pincode: f.pincode, lat: geo.lat, lng: geo.lng },
         }),

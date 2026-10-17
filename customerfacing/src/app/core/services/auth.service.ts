@@ -60,9 +60,14 @@ export class AuthService {
       .pipe(tap((r) => this.persist(r.token, r.refreshToken, r.user)));
   }
 
-  register(name: string, email: string, password: string) {
+  register(name: string, email: string, password: string, referralCode?: string) {
     return this.api
-      .post<{ token: string; refreshToken: string; user: Me }>('/auth/register', { name, email, password })
+      .post<{ token: string; refreshToken: string; user: Me }>('/auth/register', {
+        name,
+        email,
+        password,
+        ...(referralCode ? { referralCode } : {}),
+      })
       .pipe(tap((r) => this.persist(r.token, r.refreshToken, r.user)));
   }
 
