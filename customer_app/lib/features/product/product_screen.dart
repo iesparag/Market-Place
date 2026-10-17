@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/format.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
@@ -32,7 +33,9 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
     // home rail. Fire on the data transition, not on every rebuild.
     ref.listen(productProvider(widget.slug), (prev, next) {
       final p = next.valueOrNull;
-      if (p != null && prev?.valueOrNull?.id != p.id) {
+      if (p != null &&
+          prev?.valueOrNull?.id != p.id &&
+          ref.read(authProvider) != null) {
         recordProductView(ref.read(apiClientProvider), p.id);
       }
     });

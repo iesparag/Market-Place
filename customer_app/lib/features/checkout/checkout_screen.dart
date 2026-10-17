@@ -45,6 +45,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    if (ref.read(authProvider) == null) return;
     ref.read(checkoutRepoProvider).loyaltyBalance().then((b) {
       if (mounted) {
         setState(() {
