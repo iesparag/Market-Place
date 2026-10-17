@@ -23,7 +23,9 @@ class OrderItem {
         productId: (j['productId'] ?? '').toString(),
         storeId: (j['storeId'] ?? '').toString(),
         title: (j['title'] ?? '').toString(),
-        variantLabel: (j['variantLabel'] as String?)?.trim().isEmpty == true ? null : j['variantLabel']?.toString(),
+        variantLabel: (j['variantLabel'] as String?)?.trim().isEmpty == true
+            ? null
+            : j['variantLabel']?.toString(),
         image: j['image']?.toString(),
         qty: (j['qty'] as num?)?.toInt() ?? 1,
         unitPrice: (j['unitPrice'] as num?)?.toInt() ?? 0,
@@ -76,15 +78,15 @@ class OrderShippingAddress {
 
   OrderShippingAddress({this.line1, this.city, this.pincode});
 
-  factory OrderShippingAddress.fromJson(Map<String, dynamic> j) => OrderShippingAddress(
+  factory OrderShippingAddress.fromJson(Map<String, dynamic> j) =>
+      OrderShippingAddress(
         line1: j['line1']?.toString(),
         city: j['city']?.toString(),
         pincode: j['pincode']?.toString(),
       );
 
-  String get oneLine => [line1, city, pincode]
-      .where((e) => e != null && e.isNotEmpty)
-      .join(', ');
+  String get oneLine =>
+      [line1, city, pincode].where((e) => e != null && e.isNotEmpty).join(', ');
 }
 
 class DeliveryStatusEvent {
@@ -92,7 +94,8 @@ class DeliveryStatusEvent {
   final String? at;
   DeliveryStatusEvent({required this.status, this.at});
   factory DeliveryStatusEvent.fromJson(Map<String, dynamic> j) =>
-      DeliveryStatusEvent(status: (j['status'] ?? '').toString(), at: j['at']?.toString());
+      DeliveryStatusEvent(
+          status: (j['status'] ?? '').toString(), at: j['at']?.toString());
 }
 
 class DeliveryRider {
@@ -101,7 +104,11 @@ class DeliveryRider {
   final double? lastKnownLat;
   final double? lastKnownLng;
 
-  DeliveryRider({required this.name, this.vehicleType, this.lastKnownLat, this.lastKnownLng});
+  DeliveryRider(
+      {required this.name,
+      this.vehicleType,
+      this.lastKnownLat,
+      this.lastKnownLng});
 
   factory DeliveryRider.fromJson(Map<String, dynamic> j) {
     final loc = (j['lastKnownLocation'] as Map?)?.cast<String, dynamic>();
@@ -121,6 +128,7 @@ class DeliveryRider {
 class DeliveryTaskInfo {
   final String id;
   final String storeId;
+
   /// pending | accepted | preparing | ready | pickup_started | pickup_arrived |
   /// picked_up | delivery_started | delivery_arrived | delivered | cancelled | refunded
   final String status;
@@ -128,6 +136,7 @@ class DeliveryTaskInfo {
   final String fulfillmentSource; // own_fleet | third_party
   final String? trackingUrl;
   final DeliveryRider? rider;
+
   /// Delivery destination — feeds the live rider→destination polyline on the tracking map.
   final double? dropLat;
   final double? dropLng;
@@ -184,8 +193,10 @@ class OrderModel {
   final String? createdAt;
   final String? updatedAt;
   final int itemCount;
+
   /// razorpay | cod | mock | null (nothing started yet)
   final String? paymentMethod;
+
   /// unpaid | pending | paid | failed | refunded | partially_refunded
   final String paymentStatus;
   final int refundedAmount;
@@ -219,10 +230,14 @@ class OrderModel {
 
   /// Still owes us money online: not paid, not COD, and the order is still open.
   bool get needsPayment =>
-      !isPaid && paymentMethod != 'cod' && status != 'cancelled' && status != 'refunded';
+      !isPaid &&
+      paymentMethod != 'cod' &&
+      status != 'cancelled' &&
+      status != 'refunded';
 
   /// Will pay cash on delivery — nothing to collect in the app.
-  bool get isCodPending => paymentMethod == 'cod' && !isPaid && status != 'cancelled';
+  bool get isCodPending =>
+      paymentMethod == 'cod' && !isPaid && status != 'cancelled';
 
   bool get canCancel => status == 'pending';
 
@@ -234,7 +249,13 @@ class OrderModel {
     if (amountsJson != null && amountsJson['grandTotal'] is num) {
       total = (amountsJson['grandTotal'] as num).toInt();
     } else {
-      for (final k in ['grandTotal', 'total', 'payable', 'amount', 'subtotal']) {
+      for (final k in [
+        'grandTotal',
+        'total',
+        'payable',
+        'amount',
+        'subtotal'
+      ]) {
         if (j[k] is num) {
           total = (j[k] as num).toInt();
           break;
@@ -254,7 +275,8 @@ class OrderModel {
       itemCount = items.fold(0, (n, it) => n + it.qty);
     } else if (j['subOrders'] is List) {
       for (final so in (j['subOrders'] as List)) {
-        if (so is Map && so['items'] is List) itemCount += (so['items'] as List).length;
+        if (so is Map && so['items'] is List)
+          itemCount += (so['items'] as List).length;
       }
     }
 
@@ -276,7 +298,9 @@ class OrderModel {
       items: items,
       amounts: amountsJson != null ? OrderAmounts.fromJson(amountsJson) : null,
       contact: contactJson != null ? OrderContact.fromJson(contactJson) : null,
-      shippingAddress: addressJson != null ? OrderShippingAddress.fromJson(addressJson) : null,
+      shippingAddress: addressJson != null
+          ? OrderShippingAddress.fromJson(addressJson)
+          : null,
       deliveryTasks: j['deliveryTasks'] is List
           ? (j['deliveryTasks'] as List)
               .whereType<Map>()

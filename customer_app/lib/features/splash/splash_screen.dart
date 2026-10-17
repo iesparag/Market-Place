@@ -16,7 +16,8 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with SingleTickerProviderStateMixin {
   String _adTitle = 'Everything at one place';
   String _adSubtitle = 'Groceries, fashion, electronics, food & more.';
 
@@ -29,10 +30,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
-    _textFade = CurvedAnimation(parent: _ctrl, curve: const Interval(0.5, 0.85, curve: Curves.easeOut));
-    _textSlide = Tween(begin: const Offset(0, 0.4), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.5, 0.85, curve: Curves.easeOutCubic)));
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400));
+    _textFade = CurvedAnimation(
+        parent: _ctrl, curve: const Interval(0.5, 0.85, curve: Curves.easeOut));
+    _textSlide = Tween(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+        CurvedAnimation(
+            parent: _ctrl,
+            curve: const Interval(0.5, 0.85, curve: Curves.easeOutCubic)));
     _ctrl.forward();
     _boot();
   }
@@ -60,7 +65,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     } catch (_) {/* offline / error → continue to app */}
 
     final elapsed = DateTime.now().difference(start).inMilliseconds;
-    if (elapsed < _holdMs) await Future.delayed(Duration(milliseconds: _holdMs - elapsed));
+    if (elapsed < _holdMs)
+      await Future.delayed(Duration(milliseconds: _holdMs - elapsed));
     if (!mounted) return;
 
     // No version → we could not read our own build; let the user in rather than
@@ -68,7 +74,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     if (config != null && currentVersion != null) {
       final min = config['minVersion']?.toString() ?? '1.0.0';
       if (isVersionBelow(currentVersion, min)) {
-        context.go('/force-update?url=${Uri.encodeComponent(config['updateUrl']?.toString() ?? '')}&msg=${Uri.encodeComponent(config['updateMessage']?.toString() ?? '')}');
+        context.go(
+            '/force-update?url=${Uri.encodeComponent(config['updateUrl']?.toString() ?? '')}&msg=${Uri.encodeComponent(config['updateMessage']?.toString() ?? '')}');
         return;
       }
     }
@@ -87,7 +94,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
               children: [
                 const Spacer(),
                 _Mark(progress: _ctrl, brand: b),
-                const SizedBox(height: 14),
+                const SizedBox(height: 32),
                 SlideTransition(
                   position: _textSlide,
                   child: FadeTransition(
@@ -95,23 +102,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                     child: Column(
                       children: [
                         const Text('Marketplace',
-                            style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 0.3)),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.3)),
                         const SizedBox(height: 8),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 40),
-                          child: Text(_adTitle, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                          child: Text(_adTitle,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700)),
                         ),
                         const SizedBox(height: 4),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 40),
-                          child: Text(_adSubtitle, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                          child: Text(_adSubtitle,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 13)),
                         ),
                       ],
                     ),
                   ),
                 ),
                 const Spacer(),
-                const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white)),
+                const SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.4, color: Colors.white)),
                 const SizedBox(height: 40),
               ],
             ),
@@ -218,7 +241,7 @@ const _orbitBadges = [
     label: '⚡ 10-Min Now',
     iconColor: Color(0xFFB45309),
     bgColor: Color(0xFFFEF08A),
-    align: Alignment(-0.02, -1.18),
+    align: Alignment(-0.02, -0.95),
     startAt: 0.36,
     phase: 1.8,
     isEventBadge: true,
@@ -229,7 +252,7 @@ const _orbitBadges = [
     label: '🎉 Mega Sale',
     iconColor: Color(0xFFBE185D),
     bgColor: Color(0xFFFFE4E6),
-    align: Alignment(0.05, 1.18),
+    align: Alignment(0.05, 0.95),
     startAt: 0.42,
     phase: 3.4,
     isEventBadge: true,
@@ -238,7 +261,8 @@ const _orbitBadges = [
 ];
 
 class _Mark extends StatelessWidget {
-  final Animation<double> progress; // the raw controller, 0..1 over the whole splash
+  final Animation<double>
+      progress; // the raw controller, 0..1 over the whole splash
   final BrandTokens brand;
   const _Mark({required this.progress, required this.brand});
 
@@ -256,12 +280,18 @@ class _Mark extends StatelessWidget {
   }
 
   Widget _fallback() {
-    final ringFade = CurvedAnimation(parent: progress, curve: const Interval(0, 0.45, curve: Curves.easeOut));
-    final ringScale = Tween(begin: 0.25, end: 1.0)
-        .animate(CurvedAnimation(parent: progress, curve: const Interval(0, 0.55, curve: Curves.easeOutBack)));
-    final logoFade = CurvedAnimation(parent: progress, curve: const Interval(0.05, 0.3, curve: Curves.easeOut));
-    final logoScale = Tween(begin: 0.3, end: 1.0)
-        .animate(CurvedAnimation(parent: progress, curve: const Interval(0.05, 0.58, curve: Curves.elasticOut)));
+    final ringFade = CurvedAnimation(
+        parent: progress,
+        curve: const Interval(0, 0.45, curve: Curves.easeOut));
+    final ringScale = Tween(begin: 0.25, end: 1.0).animate(CurvedAnimation(
+        parent: progress,
+        curve: const Interval(0, 0.55, curve: Curves.easeOutBack)));
+    final logoFade = CurvedAnimation(
+        parent: progress,
+        curve: const Interval(0.05, 0.3, curve: Curves.easeOut));
+    final logoScale = Tween(begin: 0.3, end: 1.0).animate(CurvedAnimation(
+        parent: progress,
+        curve: const Interval(0.05, 0.58, curve: Curves.elasticOut)));
 
     return SizedBox(
       width: 320,
@@ -280,7 +310,8 @@ class _Mark extends StatelessWidget {
                 height: 270,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.8),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2), width: 1.8),
                 ),
               ),
             ),
@@ -295,7 +326,8 @@ class _Mark extends StatelessWidget {
                 height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 2),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.35), width: 2),
                 ),
               ),
             ),
@@ -344,7 +376,8 @@ class _Mark extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.storefront_rounded, color: brand.primary, size: 52),
+                    Icon(Icons.storefront_rounded,
+                        color: brand.primary, size: 52),
                     const SizedBox(height: 3),
                     Container(
                       width: 32,
@@ -388,12 +421,14 @@ class _OrbitBadgeView extends StatelessWidget {
   Widget build(BuildContext context) {
     final fade = CurvedAnimation(
       parent: progress,
-      curve: Interval(badge.startAt, (badge.startAt + 0.25).clamp(0.0, 1.0), curve: Curves.easeOut),
+      curve: Interval(badge.startAt, (badge.startAt + 0.25).clamp(0.0, 1.0),
+          curve: Curves.easeOut),
     );
     final scale = Tween(begin: 0.1, end: 1.0).animate(
       CurvedAnimation(
         parent: progress,
-        curve: Interval(badge.startAt, (badge.startAt + 0.35).clamp(0.0, 1.0), curve: Curves.elasticOut),
+        curve: Interval(badge.startAt, (badge.startAt + 0.35).clamp(0.0, 1.0),
+            curve: Curves.elasticOut),
       ),
     );
 
@@ -474,7 +509,8 @@ class _OrbitBadgeView extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: badge.iconColor.withValues(alpha: 0.35), width: 1.6),
+        border: Border.all(
+            color: badge.iconColor.withValues(alpha: 0.35), width: 1.6),
         boxShadow: [
           BoxShadow(
             color: badge.iconColor.withValues(alpha: 0.25),

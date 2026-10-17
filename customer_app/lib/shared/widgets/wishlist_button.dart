@@ -6,21 +6,23 @@ import '../../features/wishlist/wishlist_controller.dart';
 
 /// Heart icon with a saved-count badge → opens /wishlist. Use next to the cart in app bars.
 class WishlistButton extends ConsumerWidget {
-  final Color color;
+  /// Null → resolves to context.colors.ink at build time (can't be a const default
+  /// param value since that needs a BuildContext, unavailable at that point).
+  final Color? color;
   final bool filled;
-  const WishlistButton(
-      {super.key, this.color = BrandColors.ink, this.filled = false});
+  const WishlistButton({super.key, this.color, this.filled = false});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final color = this.color ?? context.colors.ink;
     final count = ref.watch(wishlistProvider).length;
     return Container(
       width: filled ? 40 : null,
       height: filled ? 40 : null,
       decoration: filled
           ? BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE6EDF4)),
+              border: Border.all(color: context.colors.border),
             )
           : null,
       child: IconButton(

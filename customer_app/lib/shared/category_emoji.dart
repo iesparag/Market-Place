@@ -2,7 +2,8 @@
 // (store page + Products tab) and the home department strip.
 const _catEmoji = {
   // fashion
-  'shirts': '👔', 't-shirts': '👕', 'jeans': '👖', 'kurtis': '🥻', 'sarees': '🥻',
+  'shirts': '👔', 't-shirts': '👕', 'jeans': '👖', 'kurtis': '🥻',
+  'sarees': '🥻',
   'dresses': '👗', 'boys-clothing': '👦', 'girls-clothing': '👧', 'toys': '🧸',
   // electronics
   'smartphones': '📱', 'laptops': '💻', 'audio': '🎧', 'wrist-watches': '⌚',

@@ -132,64 +132,66 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           leading: const AppBackButton(),
           titleSpacing: 0,
           title: TextField(
-          controller: _ctrl,
-          autofocus: !widget.autoVoice,
-          textInputAction: TextInputAction.search,
-          onChanged: _onType,
-          onSubmitted: (_) => _seeAll(),
-          style: const TextStyle(color: BrandColors.ink),
-          cursorColor: b.primary,
-          decoration: const InputDecoration(
-            hintText: 'Search products, brands, stores…',
-            hintStyle: TextStyle(color: BrandColors.textMuted),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            filled: false,
+            controller: _ctrl,
+            autofocus: !widget.autoVoice,
+            textInputAction: TextInputAction.search,
+            onChanged: _onType,
+            onSubmitted: (_) => _seeAll(),
+            style: TextStyle(color: context.colors.ink),
+            cursorColor: b.primary,
+            decoration: InputDecoration(
+              hintText: 'Search products, brands, stores…',
+              hintStyle: TextStyle(color: context.colors.textMuted),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              filled: false,
+            ),
           ),
+          actions: [
+            IconButton(
+              tooltip: _listening ? 'Stop' : 'Voice search',
+              icon: Icon(_listening ? Icons.mic : Icons.mic_none_rounded,
+                  color: _listening ? b.primary : context.colors.textMuted),
+              onPressed: _toggleMic,
+            ),
+            IconButton(icon: const Icon(Icons.search), onPressed: _seeAll),
+          ],
         ),
-        actions: [
-          IconButton(
-            tooltip: _listening ? 'Stop' : 'Voice search',
-            icon: Icon(_listening ? Icons.mic : Icons.mic_none_rounded,
-                color: _listening ? b.primary : BrandColors.textMuted),
-            onPressed: _toggleMic,
-          ),
-          IconButton(icon: const Icon(Icons.search), onPressed: _seeAll),
-        ],
-      ),
-      body: _listening
-          ? _ListeningView(heard: _ctrl.text)
-          : _loading && s == null
-              ? const Center(child: CircularProgressIndicator())
-              : s == null
-                  ? const _Hint()
-                  : (s.isEmpty
-                      ? const Center(
-                          child: Text('No matches',
-                              style: TextStyle(color: BrandColors.textMuted)))
-                      : ListView(
-                          children: [
-                            if (s.stores.isNotEmpty) ...[
-                              const _GroupLabel('Stores'),
-                              ...s.stores.map((st) => _StoreTile(store: st)),
+        body: _listening
+            ? _ListeningView(heard: _ctrl.text)
+            : _loading && s == null
+                ? const Center(child: CircularProgressIndicator())
+                : s == null
+                    ? const _Hint()
+                    : (s.isEmpty
+                        ? Center(
+                            child: Text('No matches',
+                                style:
+                                    TextStyle(color: context.colors.textMuted)))
+                        : ListView(
+                            children: [
+                              if (s.stores.isNotEmpty) ...[
+                                const _GroupLabel('Stores'),
+                                ...s.stores.map((st) => _StoreTile(store: st)),
+                              ],
+                              if (s.products.isNotEmpty) ...[
+                                const _GroupLabel('Products'),
+                                ...s.products
+                                    .map((p) => _ProductTile(product: p)),
+                              ],
+                              ListTile(
+                                title: Text(
+                                    'See all results for "${_ctrl.text.trim()}"',
+                                    style: TextStyle(
+                                        color: b.primaryDark,
+                                        fontWeight: FontWeight.w700)),
+                                trailing: Icon(Icons.arrow_forward_rounded,
+                                    color: b.primaryDark),
+                                onTap: _seeAll,
+                              ),
                             ],
-                            if (s.products.isNotEmpty) ...[
-                              const _GroupLabel('Products'),
-                              ...s.products.map((p) => _ProductTile(product: p)),
-                            ],
-                            ListTile(
-                              title: Text(
-                                  'See all results for "${_ctrl.text.trim()}"',
-                                  style: TextStyle(
-                                      color: b.primaryDark,
-                                      fontWeight: FontWeight.w700)),
-                              trailing: Icon(Icons.arrow_forward_rounded,
-                                  color: b.primaryDark),
-                              onTap: _seeAll,
-                            ),
-                          ],
-                        )),
+                          )),
       ),
     );
   }
@@ -212,11 +214,13 @@ class _ListeningView extends StatelessWidget {
         const SizedBox(height: 18),
         Text(heard.isEmpty ? 'Listening…' : heard,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800, color: BrandColors.ink)),
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: context.colors.ink)),
         const SizedBox(height: 6),
-        const Text('Speak now — tap the mic to stop',
-            style: TextStyle(color: BrandColors.textMuted)),
+        Text('Speak now — tap the mic to stop',
+            style: TextStyle(color: context.colors.textMuted)),
       ]),
     );
   }
@@ -229,10 +233,10 @@ class _GroupLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
         child: Text(label.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
-                color: BrandColors.textMuted,
+                color: context.colors.textMuted,
                 letterSpacing: 0.6)),
       );
 }
@@ -271,7 +275,13 @@ class _ProductTile extends StatelessWidget {
             height: 44,
             child: product.image != null
                 ? CachedNetworkImage(
-                    imageUrl: product.image!, fit: BoxFit.cover)
+                    placeholder: (_, __) => Container(color: context.colors.bg),
+                    errorWidget: (_, __, ___) => Container(
+                        color: context.colors.bg,
+                        child: Icon(Icons.image_not_supported_outlined,
+                            color: context.colors.textMuted, size: 20)),
+                    imageUrl: product.image!,
+                    fit: BoxFit.cover)
                 : Container(
                     color: const Color(0xFFF1F1F4),
                     child: const Icon(Icons.image_outlined, size: 18)),
@@ -290,15 +300,16 @@ class _ProductTile extends StatelessWidget {
 class _Hint extends StatelessWidget {
   const _Hint();
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.search_rounded, size: 48, color: BrandColors.textMuted),
+          Icon(Icons.search_rounded, size: 48, color: context.colors.textMuted),
           SizedBox(height: 8),
           Text('Search across all vendors',
-              style: TextStyle(color: BrandColors.textMuted)),
+              style: TextStyle(color: context.colors.textMuted)),
           SizedBox(height: 4),
           Text('or tap the mic to search by voice',
-              style: TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+              style:
+                  TextStyle(color: context.colors.textMuted, fontSize: 12.5)),
         ]),
       );
 }

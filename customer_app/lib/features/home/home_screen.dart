@@ -39,7 +39,7 @@ class HomeScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F4),
+      backgroundColor: context.brand.canvas,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -61,7 +61,9 @@ class HomeScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 28),
                       children: [
                         festival.maybeWhen(
-                          data: (f) => f == null ? const SizedBox.shrink() : _FestivalBanner(festival: f),
+                          data: (f) => f == null
+                              ? const SizedBox.shrink()
+                              : _FestivalBanner(festival: f),
                           orElse: () => const SizedBox.shrink(),
                         ),
                         // Quick-reorder row: previously-ordered products + favourite stores, always
@@ -72,7 +74,8 @@ class HomeScreen extends ConsumerWidget {
                         const _FavouriteStoresSection(),
                         // Every section is rendered dynamically in the EXACT order defined by the portal.
                         // If a section is disabled in the portal, the backend excludes it, so it will not appear here.
-                        for (final s in sections) _renderSection(context, ref, s),
+                        for (final s in sections)
+                          _renderSection(context, ref, s),
                         const _SellCta(),
                       ],
                     );
@@ -89,7 +92,9 @@ class HomeScreen extends ConsumerWidget {
   Widget _renderSection(BuildContext context, WidgetRef ref, HomeSection s) {
     switch (s.type) {
       case 'banners':
-        final banners = s.banners.isNotEmpty ? s.banners : (ref.watch(bannersProvider).valueOrNull ?? []);
+        final banners = s.banners.isNotEmpty
+            ? s.banners
+            : (ref.watch(bannersProvider).valueOrNull ?? []);
         if (banners.isEmpty) return const SizedBox.shrink();
         return _BannerCarousel(banners: banners);
 
@@ -104,7 +109,9 @@ class HomeScreen extends ConsumerWidget {
         if (s.sort == 'nearby' || s.title.toLowerCase().contains('near')) {
           return const SizedBox.shrink();
         }
-        if (s.sort == 'rating' || s.title.toLowerCase().contains('popular') || s.title.toLowerCase().contains('top')) {
+        if (s.sort == 'rating' ||
+            s.title.toLowerCase().contains('popular') ||
+            s.title.toLowerCase().contains('top')) {
           return _PopularStoresSection(section: s);
         }
         return _VendorsRowSection(section: s);
@@ -114,7 +121,8 @@ class HomeScreen extends ConsumerWidget {
         if (s.sort == 'discount' || s.title.toLowerCase().contains('deal')) {
           return _DealsOfTheDaySection(section: s);
         }
-        if (s.sort == 'popularity' || s.title.toLowerCase().contains('trending')) {
+        if (s.sort == 'popularity' ||
+            s.title.toLowerCase().contains('trending')) {
           return _TrendingSection(section: s);
         }
         return _ProductsRowSection(section: s);
@@ -124,7 +132,9 @@ class HomeScreen extends ConsumerWidget {
   Widget _err(BuildContext context, WidgetRef ref, String msg) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(children: [
-          Text(msg, textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted)),
+          Text(msg,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.colors.textMuted)),
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: () => ref.invalidate(homeSectionsProvider),
@@ -176,9 +186,13 @@ class _AccountButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return _HeaderIcon(icon: Icons.person_outline_rounded, onTap: () => context.push('/login'));
+      return _HeaderIcon(
+          icon: Icons.person_outline_rounded,
+          onTap: () => context.push('/login'));
     }
-    final initial = user!.name.trim().isNotEmpty ? user!.name.trim()[0].toUpperCase() : '👤';
+    final initial = user!.name.trim().isNotEmpty
+        ? user!.name.trim()[0].toUpperCase()
+        : '👤';
     return GestureDetector(
       onTap: onAccount,
       child: Container(
@@ -190,7 +204,10 @@ class _AccountButton extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Text(initial,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 16)),
       ),
     );
   }
@@ -205,7 +222,8 @@ class _LocationBar extends ConsumerWidget {
     final list = addresses?.asData?.value ?? const [];
 
     String title = 'Deliver to';
-    String subtitle = 'Ghatlodiya, Ahmedabad'; // final fallback when neither a saved address nor GPS is available
+    String subtitle =
+        'Ghatlodiya, Ahmedabad'; // final fallback when neither a saved address nor GPS is available
     if (list.isNotEmpty) {
       final a = list.firstWhere((x) => x.isDefault, orElse: () => list.first);
       title = a.label.isNotEmpty ? a.label : 'Deliver to';
@@ -231,10 +249,14 @@ class _LocationBar extends ConsumerWidget {
               gradient: context.brand.gradient,
               borderRadius: BorderRadius.circular(12),
               boxShadow: const [
-                BoxShadow(color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 3)),
+                BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 3)),
               ],
             ),
-            child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 19),
+            child: const Icon(Icons.location_on_rounded,
+                color: Colors.white, size: 19),
           ),
           const SizedBox(width: 8),
           Flexible(
@@ -244,17 +266,22 @@ class _LocationBar extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 11, color: BrandColors.textMuted, fontWeight: FontWeight.w700)),
+                    Text(title,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: context.colors.textMuted,
+                            fontWeight: FontWeight.w700)),
                     const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: BrandColors.ink),
+                    Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 16, color: context.colors.ink),
                   ],
                 ),
                 Text(
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: BrandColors.ink,
+                  style: TextStyle(
+                    color: context.colors.ink,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w900,
                   ),
@@ -280,7 +307,10 @@ class _HeaderIcon extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: SizedBox(width: 38, height: 38, child: Icon(icon, color: BrandColors.ink, size: 21)),
+        child: SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(icon, color: context.colors.ink, size: 21)),
       ),
     );
   }
@@ -299,7 +329,9 @@ class _OrderAgainSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: 'Order Again', subtitle: 'Your previous picks, one tap away'),
+        const SectionHeader(
+            title: 'Order Again',
+            subtitle: 'Your previous picks, one tap away'),
         SizedBox(
           height: 240,
           child: ListView.separated(
@@ -307,7 +339,8 @@ class _OrderAgainSection extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             itemCount: products.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => SizedBox(width: 150, child: ProductCard(product: products[i])),
+            itemBuilder: (_, i) =>
+                SizedBox(width: 150, child: ProductCard(product: products[i])),
           ),
         ),
       ],
@@ -344,7 +377,8 @@ class _FavouriteStoresSection extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             itemCount: stores.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => StoreFavouriteCard(vendor: stores[i]),
+            itemBuilder: (_, i) => SizedBox(
+                width: 150, child: StoreFavouriteCard(vendor: stores[i])),
           ),
         ),
       ],
@@ -372,7 +406,9 @@ class _BannerCarouselState extends State<_BannerCarousel> {
       _timer = Timer.periodic(const Duration(seconds: 4), (_) {
         if (!_ctrl.hasClients) return;
         final next = (_page + 1) % widget.banners.length;
-        _ctrl.animateToPage(next, duration: const Duration(milliseconds: 450), curve: Curves.easeInOut);
+        _ctrl.animateToPage(next,
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeInOut);
       });
     }
   }
@@ -406,7 +442,10 @@ class _BannerCarouselState extends State<_BannerCarousel> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             boxShadow: const [
-              BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 4)),
+              BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 4)),
             ],
           ),
           child: PageView.builder(
@@ -439,13 +478,17 @@ class _BannerCarouselState extends State<_BannerCarousel> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: Colors.redAccent,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text('UP TO 50% OFF',
-                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900)),
                             ),
                             const SizedBox(height: 6),
                             Text(
@@ -464,18 +507,23 @@ class _BannerCarouselState extends State<_BannerCarousel> {
                               b.subtitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12),
                             ),
                             const SizedBox(height: 10),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: context.colors.surface,
                                 borderRadius: BorderRadius.circular(99),
                               ),
                               child: Text(
                                 b.ctaText ?? 'Shop Now',
-                                style: TextStyle(color: base, fontWeight: FontWeight.w800, fontSize: 12),
+                                style: TextStyle(
+                                    color: base,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12),
                               ),
                             ),
                           ],
@@ -483,11 +531,13 @@ class _BannerCarouselState extends State<_BannerCarousel> {
                       ),
                       const SizedBox(width: 8),
                       // Decorative graphic / icon
-                      const SizedBox(
+                      SizedBox(
                         width: 90,
                         height: 90,
                         child: Center(
-                          child: Text('🥗', style: TextStyle(fontSize: 64)),
+                          child: Text('🥗',
+                              style: TextStyle(
+                                  color: context.colors.ink, fontSize: 64)),
                         ),
                       ),
                     ],
@@ -509,7 +559,9 @@ class _BannerCarouselState extends State<_BannerCarousel> {
                 width: i == _page ? 20 : 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: i == _page ? context.brand.primary : BrandColors.border,
+                  color: i == _page
+                      ? context.brand.primary
+                      : context.colors.border,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -529,8 +581,14 @@ class _BannerCarouselState extends State<_BannerCarousel> {
 // agreed with what "View All" showed. One tile background rotates through a small
 // fixed palette since the backend doesn't supply per-category colors.
 const _categoryTileColors = [
-  Color(0xFFDCFCE7), Color(0xFFFCE7F3), Color(0xFFEDE9FE), Color(0xFFFEF9C3),
-  Color(0xFFFFEDD5), Color(0xFFE0F2FE), Color(0xFFF3E8FF), Color(0xFFE0E7FF),
+  Color(0xFFDCFCE7),
+  Color(0xFFFCE7F3),
+  Color(0xFFEDE9FE),
+  Color(0xFFFEF9C3),
+  Color(0xFFFFEDD5),
+  Color(0xFFE0F2FE),
+  Color(0xFFF3E8FF),
+  Color(0xFFE0E7FF),
 ];
 
 class _CategoryGridSection extends ConsumerWidget {
@@ -545,7 +603,9 @@ class _CategoryGridSection extends ConsumerWidget {
       children: [
         SectionHeader(
           title: section.title.isNotEmpty ? section.title : 'Shop by Category',
-          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Main categories with icons for quick navigation',
+          subtitle: section.subtitle.isNotEmpty
+              ? section.subtitle
+              : 'Main categories with icons for quick navigation',
           actionLabel: 'View All ›',
           onAction: () => context.push('/categories'),
         ),
@@ -568,7 +628,8 @@ class _CategoryGridSection extends ConsumerWidget {
                 final dept = depts[i];
                 return GestureDetector(
                   onTap: () {
-                    context.push('/catalog?dept=${dept.slug}&title=${Uri.encodeComponent(dept.name)}');
+                    context.push(
+                        '/catalog?dept=${dept.slug}&title=${Uri.encodeComponent(dept.name)}');
                   },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -577,14 +638,19 @@ class _CategoryGridSection extends ConsumerWidget {
                         width: 54,
                         height: 54,
                         decoration: BoxDecoration(
-                          color: _categoryTileColors[i % _categoryTileColors.length],
+                          color: _categoryTileColors[
+                              i % _categoryTileColors.length],
                           shape: BoxShape.circle,
                           boxShadow: const [
-                            BoxShadow(color: Color(0x0C000000), blurRadius: 4, offset: Offset(0, 2)),
+                            BoxShadow(
+                                color: Color(0x0C000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 2)),
                           ],
                         ),
                         alignment: Alignment.center,
-                        child: Text(categoryEmoji(dept.slug), style: const TextStyle(fontSize: 24)),
+                        child: Text(categoryEmoji(dept.slug),
+                            style: const TextStyle(fontSize: 24)),
                       ),
                       const SizedBox(height: 5),
                       Text(
@@ -592,7 +658,8 @@ class _CategoryGridSection extends ConsumerWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -620,9 +687,9 @@ class OutOfServiceArea extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: BrandColors.border),
+          border: Border.all(color: context.colors.border),
         ),
         child: Column(
           children: [
@@ -631,16 +698,21 @@ class OutOfServiceArea extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(color: b.soft, shape: BoxShape.circle),
               alignment: Alignment.center,
-              child: const Text('📍', style: TextStyle(fontSize: 32)),
+              child: Text('📍',
+                  style: TextStyle(color: context.colors.ink, fontSize: 32)),
             ),
             const SizedBox(height: 14),
-            const Text('Delivery not available in your city',
+            Text('Delivery not available in your city',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                style: TextStyle(
+                    color: context.colors.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15)),
             const SizedBox(height: 4),
-            const Text('We\'ll be available soon. Thanks for your patience!',
+            Text('We\'ll be available soon. Thanks for your patience!',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+                style:
+                    TextStyle(color: context.colors.textMuted, fontSize: 12.5)),
           ],
         ),
       ),
@@ -663,11 +735,12 @@ class _NearbyStoreCard extends ConsumerWidget {
       child: Container(
         width: 180,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: BrandColors.border),
+          border: Border.all(color: context.colors.border),
           boxShadow: const [
-            BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 3)),
+            BoxShadow(
+                color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 3)),
           ],
         ),
         clipBehavior: Clip.antiAlias,
@@ -683,9 +756,20 @@ class _NearbyStoreCard extends ConsumerWidget {
                 children: [
                   vendor.logo != null
                       ? Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           child: Center(
-                            child: CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.contain),
+                            child: CachedNetworkImage(
+                                placeholder: (_, __) =>
+                                    Container(color: context.colors.bg),
+                                errorWidget: (_, __, ___) => Container(
+                                    color: context.colors.bg,
+                                    child: Icon(
+                                        Icons.image_not_supported_outlined,
+                                        color: context.colors.textMuted,
+                                        size: 20)),
+                                imageUrl: vendor.logo!,
+                                fit: BoxFit.contain),
                           ),
                         )
                       : Container(
@@ -693,7 +777,10 @@ class _NearbyStoreCard extends ConsumerWidget {
                           child: Center(
                             child: Text(
                               vendor.name.isNotEmpty ? vendor.name[0] : '🏬',
-                              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900),
                             ),
                           ),
                         ),
@@ -702,14 +789,24 @@ class _NearbyStoreCard extends ConsumerWidget {
                     left: 6,
                     child: GestureDetector(
                       onTap: () async {
-                        final ok = await ref.read(favouriteStoresProvider.notifier).toggle(vendor.id);
+                        final ok = await ref
+                            .read(favouriteStoresProvider.notifier)
+                            .toggle(vendor.id);
                         if (!ok && context.mounted) context.push('/login');
                       },
                       child: Container(
-                        width: 26, height: 26,
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: Icon(isFav ? Icons.favorite : Icons.favorite_border_rounded,
-                            size: 15, color: isFav ? const Color(0xFFE11D48) : BrandColors.textMuted),
+                        width: 26,
+                        height: 26,
+                        decoration: const BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle),
+                        child: Icon(
+                            isFav
+                                ? Icons.favorite
+                                : Icons.favorite_border_rounded,
+                            size: 15,
+                            color: isFav
+                                ? const Color(0xFFE11D48)
+                                : context.colors.textMuted),
                       ),
                     ),
                   ),
@@ -717,7 +814,8 @@ class _NearbyStoreCard extends ConsumerWidget {
                     top: 6,
                     right: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFF15803D),
                         borderRadius: BorderRadius.circular(6),
@@ -725,11 +823,17 @@ class _NearbyStoreCard extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star_rounded, size: 12, color: Colors.white),
+                          const Icon(Icons.star_rounded,
+                              size: 12, color: Colors.white),
                           const SizedBox(width: 2),
                           Text(
-                            vendor.ratingAvg > 0 ? vendor.ratingAvg.toStringAsFixed(1) : '4.5',
-                            style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800),
+                            vendor.ratingAvg > 0
+                                ? vendor.ratingAvg.toStringAsFixed(1)
+                                : '4.5',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800),
                           ),
                         ],
                       ),
@@ -748,14 +852,16 @@ class _NearbyStoreCard extends ConsumerWidget {
                     vendor.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 13),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${vendor.vendorType} · $delivery',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: BrandColors.textMuted, fontSize: 11),
+                    style: TextStyle(
+                        color: context.colors.textMuted, fontSize: 11),
                   ),
                 ],
               ),
@@ -784,7 +890,8 @@ class _DealsOfTheDaySection extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFFE4E6)),
         boxShadow: const [
-          BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -794,15 +901,22 @@ class _DealsOfTheDaySection extends StatelessWidget {
             children: [
               const Text(
                 'Deals of the Day',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF881337)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF881337)),
               ),
               const SizedBox(width: 8),
-              if (section.dealsTimer?.endsAt != null) _CountdownTimer(endsAt: section.dealsTimer!.endsAt!),
+              if (section.dealsTimer?.endsAt != null)
+                _CountdownTimer(endsAt: section.dealsTimer!.endsAt!),
               const Spacer(),
               GestureDetector(
                 onTap: () => context.push('/catalog?sort=discount'),
                 child: const Text('View All ›',
-                    style: TextStyle(color: Color(0xFFE11D48), fontWeight: FontWeight.w800, fontSize: 12.5)),
+                    style: TextStyle(
+                        color: Color(0xFFE11D48),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5)),
               ),
             ],
           ),
@@ -813,7 +927,8 @@ class _DealsOfTheDaySection extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               itemCount: section.products.length,
               separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (_, i) => _DealProductCard(product: section.products[i]),
+              itemBuilder: (_, i) =>
+                  _DealProductCard(product: section.products[i]),
             ),
           ),
         ],
@@ -838,7 +953,8 @@ class _CountdownTimerState extends State<_CountdownTimer> {
   late int _totalSec;
   Timer? _timer;
 
-  int _remaining() => (widget.endsAt - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
+  int _remaining() =>
+      (widget.endsAt - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
 
   @override
   void initState() {
@@ -869,16 +985,23 @@ class _CountdownTimerState extends State<_CountdownTimer> {
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(txt,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11)),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11)),
         );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         badge(h),
-        const Text(' : ', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE11D48))),
+        const Text(' : ',
+            style: TextStyle(
+                fontWeight: FontWeight.w900, color: Color(0xFFE11D48))),
         badge(m),
-        const Text(' : ', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE11D48))),
+        const Text(' : ',
+            style: TextStyle(
+                fontWeight: FontWeight.w900, color: Color(0xFFE11D48))),
         badge(s),
       ],
     );
@@ -902,11 +1025,12 @@ class _DealProductCard extends ConsumerWidget {
         width: 136,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFFECDD3)),
           boxShadow: const [
-            BoxShadow(color: Color(0x08000000), blurRadius: 4, offset: Offset(0, 2)),
+            BoxShadow(
+                color: Color(0x08000000), blurRadius: 4, offset: Offset(0, 2)),
           ],
         ),
         child: Column(
@@ -921,7 +1045,10 @@ class _DealProductCard extends ConsumerWidget {
               ),
               child: Text(
                 '$discount% OFF',
-                style: const TextStyle(color: Color(0xFFE11D48), fontSize: 9.5, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                    color: Color(0xFFE11D48),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900),
               ),
             ),
             const SizedBox(height: 4),
@@ -932,10 +1059,15 @@ class _DealProductCard extends ConsumerWidget {
                     ? CachedNetworkImage(
                         imageUrl: product.firstImage!,
                         fit: BoxFit.contain,
-                        placeholder: (_, __) => Container(color: const Color(0xFFF1F1F4)),
-                        errorWidget: (_, __, ___) => const Text('🛍️', style: TextStyle(fontSize: 32)),
+                        placeholder: (_, __) =>
+                            Container(color: const Color(0xFFF1F1F4)),
+                        errorWidget: (_, __, ___) => Text('🛍️',
+                            style: TextStyle(
+                                color: context.colors.ink, fontSize: 32)),
                       )
-                    : const Text('🛍️', style: TextStyle(fontSize: 32)),
+                    : Text('🛍️',
+                        style:
+                            TextStyle(color: context.colors.ink, fontSize: 32)),
               ),
             ),
             const SizedBox(height: 6),
@@ -949,7 +1081,7 @@ class _DealProductCard extends ConsumerWidget {
               product.brand ?? (product.store?.name ?? 'Store'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: BrandColors.textMuted, fontSize: 10),
+              style: TextStyle(color: context.colors.textMuted, fontSize: 10),
             ),
             const SizedBox(height: 4),
             Row(
@@ -957,12 +1089,14 @@ class _DealProductCard extends ConsumerWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(rupees(price), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5)),
+                    Text(rupees(price),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 13.5)),
                     Text(
                       rupees(mrp),
-                      style: const TextStyle(
+                      style: TextStyle(
                         decoration: TextDecoration.lineThrough,
-                        color: BrandColors.textMuted,
+                        color: context.colors.textMuted,
                         fontSize: 10.5,
                       ),
                     ),
@@ -971,7 +1105,9 @@ class _DealProductCard extends ConsumerWidget {
                 const Spacer(),
                 GestureDetector(
                   onTap: () {
-                    final v = product.variants.isNotEmpty ? product.variants.first : null;
+                    final v = product.variants.isNotEmpty
+                        ? product.variants.first
+                        : null;
                     if (v != null) {
                       cart.add(CartLine(
                         productId: product.id,
@@ -984,7 +1120,9 @@ class _DealProductCard extends ConsumerWidget {
                         qty: 1,
                       ));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Added to cart'), duration: Duration(milliseconds: 700)),
+                        const SnackBar(
+                            content: Text('Added to cart'),
+                            duration: Duration(milliseconds: 700)),
                       );
                     } else {
                       context.push('/p/${product.slug}');
@@ -1023,7 +1161,9 @@ class _TrendingSection extends StatelessWidget {
       children: [
         SectionHeader(
           title: section.title.isNotEmpty ? section.title : 'Trending Now',
-          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Popular picks from local stores',
+          subtitle: section.subtitle.isNotEmpty
+              ? section.subtitle
+              : 'Popular picks from local stores',
           actionLabel: 'View All ›',
           onAction: () => context.push('/catalog?sort=popularity'),
         ),
@@ -1059,7 +1199,9 @@ class _PopularStoresSection extends StatelessWidget {
       children: [
         SectionHeader(
           title: section.title.isNotEmpty ? section.title : 'Popular Stores',
-          subtitle: section.subtitle.isNotEmpty ? section.subtitle : 'Top rated stores loved by customers',
+          subtitle: section.subtitle.isNotEmpty
+              ? section.subtitle
+              : 'Top rated stores loved by customers',
           actionLabel: 'View All ›',
           onAction: () => context.push('/stores'),
         ),
@@ -1070,10 +1212,31 @@ class _PopularStoresSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             itemCount: section.vendors.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) => _PopularStoreCard(vendor: section.vendors[i]),
+            itemBuilder: (_, i) =>
+                _PopularStoreCard(vendor: section.vendors[i]),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _StoreLogoFallback extends StatelessWidget {
+  final Vendor vendor;
+  final BrandTokens b;
+  const _StoreLogoFallback({required this.vendor, required this.b});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(gradient: b.gradient),
+      child: Center(
+        child: Text(
+          vendor.name.isNotEmpty ? vendor.name[0].toUpperCase() : '🏪',
+          style: const TextStyle(
+              color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+        ),
+      ),
     );
   }
 }
@@ -1090,11 +1253,12 @@ class _PopularStoreCard extends StatelessWidget {
       child: Container(
         width: 160,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: BrandColors.border),
+          border: Border.all(color: context.colors.border),
           boxShadow: const [
-            BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
+            BoxShadow(
+                color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
           ],
         ),
         clipBehavior: Clip.antiAlias,
@@ -1103,23 +1267,21 @@ class _PopularStoreCard extends StatelessWidget {
           children: [
             Container(
               height: 64,
-              color: const Color(0xFFF1F5F9),
+              color: context.colors.bg,
               child: vendor.logo != null
                   ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
                       child: Center(
-                        child: CachedNetworkImage(imageUrl: vendor.logo!, fit: BoxFit.contain),
-                      ),
-                    )
-                  : Container(
-                      decoration: BoxDecoration(gradient: b.gradient),
-                      child: Center(
-                        child: Text(
-                          vendor.name.isNotEmpty ? vendor.name[0] : '🏪',
-                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                        child: CachedNetworkImage(
+                          imageUrl: vendor.logo!,
+                          fit: BoxFit.contain,
+                          errorWidget: (_, __, ___) =>
+                              _StoreLogoFallback(vendor: vendor, b: b),
                         ),
                       ),
-                    ),
+                    )
+                  : _StoreLogoFallback(vendor: vendor, b: b),
             ),
             Padding(
               padding: const EdgeInsets.all(8),
@@ -1130,17 +1292,26 @@ class _PopularStoreCard extends StatelessWidget {
                     vendor.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                    style: TextStyle(
+                        color: context.colors.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5),
                   ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Text(vendor.vendorType, style: const TextStyle(color: BrandColors.textMuted, fontSize: 11)),
+                      Text(vendor.vendorType,
+                          style: TextStyle(
+                              color: context.colors.textMuted, fontSize: 11)),
                       const Spacer(),
-                      const Icon(Icons.star_rounded, size: 14, color: BrandColors.star),
+                      Icon(Icons.star_rounded,
+                          size: 14, color: context.colors.star),
                       Text(
                         ' ${vendor.ratingAvg.toStringAsFixed(1)}',
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                        style: TextStyle(
+                            color: context.colors.ink,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11),
                       ),
                     ],
                   ),
@@ -1177,7 +1348,8 @@ class _ProductsRowSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             itemCount: section.products.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => SizedBox(width: 144, child: ProductCard(product: section.products[i])),
+            itemBuilder: (_, i) => SizedBox(
+                width: 144, child: ProductCard(product: section.products[i])),
           ),
         ),
       ],
@@ -1255,12 +1427,17 @@ class _FestivalBanner extends StatelessWidget {
                 Text(festival.greetingTitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, height: 1.15)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15)),
                 const SizedBox(height: 6),
                 Text(festival.greetingMessage,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12.5)),
+                    style:
+                        const TextStyle(color: Colors.white, fontSize: 12.5)),
               ],
             ),
           ),
@@ -1269,8 +1446,14 @@ class _FestivalBanner extends StatelessWidget {
             width: 80,
             height: 80,
             child: festival.lottieUrl.isEmpty
-                ? const Icon(Icons.celebration_rounded, color: Colors.white, size: 44)
-                : Lottie.network(festival.lottieUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.celebration_rounded, color: Colors.white, size: 44)),
+                ? const Icon(Icons.celebration_rounded,
+                    color: Colors.white, size: 44)
+                : Lottie.network(festival.lottieUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                        Icons.celebration_rounded,
+                        color: Colors.white,
+                        size: 44)),
           ),
         ],
       ),
@@ -1288,17 +1471,20 @@ class _LoadingFeed extends StatelessWidget {
       children: [
         Container(
           height: 160,
-          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(18)),
+          decoration: BoxDecoration(
+              color: Colors.black12, borderRadius: BorderRadius.circular(18)),
         ),
         const SizedBox(height: 16),
         Container(
           height: 90,
-          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(
+              color: Colors.black12, borderRadius: BorderRadius.circular(14)),
         ),
         const SizedBox(height: 16),
         Container(
           height: 180,
-          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(
+              color: Colors.black12, borderRadius: BorderRadius.circular(14)),
         ),
       ],
     );
@@ -1309,15 +1495,24 @@ class _SellCta extends StatelessWidget {
   const _SellCta();
   @override
   Widget build(BuildContext context) {
+    final b = context.brand;
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 24, 14, 8),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: BrandColors.ink, borderRadius: BorderRadius.circular(16)),
+      // Brand gradient (gStart/gEnd) — not context.colors.ink (flips to near-white in
+      // dark mode, which made this white-on-white/invisible) and not a flat black
+      // either; gStart/gEnd stay mid-saturation accent tones in both themes, unlike
+      // primaryDark which inverts between themes, so white text stays readable on both.
+      decoration: BoxDecoration(
+          gradient: b.gradient, borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Sell on Marketplace',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
           const Text(
             'Reach thousands of customers. List your products, manage orders, get paid.',

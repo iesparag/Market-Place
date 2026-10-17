@@ -65,7 +65,14 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                       onPageChanged: (i) => setState(() => _image = i),
                       itemCount: p.images.length,
                       itemBuilder: (_, i) => CachedNetworkImage(
-                          imageUrl: p.images[i], fit: BoxFit.cover),
+                          placeholder: (_, __) =>
+                              Container(color: context.colors.bg),
+                          errorWidget: (_, __, ___) => Container(
+                              color: context.colors.bg,
+                              child: Icon(Icons.image_not_supported_outlined,
+                                  color: context.colors.textMuted, size: 20)),
+                          imageUrl: p.images[i],
+                          fit: BoxFit.cover),
                     ),
                   ),
                   if (p.images.length > 1)
@@ -83,7 +90,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                   decoration: BoxDecoration(
                                       color: i == _image
                                           ? context.brand.primary
-                                          : BrandColors.border,
+                                          : context.colors.border,
                                       borderRadius: BorderRadius.circular(3)),
                                 )),
                       ),
@@ -93,8 +100,10 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                 Container(
                     height: 260,
                     color: const Color(0xFFF1F1F4),
-                    child: const Center(
-                        child: Text('🛍️', style: TextStyle(fontSize: 44)))),
+                    child: Center(
+                        child: Text('🛍️',
+                            style: TextStyle(
+                                color: context.colors.ink, fontSize: 44)))),
 
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -119,8 +128,8 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text('Product code: ${p.code}',
-                            style: const TextStyle(
-                                color: BrandColors.textMuted, fontSize: 12)),
+                            style: TextStyle(
+                                color: context.colors.textMuted, fontSize: 12)),
                       ),
                     const SizedBox(height: 8),
                     Row(children: [
@@ -129,12 +138,12 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                         const SizedBox(width: 8)
                       ],
                       if (p.ratingCount > 0) ...[
-                        const Icon(Icons.star_rounded,
-                            size: 18, color: BrandColors.star),
+                        Icon(Icons.star_rounded,
+                            size: 18, color: context.colors.star),
                         Text(
                             ' ${p.ratingAvg.toStringAsFixed(1)} · ${p.ratingCount} ratings',
-                            style: const TextStyle(
-                                fontSize: 13, color: BrandColors.textMuted)),
+                            style: TextStyle(
+                                fontSize: 13, color: context.colors.textMuted)),
                       ],
                     ]),
                     const SizedBox(height: 12),
@@ -145,8 +154,10 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                     // Variants
                     if (p.variants.length > 1) ...[
                       const SizedBox(height: 16),
-                      const Text('Choose an option',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      Text('Choose an option',
+                          style: TextStyle(
+                              color: context.colors.ink,
+                              fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
@@ -167,21 +178,25 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
 
                     if (p.description.isNotEmpty) ...[
                       const SizedBox(height: 20),
-                      const Text('Description',
+                      Text('Description',
                           style: TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 16)),
+                              color: context.colors.ink,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16)),
                       const SizedBox(height: 6),
                       Text(p.description,
-                          style: const TextStyle(
-                              color: BrandColors.textMuted, height: 1.4)),
+                          style: TextStyle(
+                              color: context.colors.textMuted, height: 1.4)),
                     ],
 
                     // Specs (from category attribute defs)
                     if (p.attributeDefs.isNotEmpty) ...[
                       const SizedBox(height: 20),
-                      const Text('Specifications',
+                      Text('Specifications',
                           style: TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 16)),
+                              color: context.colors.ink,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16)),
                       const SizedBox(height: 8),
                       ...p.attributeDefs
                           .where((d) =>
@@ -193,8 +208,9 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                   SizedBox(
                                       width: 130,
                                       child: Text(d.label,
-                                          style: const TextStyle(
-                                              color: BrandColors.textMuted))),
+                                          style: TextStyle(
+                                              color:
+                                                  context.colors.textMuted))),
                                   Expanded(
                                       child: Text('${p.attributes[d.key]}',
                                           style: const TextStyle(
@@ -208,11 +224,13 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
 
               // Related
               if (p.related.isNotEmpty) ...[
-                const Padding(
+                Padding(
                     padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
                     child: Text('You may also like',
                         style: TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 16))),
+                            color: context.colors.ink,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16))),
                 SizedBox(
                   height: 272,
                   child: ListView.separated(
@@ -234,15 +252,15 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
         SafeArea(
           child: Container(
             padding: const EdgeInsets.all(14),
-            decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: BrandColors.border))),
+            decoration: BoxDecoration(
+                color: context.colors.surface,
+                border: Border(top: BorderSide(color: context.colors.border))),
             child: v == null
                 ? const Text('Unavailable')
                 : qty > 0
                     ? Row(children: [
-                        const Text('In cart',
-                            style: TextStyle(color: BrandColors.textMuted)),
+                        Text('In cart',
+                            style: TextStyle(color: context.colors.textMuted)),
                         const Spacer(),
                         Container(
                           decoration: BoxDecoration(
@@ -287,8 +305,9 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                     content: Text('Added to cart'),
                                     duration: Duration(milliseconds: 900)));
                           },
-                          child: const Text('Add to cart',
-                              style: TextStyle(fontSize: 16)),
+                          child: Text('Add to cart',
+                              style: TextStyle(
+                                  color: context.colors.ink, fontSize: 16)),
                         ),
                       ),
           ),

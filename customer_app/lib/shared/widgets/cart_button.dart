@@ -6,12 +6,14 @@ import '../../features/cart/cart_controller.dart';
 
 /// Cart icon with a live item-count badge → opens /cart. Use in app bars / headers.
 class CartButton extends ConsumerWidget {
-  final Color color;
+  /// Null → resolves to context.colors.ink at build time (can't be a const default
+  /// param value since that needs a BuildContext, unavailable at that point).
+  final Color? color;
   final bool filled;
-  const CartButton(
-      {super.key, this.color = BrandColors.ink, this.filled = false});
+  const CartButton({super.key, this.color, this.filled = false});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final color = this.color ?? context.colors.ink;
     final count = ref.watch(cartProvider).fold<int>(0, (n, l) => n + l.qty);
     return Container(
       width: filled ? 40 : null,

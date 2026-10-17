@@ -8,7 +8,14 @@ class SuggestProduct {
   final String? image;
   final int minPrice;
   final String? storeName;
-  SuggestProduct({required this.id, required this.title, required this.slug, this.code, this.image, required this.minPrice, this.storeName});
+  SuggestProduct(
+      {required this.id,
+      required this.title,
+      required this.slug,
+      this.code,
+      this.image,
+      required this.minPrice,
+      this.storeName});
   factory SuggestProduct.fromJson(Map<String, dynamic> j) => SuggestProduct(
         id: (j['_id'] ?? '').toString(),
         title: j['title']?.toString() ?? '',
@@ -25,7 +32,8 @@ class SuggestStore {
   final String name;
   final String slug;
   final String? logo;
-  SuggestStore({required this.id, required this.name, required this.slug, this.logo});
+  SuggestStore(
+      {required this.id, required this.name, required this.slug, this.logo});
   factory SuggestStore.fromJson(Map<String, dynamic> j) => SuggestStore(
         id: (j['_id'] ?? '').toString(),
         name: j['name']?.toString() ?? '',
@@ -50,11 +58,24 @@ class Suggestion {
   final List<SuggestProduct> products;
   final List<SuggestStore> stores;
   final List<SuggestCategory> categories;
-  Suggestion({required this.products, required this.stores, this.categories = const []});
+  Suggestion(
+      {required this.products,
+      required this.stores,
+      this.categories = const []});
   factory Suggestion.fromJson(Map<String, dynamic> j) => Suggestion(
-        products: (j['products'] as List?)?.map((e) => SuggestProduct.fromJson(e as Map<String, dynamic>)).toList() ?? [],
-        stores: (j['stores'] as List?)?.map((e) => SuggestStore.fromJson(e as Map<String, dynamic>)).toList() ?? [],
-        categories: (j['categories'] as List?)?.map((e) => SuggestCategory.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+        products: (j['products'] as List?)
+                ?.map((e) => SuggestProduct.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        stores: (j['stores'] as List?)
+                ?.map((e) => SuggestStore.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        categories: (j['categories'] as List?)
+                ?.map(
+                    (e) => SuggestCategory.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
       );
   bool get isEmpty => products.isEmpty && stores.isEmpty && categories.isEmpty;
 }

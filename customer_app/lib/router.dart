@@ -35,7 +35,8 @@ final appRouter = GoRouter(
       path: '/force-update',
       builder: (_, s) => ForceUpdateScreen(
         url: s.uri.queryParameters['url'] ?? '',
-        message: s.uri.queryParameters['msg'] ?? 'Please update to the latest version.',
+        message: s.uri.queryParameters['msg'] ??
+            'Please update to the latest version.',
       ),
     ),
     GoRoute(path: '/', builder: (_, __) => const AppShell()),
@@ -52,7 +53,8 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/products',
-      redirect: (_, s) => s.uri.hasQuery ? '/catalog?${s.uri.query}' : '/catalog',
+      redirect: (_, s) =>
+          s.uri.hasQuery ? '/catalog?${s.uri.query}' : '/catalog',
     ),
     GoRoute(
       path: '/now',
@@ -64,9 +66,15 @@ final appRouter = GoRouter(
       ),
     ),
     GoRoute(path: '/categories', builder: (_, __) => const CategoriesScreen()),
-    GoRoute(path: '/department/:slug', builder: (_, s) => DepartmentScreen(slug: s.pathParameters['slug']!)),
-    GoRoute(path: '/p/:slug', builder: (_, s) => ProductScreen(slug: s.pathParameters['slug']!)),
-    GoRoute(path: '/store/:slug', builder: (_, s) => StoreScreen(slug: s.pathParameters['slug']!)),
+    GoRoute(
+        path: '/department/:slug',
+        builder: (_, s) => DepartmentScreen(slug: s.pathParameters['slug']!)),
+    GoRoute(
+        path: '/p/:slug',
+        builder: (_, s) => ProductScreen(slug: s.pathParameters['slug']!)),
+    GoRoute(
+        path: '/store/:slug',
+        builder: (_, s) => StoreScreen(slug: s.pathParameters['slug']!)),
     GoRoute(path: '/stores', builder: (_, __) => const StoresListScreen()),
     GoRoute(
         path: '/search',
@@ -77,21 +85,31 @@ final appRouter = GoRouter(
     GoRoute(path: '/addresses', builder: (_, __) => const AddressesScreen()),
     GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
     GoRoute(path: '/orders', builder: (_, __) => const OrdersScreen()),
-    GoRoute(path: '/order/:id', builder: (_, s) => OrderDetailScreen(orderId: s.pathParameters['id']!)),
+    GoRoute(
+        path: '/order/:id',
+        builder: (_, s) => OrderDetailScreen(orderId: s.pathParameters['id']!)),
     GoRoute(
       path: '/order-success',
       builder: (_, s) => OrderSuccessScreen(
         number: s.uri.queryParameters['number'] ?? '',
+        orderId: s.uri.queryParameters['id'] ?? '',
         paid: s.uri.queryParameters['paid'] == '1',
         cod: s.uri.queryParameters['cod'] == '1',
       ),
     ),
     GoRoute(path: '/wishlist', builder: (_, __) => const WishlistScreen()),
-    GoRoute(path: '/favourite-stores', builder: (_, __) => const FavouriteStoresScreen()),
-    GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
-    GoRoute(path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
+    GoRoute(
+        path: '/favourite-stores',
+        builder: (_, __) => const FavouriteStoresScreen()),
+    GoRoute(
+        path: '/notifications',
+        builder: (_, __) => const NotificationsScreen()),
+    GoRoute(
+        path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
     GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-    GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+    GoRoute(
+        path: '/forgot-password',
+        builder: (_, __) => const ForgotPasswordScreen()),
   ],
 );

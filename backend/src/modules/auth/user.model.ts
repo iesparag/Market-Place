@@ -28,6 +28,10 @@ const userSchema = new Schema(
     // promotional templates without consent risks the number getting suspended). Defaults
     // false; the cart-reminder sweep and any future marketing trigger must check this.
     whatsappOptIn: { type: Boolean, default: false },
+    /** Customer app appearance — 'system' (default) follows the device setting; an
+     * explicit light/dark choice here always overrides it and persists across devices
+     * (tied to the account, not just local SharedPreferences) until changed again. */
+    themePreference: { type: String, enum: ['system', 'light', 'dark'], default: 'system' },
   },
   { timestamps: true },
 );

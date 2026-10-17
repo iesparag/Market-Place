@@ -6,7 +6,8 @@ import '../../core/theme/theme.dart';
 class ForceUpdateScreen extends StatelessWidget {
   final String url;
   final String message;
-  const ForceUpdateScreen({super.key, required this.url, required this.message});
+  const ForceUpdateScreen(
+      {super.key, required this.url, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -20,28 +21,44 @@ class ForceUpdateScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 96, height: 96,
-                  decoration: BoxDecoration(color: context.brand.soft, shape: BoxShape.circle),
-                  child: Icon(Icons.system_update_rounded, size: 52, color: context.brand.primary),
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                      color: context.brand.soft, shape: BoxShape.circle),
+                  child: Icon(Icons.system_update_rounded,
+                      size: 52, color: context.brand.primary),
                 ),
                 const SizedBox(height: 22),
-                const Text('Update required', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                Text('Update required',
+                    style: TextStyle(
+                        color: context.colors.ink,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900)),
                 const SizedBox(height: 10),
-                Text(message, textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted, height: 1.4)),
+                Text(message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: context.colors.textMuted, height: 1.4)),
                 const SizedBox(height: 28),
                 SizedBox(
-                  width: double.infinity, height: 52,
+                  width: double.infinity,
+                  height: 52,
                   child: ElevatedButton(
                     onPressed: url.isEmpty
                         ? null
-                        : () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-                    child: const Text('Update now', style: TextStyle(fontSize: 16)),
+                        : () => launchUrl(Uri.parse(url),
+                            mode: LaunchMode.externalApplication),
+                    child: Text('Update now',
+                        style:
+                            TextStyle(color: context.colors.ink, fontSize: 16)),
                   ),
                 ),
                 if (url.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 12),
-                    child: Text('Update link not configured yet.', style: TextStyle(color: BrandColors.textMuted, fontSize: 12)),
+                    child: Text('Update link not configured yet.',
+                        style: TextStyle(
+                            color: context.colors.textMuted, fontSize: 12)),
                   ),
               ],
             ),

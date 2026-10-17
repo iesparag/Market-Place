@@ -43,7 +43,8 @@ class SupportScreen extends ConsumerStatefulWidget {
   ConsumerState<SupportScreen> createState() => _SupportScreenState();
 }
 
-class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTickerProviderStateMixin {
+class _SupportScreenState extends ConsumerState<SupportScreen>
+    with SingleTickerProviderStateMixin {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   late final TabController _tabController;
@@ -102,26 +103,30 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
     final picked = await showModalBottomSheet<OrderModel>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => const _OrderPickerSheet(),
     );
-    if (picked != null) setState(() => _order = picked.id.isEmpty ? null : picked);
+    if (picked != null)
+      setState(() => _order = picked.id.isEmpty ? null : picked);
   }
 
   Future<void> _pickProduct() async {
     final res = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => const _ProductSearchSheet(),
     );
     if (!mounted) return;
     if (res is SuggestProduct) {
       setState(() => _product = res); // attach product as context
     } else if (res is SuggestCategory) {
-      context.push('/department/${res.slug}'); // category search → redirect to that screen
+      context.push(
+          '/department/${res.slug}'); // category search → redirect to that screen
     }
   }
 
@@ -140,45 +145,57 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
           leading: const AppBackButton(),
           titleSpacing: 0,
           title: Row(children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: context.brand.soft,
-            child: Icon(Icons.support_agent_rounded, size: 20, color: context.brand.primaryDark),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Help & Support', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              Text(state.escalated ? 'Connected to our team' : '24x7 Customer Care & Assistant',
-                  style: const TextStyle(fontSize: 11, color: BrandColors.textMuted, fontWeight: FontWeight.w500)),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: context.brand.soft,
+              child: Icon(Icons.support_agent_rounded,
+                  size: 20, color: context.brand.primaryDark),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Help & Support',
+                    style: TextStyle(
+                        color: context.colors.ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800)),
+                Text(
+                    state.escalated
+                        ? 'Connected to our team'
+                        : '24x7 Customer Care & Assistant',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: context.colors.textMuted,
+                        fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ]),
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: context.brand.primary,
+            indicatorWeight: 3,
+            labelColor: context.brand.primaryDark,
+            unselectedLabelColor: context.colors.textMuted,
+            labelStyle:
+                const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+            tabs: const [
+              Tab(text: 'Help Center & FAQs'),
+              Tab(text: 'Live Support Chat'),
             ],
           ),
-        ]),
-        bottom: TabBar(
+        ),
+        body: TabBarView(
           controller: _tabController,
-          indicatorColor: context.brand.primary,
-          indicatorWeight: 3,
-          labelColor: context.brand.primaryDark,
-          unselectedLabelColor: BrandColors.textMuted,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-          tabs: const [
-            Tab(text: 'Help Center & FAQs'),
-            Tab(text: 'Live Support Chat'),
+          children: [
+            _helpCenterTab(context),
+            _chatTab(context, state),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _helpCenterTab(context),
-          _chatTab(context, state),
-        ],
-      ),
-    ),
-  );
-}
+    );
+  }
 
   // ── BigBasket-style Help Center Tab (Recent Orders + FAQs + Helpline) ────────
   Widget _helpCenterTab(BuildContext context) {
@@ -199,7 +216,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
             ),
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [
-              BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 4)),
+              BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 4)),
             ],
           ),
           child: Row(
@@ -218,10 +238,15 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('24x7 Support Assistant',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16)),
                     SizedBox(height: 3),
-                    Text('Instant help with orders, refunds, cancellations & policies',
-                        style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+                    Text(
+                        'Instant help with orders, refunds, cancellations & policies',
+                        style:
+                            TextStyle(color: Colors.white70, fontSize: 11.5)),
                   ],
                 ),
               ),
@@ -230,8 +255,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: b.primaryDark,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  textStyle: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 12),
                 ),
                 child: const Text('Chat now ›'),
               ),
@@ -257,12 +284,18 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Need help with recent order?',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    Text('Need help with recent order?',
+                        style: TextStyle(
+                            color: context.colors.ink,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800)),
                     GestureDetector(
                       onTap: () => context.push('/orders'),
                       child: Text('View all orders ›',
-                          style: TextStyle(color: b.primaryDark, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                          style: TextStyle(
+                              color: b.primaryDark,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700)),
                     ),
                   ],
                 ),
@@ -270,11 +303,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: context.colors.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: BrandColors.border),
+                    border: Border.all(color: context.colors.border),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 3)),
+                      BoxShadow(
+                          color: Color(0x08000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 3)),
                     ],
                   ),
                   child: Column(
@@ -285,16 +321,22 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.receipt_long_rounded, size: 16, color: BrandColors.textMuted),
+                              Icon(Icons.receipt_long_rounded,
+                                  size: 16, color: context.colors.textMuted),
                               const SizedBox(width: 6),
                               Text('Order #${latest.number}',
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13.5)),
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: isDelivered ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                              color: isDelivered
+                                  ? const Color(0xFFDCFCE7)
+                                  : const Color(0xFFFEF3C7),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -302,7 +344,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w800,
-                                color: isDelivered ? const Color(0xFF166534) : const Color(0xFF92400E),
+                                color: isDelivered
+                                    ? const Color(0xFF166534)
+                                    : const Color(0xFF92400E),
                               ),
                             ),
                           ),
@@ -311,22 +355,42 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                       const SizedBox(height: 8),
                       Text(
                         '${latest.items.length} item(s)${latest.amounts != null ? " · ₹${(latest.amounts!.grandTotal / 100).toStringAsFixed(0)}" : ""}',
-                        style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5),
+                        style: TextStyle(
+                            color: context.colors.textMuted, fontSize: 12.5),
                       ),
                       const SizedBox(height: 12),
                       const Divider(height: 1),
                       const SizedBox(height: 10),
-                      const Text('Quick resolution options:',
-                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: BrandColors.textMuted)),
+                      Text('Quick resolution options:',
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: context.colors.textMuted)),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          _orderIssueBtn(context, '📦 Missing / Damaged item', () => _helpWithRecentOrder(latest, 'I received damaged or missing items in Order #${latest.number}')),
-                          _orderIssueBtn(context, '🚚 Where is my order?', () => _helpWithRecentOrder(latest, "Where is my order #${latest.number}? Please track delivery.")),
-                          _orderIssueBtn(context, '🧾 Bill & payment query', () => _helpWithRecentOrder(latest, 'I have a billing/payment issue with Order #${latest.number}')),
-                          _orderIssueBtn(context, '🔄 Cancel / Return', () => _helpWithRecentOrder(latest, 'I want to cancel or return Order #${latest.number}')),
+                          _orderIssueBtn(
+                              context,
+                              '📦 Missing / Damaged item',
+                              () => _helpWithRecentOrder(latest,
+                                  'I received damaged or missing items in Order #${latest.number}')),
+                          _orderIssueBtn(
+                              context,
+                              '🚚 Where is my order?',
+                              () => _helpWithRecentOrder(latest,
+                                  "Where is my order #${latest.number}? Please track delivery.")),
+                          _orderIssueBtn(
+                              context,
+                              '🧾 Bill & payment query',
+                              () => _helpWithRecentOrder(latest,
+                                  'I have a billing/payment issue with Order #${latest.number}')),
+                          _orderIssueBtn(
+                              context,
+                              '🔄 Cancel / Return',
+                              () => _helpWithRecentOrder(latest,
+                                  'I want to cancel or return Order #${latest.number}')),
                         ],
                       ),
                     ],
@@ -339,11 +403,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         ),
 
         // Frequently Asked Questions (BigBasket-style Categorized Accordions)
-        const Text('Browse Help by Topic',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        Text('Browse Help by Topic',
+            style: TextStyle(
+                color: context.colors.ink,
+                fontSize: 16,
+                fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
-        const Text('Common questions answered instantly',
-            style: TextStyle(fontSize: 12, color: BrandColors.textMuted)),
+        Text('Common questions answered instantly',
+            style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
         const SizedBox(height: 12),
 
         _faqCategoryCard(
@@ -387,7 +454,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
               actionLabel: 'Report Payment Query',
               onAction: () {
                 _tabController.animateTo(1);
-                _send('Money deducted from my bank but order was not confirmed');
+                _send(
+                    'Money deducted from my bank but order was not confirmed');
               },
             ),
           ],
@@ -445,15 +513,18 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: BrandColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Still need help? Reach us directly',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+              Text('Still need help? Reach us directly',
+                  style: TextStyle(
+                      color: context.colors.ink,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14.5)),
               const SizedBox(height: 12),
               _contactRow(
                 icon: Icons.call_rounded,
@@ -468,7 +539,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                 color: const Color(0xFF0284C7),
                 title: 'Email Customer Support',
                 subtitle: 'care@marketplace.com',
-                onTap: () => launchUrl(Uri.parse('mailto:care@marketplace.com')),
+                onTap: () =>
+                    launchUrl(Uri.parse('mailto:care@marketplace.com')),
               ),
               const Divider(height: 20),
               _contactRow(
@@ -485,7 +557,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
     );
   }
 
-  Widget _orderIssueBtn(BuildContext context, String title, VoidCallback onTap) {
+  Widget _orderIssueBtn(
+      BuildContext context, String title, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -494,7 +567,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         decoration: BoxDecoration(
           color: context.brand.soft,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Color.lerp(context.brand.soft, context.brand.primary, 0.3)!),
+          border: Border.all(
+              color:
+                  Color.lerp(context.brand.soft, context.brand.primary, 0.3)!),
         ),
         child: Text(
           title,
@@ -533,13 +608,18 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13.5)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(color: BrandColors.textMuted, fontSize: 11.5)),
+                Text(subtitle,
+                    style: TextStyle(
+                        color: context.colors.textMuted, fontSize: 11.5)),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: BrandColors.textMuted, size: 20),
+          Icon(Icons.chevron_right_rounded,
+              color: context.colors.textMuted, size: 20),
         ],
       ),
     );
@@ -553,18 +633,20 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: BrandColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: ExpansionTile(
         leading: Container(
           width: 36,
           height: 36,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
           child: Icon(icon, color: color, size: 18),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+        title: Text(title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
         tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
         children: faqs.map((f) => _faqTile(f)).toList(),
@@ -583,17 +665,27 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(f.q, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: BrandColors.ink)),
+          Text(f.q,
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: context.colors.ink)),
           const SizedBox(height: 6),
-          Text(f.a, style: const TextStyle(fontSize: 12, height: 1.4, color: BrandColors.textMuted)),
+          Text(f.a,
+              style: TextStyle(
+                  fontSize: 12, height: 1.4, color: context.colors.textMuted)),
           if (f.actionLabel != null && f.onAction != null) ...[
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: f.onAction,
-                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-                child: Text('${f.actionLabel} ›', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact),
+                child: Text('${f.actionLabel} ›',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 12)),
               ),
             ),
           ],
@@ -606,10 +698,12 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
   Widget _chatTab(BuildContext context, SupportState state) {
     if (state.loading) return const Center(child: CircularProgressIndicator());
     if (!state.channelOn) {
-      return _notice(Icons.chat_bubble_outline_rounded, 'Support chat is currently unavailable.\nPlease try again later.');
+      return _notice(Icons.chat_bubble_outline_rounded,
+          'Support chat is currently unavailable.\nPlease try again later.');
     }
     if (state.threadId == null && state.error != null) {
-      return _notice(Icons.wifi_off_rounded, state.error!, onRetry: () => ref.read(supportControllerProvider.notifier).retry());
+      return _notice(Icons.wifi_off_rounded, state.error!,
+          onRetry: () => ref.read(supportControllerProvider.notifier).retry());
     }
 
     return Column(
@@ -629,7 +723,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         if (state.error != null && state.threadId != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Text(state.error!, style: const TextStyle(color: BrandColors.danger, fontSize: 12.5)),
+            child: Text(state.error!,
+                style: TextStyle(color: context.colors.danger, fontSize: 12.5)),
           ),
         _assistBar(context, state),
         _composer(context, state),
@@ -641,7 +736,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
   Widget _assistBar(BuildContext context, SupportState state) {
     final hasContext = _order != null || _product != null;
     return Container(
-      color: BrandColors.surface,
+      color: context.colors.surface,
       padding: const EdgeInsets.only(top: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,10 +746,13 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
               child: Wrap(spacing: 8, runSpacing: 4, children: [
                 if (_order != null)
-                  _contextChip(context, Icons.receipt_long_rounded, 'Order ${_order!.number}',
-                      onRemove: () => setState(() => _order = null), onView: () => context.push('/orders')),
+                  _contextChip(context, Icons.receipt_long_rounded,
+                      'Order ${_order!.number}',
+                      onRemove: () => setState(() => _order = null),
+                      onView: () => context.push('/orders')),
                 if (_product != null)
-                  _contextChip(context, Icons.inventory_2_outlined, _product!.title,
+                  _contextChip(
+                      context, Icons.inventory_2_outlined, _product!.title,
                       onRemove: () => setState(() => _product = null),
                       onView: () => context.push('/p/${_product!.slug}')),
               ]),
@@ -665,8 +763,13 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                _actionChip(context, Icons.receipt_long_rounded, _order == null ? 'Select order' : 'Change order', _pickOrder),
-                _actionChip(context, Icons.search_rounded, 'Find product', _pickProduct),
+                _actionChip(
+                    context,
+                    Icons.receipt_long_rounded,
+                    _order == null ? 'Select order' : 'Change order',
+                    _pickOrder),
+                _actionChip(context, Icons.search_rounded, 'Find product',
+                    _pickProduct),
                 const SizedBox(width: 4),
                 for (final q in _quickIntents) _intentChip(context, q),
               ],
@@ -677,12 +780,17 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
     );
   }
 
-  Widget _actionChip(BuildContext c, IconData icon, String label, VoidCallback onTap) => Padding(
+  Widget _actionChip(
+          BuildContext c, IconData icon, String label, VoidCallback onTap) =>
+      Padding(
         padding: const EdgeInsets.only(right: 8),
         child: ActionChip(
           avatar: Icon(icon, size: 17, color: c.brand.primaryDark),
           label: Text(label),
-          labelStyle: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.brand.primaryDark),
+          labelStyle: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: c.brand.primaryDark),
           backgroundColor: c.brand.soft,
           side: BorderSide.none,
           onPressed: onTap,
@@ -693,9 +801,12 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         padding: const EdgeInsets.only(right: 8),
         child: ActionChip(
           label: Text(text),
-          labelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: BrandColors.ink),
-          backgroundColor: BrandColors.surface,
-          shape: const StadiumBorder(side: BorderSide(color: BrandColors.border)),
+          labelStyle: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: context.colors.ink),
+          backgroundColor: context.colors.surface,
+          shape: StadiumBorder(side: BorderSide(color: context.colors.border)),
           onPressed: () => _send(text),
         ),
       );
@@ -708,7 +819,10 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
           constraints: const BoxConstraints(maxWidth: 180),
           child: Text(label, overflow: TextOverflow.ellipsis),
         ),
-        labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.brand.primaryDark),
+        labelStyle: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: c.brand.primaryDark),
         backgroundColor: c.brand.soft,
         side: BorderSide.none,
         onPressed: onView, // tap → open that screen (redirect)
@@ -725,10 +839,15 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(color: context.brand.soft, borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(
+              color: context.brand.soft,
+              borderRadius: BorderRadius.circular(14)),
           child: Text(m.text,
               textAlign: TextAlign.center,
-              style: TextStyle(color: context.brand.primaryDark, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              style: TextStyle(
+                  color: context.brand.primaryDark,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600)),
         ),
       );
     }
@@ -736,18 +855,19 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
     return Align(
       alignment: me ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: me ? context.brand.primary : BrandColors.surface,
+          color: me ? context.brand.primary : context.colors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(me ? 16 : 4),
             bottomRight: Radius.circular(me ? 4 : 16),
           ),
-          border: me ? null : Border.all(color: BrandColors.border),
+          border: me ? null : Border.all(color: context.colors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -756,9 +876,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
               Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(m.senderLabel!,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.brand.primaryDark)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: context.brand.primaryDark)),
               ),
-            Text(m.text, style: TextStyle(color: me ? Colors.white : BrandColors.ink, fontSize: 14.5, height: 1.35)),
+            Text(m.text,
+                style: TextStyle(
+                    color: me ? Colors.white : context.colors.ink,
+                    fontSize: 14.5,
+                    height: 1.35)),
           ],
         ),
       ),
@@ -771,14 +898,14 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
           margin: const EdgeInsets.symmetric(vertical: 5),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: BrandColors.surface,
+            color: context.colors.surface,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(16),
               topRight: Radius.circular(16),
               bottomRight: Radius.circular(16),
               bottomLeft: Radius.circular(4),
             ),
-            border: Border.all(color: BrandColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           child: SizedBox(
             width: 34,
@@ -786,8 +913,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(
                 3,
-                (_) => const DecoratedBox(
-                  decoration: BoxDecoration(color: BrandColors.textMuted, shape: BoxShape.circle),
+                (_) => DecoratedBox(
+                  decoration: BoxDecoration(
+                      color: context.colors.textMuted, shape: BoxShape.circle),
                   child: SizedBox(width: 7, height: 7),
                 ),
               ),
@@ -801,11 +929,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         color: context.brand.soft,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(children: [
-          Icon(Icons.verified_user_outlined, size: 18, color: context.brand.primaryDark),
+          Icon(Icons.verified_user_outlined,
+              size: 18, color: context.brand.primaryDark),
           const SizedBox(width: 8),
           Expanded(
-            child: Text('A support specialist has been notified and will reply right here.',
-                style: TextStyle(fontSize: 12.5, color: context.brand.primaryDark, fontWeight: FontWeight.w600)),
+            child: Text(
+                'A support specialist has been notified and will reply right here.',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    color: context.brand.primaryDark,
+                    fontWeight: FontWeight.w600)),
           ),
         ]),
       );
@@ -816,9 +949,9 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        decoration: const BoxDecoration(
-          color: BrandColors.surface,
-          border: Border(top: BorderSide(color: BrandColors.border)),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          border: Border(top: BorderSide(color: context.colors.border)),
         ),
         child: Row(children: [
           Expanded(
@@ -833,8 +966,11 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
                 hintText: 'Or type your own message…',
                 filled: true,
                 fillColor: context.brand.canvas,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none),
               ),
             ),
           ),
@@ -844,8 +980,12 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
             child: Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(color: canSend ? context.brand.primary : BrandColors.border, shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_upward_rounded, color: Colors.white),
+              decoration: BoxDecoration(
+                  color:
+                      canSend ? context.brand.primary : context.colors.border,
+                  shape: BoxShape.circle),
+              child:
+                  const Icon(Icons.arrow_upward_rounded, color: Colors.white),
             ),
           ),
         ]),
@@ -857,12 +997,16 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 46, color: BrandColors.textMuted),
+            Icon(icon, size: 46, color: context.colors.textMuted),
             const SizedBox(height: 14),
-            Text(text, textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted, fontSize: 14.5)),
+            Text(text,
+                textAlign: TextAlign.center,
+                style:
+                    TextStyle(color: context.colors.textMuted, fontSize: 14.5)),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
-              OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+              OutlinedButton(
+                  onPressed: onRetry, child: const Text('Try again')),
             ],
           ]),
         ),
@@ -875,15 +1019,24 @@ class _SupportScreenState extends ConsumerState<SupportScreen> with SingleTicker
           child: Padding(
             padding: const EdgeInsets.all(28),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.support_agent_rounded, size: 56, color: context.brand.primary),
+              Icon(Icons.support_agent_rounded,
+                  size: 56, color: context.brand.primary),
               const SizedBox(height: 16),
-              const Text('Sign in to chat with support',
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+              Text('Sign in to chat with support',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: context.colors.ink,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              const Text('Our assistant can check your orders, track deliveries and help with returns.',
-                  textAlign: TextAlign.center, style: TextStyle(color: BrandColors.textMuted)),
+              Text(
+                  'Our assistant can check your orders, track deliveries and help with returns.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: context.colors.textMuted)),
               const SizedBox(height: 20),
-              ElevatedButton(onPressed: () => context.push('/login'), child: const Text('Sign in')),
+              ElevatedButton(
+                  onPressed: () => context.push('/login'),
+                  child: const Text('Sign in')),
             ]),
           ),
         ),
@@ -907,21 +1060,34 @@ class _OrderPickerSheet extends ConsumerWidget {
       builder: (context, controller) => Column(
         children: [
           const SizedBox(height: 10),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: BrandColors.border, borderRadius: BorderRadius.circular(2))),
-          const Padding(
+          Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: context.colors.border,
+                  borderRadius: BorderRadius.circular(2))),
+          Padding(
             padding: EdgeInsets.fromLTRB(20, 14, 20, 6),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('Which order is this about?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              child: Text('Which order is this about?',
+                  style: TextStyle(
+                      color: context.colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800)),
             ),
           ),
           Expanded(
             child: orders.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Center(child: Text('Could not load your orders')),
+              error: (_, __) =>
+                  const Center(child: Text('Could not load your orders')),
               data: (list) {
                 if (list.isEmpty) {
-                  return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('You have no orders yet.')));
+                  return const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('You have no orders yet.')));
                 }
                 return ListView.separated(
                   controller: controller,
@@ -930,16 +1096,30 @@ class _OrderPickerSheet extends ConsumerWidget {
                   itemBuilder: (context, i) {
                     if (i == 0) {
                       return ListTile(
-                        leading: const Icon(Icons.chat_bubble_outline_rounded, color: BrandColors.textMuted),
-                        title: const Text('General question (no specific order)'),
-                        onTap: () => Navigator.pop(context, OrderModel(id: '', number: '', status: '', total: 0, itemCount: 0)),
+                        leading: Icon(Icons.chat_bubble_outline_rounded,
+                            color: context.colors.textMuted),
+                        title:
+                            const Text('General question (no specific order)'),
+                        onTap: () => Navigator.pop(
+                            context,
+                            OrderModel(
+                                id: '',
+                                number: '',
+                                status: '',
+                                total: 0,
+                                itemCount: 0)),
                       );
                     }
                     final o = list[i - 1];
                     return ListTile(
-                      leading: CircleAvatar(backgroundColor: context.brand.soft, child: Icon(Icons.receipt_long_rounded, color: context.brand.primaryDark, size: 20)),
-                      title: Text('Order ${o.number}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text('${o.status} · ${o.itemCount} item(s) · ${_money(o.total)}'),
+                      leading: CircleAvatar(
+                          backgroundColor: context.brand.soft,
+                          child: Icon(Icons.receipt_long_rounded,
+                              color: context.brand.primaryDark, size: 20)),
+                      title: Text('Order ${o.number}',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(
+                          '${o.status} · ${o.itemCount} item(s) · ${_money(o.total)}'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => Navigator.pop(context, o),
                     );
@@ -958,7 +1138,8 @@ class _OrderPickerSheet extends ConsumerWidget {
 class _ProductSearchSheet extends ConsumerStatefulWidget {
   const _ProductSearchSheet();
   @override
-  ConsumerState<_ProductSearchSheet> createState() => _ProductSearchSheetState();
+  ConsumerState<_ProductSearchSheet> createState() =>
+      _ProductSearchSheetState();
 }
 
 class _ProductSearchSheetState extends ConsumerState<_ProductSearchSheet> {
@@ -1010,8 +1191,11 @@ class _ProductSearchSheetState extends ConsumerState<_ProductSearchSheet> {
   Widget _header(String t) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: Text(t,
-            style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w800, color: BrandColors.textMuted, letterSpacing: 0.4)),
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: context.colors.textMuted,
+                letterSpacing: 0.4)),
       );
 
   @override
@@ -1027,7 +1211,12 @@ class _ProductSearchSheetState extends ConsumerState<_ProductSearchSheet> {
         builder: (context, controller) => Column(
           children: [
             const SizedBox(height: 10),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: BrandColors.border, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: context.colors.border,
+                    borderRadius: BorderRadius.circular(2))),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
               child: TextField(
@@ -1039,30 +1228,48 @@ class _ProductSearchSheetState extends ConsumerState<_ProductSearchSheet> {
                   prefixIcon: const Icon(Icons.search_rounded),
                   filled: true,
                   fillColor: context.brand.canvas,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none),
                 ),
               ),
             ),
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             Expanded(
               child: (_results.isEmpty && _categories.isEmpty)
-                  ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Type to search products & categories', style: TextStyle(color: BrandColors.textMuted))))
+                  ? Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('Type to search products & categories',
+                              style:
+                                  TextStyle(color: context.colors.textMuted))))
                   : ListView(
                       controller: controller,
                       children: [
                         if (_categories.isNotEmpty) _header('Categories'),
                         ..._categories.map((cat) => ListTile(
-                              leading: Icon(Icons.category_outlined, color: context.brand.primaryDark),
-                              title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              trailing: const Icon(Icons.north_east_rounded, size: 16),
+                              leading: Icon(Icons.category_outlined,
+                                  color: context.brand.primaryDark),
+                              title: Text(cat.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
+                              trailing: const Icon(Icons.north_east_rounded,
+                                  size: 16),
                               // Category → redirect straight to that catalog screen.
                               onTap: () => Navigator.pop(context, cat),
                             )),
                         if (_results.isNotEmpty) _header('Products'),
                         ..._results.map((p) => ListTile(
-                              leading: const Icon(Icons.inventory_2_outlined, color: BrandColors.textMuted),
-                              title: Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: p.storeName != null ? Text(p.storeName!) : null,
+                              leading: Icon(Icons.inventory_2_outlined,
+                                  color: context.colors.textMuted),
+                              title: Text(p.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
+                              subtitle: p.storeName != null
+                                  ? Text(p.storeName!)
+                                  : null,
                               // Product → attach as context to the support query.
                               onTap: () => Navigator.pop(context, p),
                             )),

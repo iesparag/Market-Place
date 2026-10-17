@@ -26,6 +26,7 @@ const appConfigSchema = new Schema(
 
     // Theme tokens (hex, e.g. "#0B8A45"). Empty → the app uses its green default.
     // Only `primary` is really needed; the app derives the rest if the others are blank.
+    // Light-mode palette.
     theme: {
       primary: { type: String, default: '' },
       primaryDark: { type: String, default: '' },
@@ -34,6 +35,21 @@ const appConfigSchema = new Schema(
       gradientEnd: { type: String, default: '' },
       canvas: { type: String, default: '' },
     },
+    // Dark-mode palette — same 6 tokens, independently editable (a straight brightness
+    // invert of the light palette usually looks wrong; dark surfaces need their own
+    // lightness-tuned primary/soft/canvas). Empty → the app derives a dark palette from
+    // `theme.primary` itself (see palette-presets.ts's deriveDark, mirrored client-side).
+    themeDark: {
+      primary: { type: String, default: '' },
+      primaryDark: { type: String, default: '' },
+      soft: { type: String, default: '' },
+      gradientStart: { type: String, default: '' },
+      gradientEnd: { type: String, default: '' },
+      canvas: { type: String, default: '' },
+    },
+    // Which preset (if any) the admin picked last — purely informational, so the portal
+    // can re-highlight it; editing any field manually doesn't clear this.
+    themePresetId: { type: String, default: '' },
   },
   { timestamps: true },
 );
@@ -54,6 +70,7 @@ export async function getAppConfigDoc() {
 export async function getAppConfigPublic() {
   const doc = await getAppConfigDoc();
   const theme = (doc?.theme ?? {}) as Record<string, string>;
+  const themeDark = (doc?.themeDark ?? {}) as Record<string, string>;
   return {
     minVersion: doc?.minVersion || env.APP_MIN_VERSION,
     latestVersion: doc?.latestVersion || env.APP_LATEST_VERSION,
@@ -70,6 +87,14 @@ export async function getAppConfigPublic() {
       gradientStart: theme.gradientStart ?? '',
       gradientEnd: theme.gradientEnd ?? '',
       canvas: theme.canvas ?? '',
+    },
+    themeDark: {
+      primary: themeDark.primary ?? '',
+      primaryDark: themeDark.primaryDark ?? '',
+      soft: themeDark.soft ?? '',
+      gradientStart: themeDark.gradientStart ?? '',
+      gradientEnd: themeDark.gradientEnd ?? '',
+      canvas: themeDark.canvas ?? '',
     },
   };
 }

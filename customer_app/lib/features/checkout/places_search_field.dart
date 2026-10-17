@@ -46,10 +46,12 @@ class _PlacesSearchFieldState extends ConsumerState<PlacesSearchField> {
       return;
     }
     await Future<void>.delayed(const Duration(milliseconds: 350));
-    if (id != _requestId || !mounted) return; // a newer keystroke superseded this one
+    if (id != _requestId || !mounted)
+      return; // a newer keystroke superseded this one
     setState(() => _loading = true);
     try {
-      final results = await ref.read(placesRepoProvider).autocomplete(q, _sessionToken);
+      final results =
+          await ref.read(placesRepoProvider).autocomplete(q, _sessionToken);
       if (id == _requestId && mounted) setState(() => _predictions = results);
     } catch (_) {
       if (id == _requestId && mounted) setState(() => _predictions = []);
@@ -60,14 +62,19 @@ class _PlacesSearchFieldState extends ConsumerState<PlacesSearchField> {
 
   Future<void> _pick(PlacePrediction p) async {
     _controller.text = p.description;
-    setState(() { _predictions = []; _loading = true; });
+    setState(() {
+      _predictions = [];
+      _loading = true;
+    });
     FocusScope.of(context).unfocus();
     try {
-      final details = await ref.read(placesRepoProvider).details(p.placeId, _sessionToken);
+      final details =
+          await ref.read(placesRepoProvider).details(p.placeId, _sessionToken);
       if (details != null && mounted) widget.onPicked(details);
     } finally {
       if (mounted) setState(() => _loading = false);
-      _sessionToken = _newSessionToken(); // discard — next address entry starts a new session
+      _sessionToken =
+          _newSessionToken(); // discard — next address entry starts a new session
     }
   }
 
@@ -85,7 +92,10 @@ class _PlacesSearchFieldState extends ConsumerState<PlacesSearchField> {
             suffixIcon: _loading
                 ? const Padding(
                     padding: EdgeInsets.all(14),
-                    child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
                   )
                 : null,
           ),
@@ -95,9 +105,9 @@ class _PlacesSearchFieldState extends ConsumerState<PlacesSearchField> {
             margin: const EdgeInsets.only(top: 6),
             constraints: const BoxConstraints(maxHeight: 220),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: BrandColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: ListView.separated(
               shrinkWrap: true,
@@ -109,7 +119,10 @@ class _PlacesSearchFieldState extends ConsumerState<PlacesSearchField> {
                 return ListTile(
                   dense: true,
                   leading: const Icon(Icons.location_on_outlined, size: 20),
-                  title: Text(p.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                  title: Text(p.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13)),
                   onTap: () => _pick(p),
                 );
               },

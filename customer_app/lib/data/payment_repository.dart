@@ -16,23 +16,29 @@ class PaymentMethodOption {
     this.maxOrderValue,
   });
 
-  factory PaymentMethodOption.fromJson(Map<String, dynamic> j) => PaymentMethodOption(
+  factory PaymentMethodOption.fromJson(Map<String, dynamic> j) =>
+      PaymentMethodOption(
         id: (j['id'] ?? '').toString(),
         label: (j['label'] ?? '').toString(),
         description: (j['description'] ?? '').toString(),
         enabled: j['enabled'] == true,
-        maxOrderValue: j['maxOrderValue'] is num ? (j['maxOrderValue'] as num).toInt() : null,
+        maxOrderValue: j['maxOrderValue'] is num
+            ? (j['maxOrderValue'] as num).toInt()
+            : null,
       );
 
   /// COD is capped by the admin — an over-cap cart must not offer it.
   bool availableFor(int orderTotal) {
     if (!enabled) return false;
-    if (id == 'cod' && (maxOrderValue ?? 0) > 0 && orderTotal > maxOrderValue!) return false;
+    if (id == 'cod' && (maxOrderValue ?? 0) > 0 && orderTotal > maxOrderValue!)
+      return false;
     return true;
   }
 
   String? unavailableReason(int orderTotal) {
-    if (id == 'cod' && (maxOrderValue ?? 0) > 0 && orderTotal > maxOrderValue!) {
+    if (id == 'cod' &&
+        (maxOrderValue ?? 0) > 0 &&
+        orderTotal > maxOrderValue!) {
       return 'Not available above ₹${(maxOrderValue! / 100).toStringAsFixed(0)}';
     }
     return null;
@@ -113,7 +119,8 @@ class CheckoutSession {
 class PaymentStatus {
   final String orderId;
   final String orderStatus;
-  final String paymentStatus; // unpaid | pending | paid | failed | refunded | partially_refunded
+  final String
+      paymentStatus; // unpaid | pending | paid | failed | refunded | partially_refunded
   final String? method;
   final int amount;
   final int refundedAmount;
@@ -155,14 +162,16 @@ class PaymentRepository {
       live: data['live'] == true,
       publicKey: (data['publicKey'] ?? '').toString(),
       methods: ((data['methods'] as List?) ?? const [])
-          .map((e) => PaymentMethodOption.fromJson((e as Map).cast<String, dynamic>()))
+          .map((e) =>
+              PaymentMethodOption.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
     );
   }
 
-  Future<CheckoutSession> startCheckout({required String orderId, required String method}) async {
-    final data = await api.post('/payments/checkout', body: {'orderId': orderId, 'method': method})
-        as Map<String, dynamic>;
+  Future<CheckoutSession> startCheckout(
+      {required String orderId, required String method}) async {
+    final data = await api.post('/payments/checkout',
+        body: {'orderId': orderId, 'method': method}) as Map<String, dynamic>;
     return CheckoutSession.fromJson(data);
   }
 
@@ -182,13 +191,14 @@ class PaymentRepository {
 
   /// Dev gateway only (no Razorpay keys on the server).
   Future<PaymentStatus> mockPay(String providerOrderId) async {
-    final data = await api.post('/payments/mock-pay', body: {'providerOrderId': providerOrderId})
-        as Map<String, dynamic>;
+    final data = await api.post('/payments/mock-pay',
+        body: {'providerOrderId': providerOrderId}) as Map<String, dynamic>;
     return PaymentStatus.fromJson(data);
   }
 
   Future<PaymentStatus> status(String orderId) async {
-    final data = await api.get('/payments/order/$orderId') as Map<String, dynamic>;
+    final data =
+        await api.get('/payments/order/$orderId') as Map<String, dynamic>;
     return PaymentStatus.fromJson(data);
   }
 }

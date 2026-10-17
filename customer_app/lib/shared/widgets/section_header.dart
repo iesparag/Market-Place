@@ -33,7 +33,8 @@ class SectionHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
+                    style: TextStyle(
+                        color: context.colors.ink,
                         fontSize: 17.5,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.2,
@@ -42,8 +43,8 @@ class SectionHeader extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(subtitle!,
-                        style: const TextStyle(
-                            color: BrandColors.textMuted, fontSize: 12)),
+                        style: TextStyle(
+                            color: context.colors.textMuted, fontSize: 12)),
                   ),
               ],
             ),

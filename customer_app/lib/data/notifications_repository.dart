@@ -7,7 +7,10 @@ class NotificationsRepository {
 
   Future<List<AppNotification>> list() async {
     final data = await api.get('/notifications') as List;
-    return data.map((e) => AppNotification.fromJson((e as Map).cast<String, dynamic>())).toList();
+    return data
+        .map(
+            (e) => AppNotification.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
   }
 
   Future<int> unreadCount() async {
@@ -20,5 +23,6 @@ class NotificationsRepository {
   Future<void> markAllRead() => api.post('/notifications/read-all');
 
   Future<void> registerDevice(String token, {String platform = 'android'}) =>
-      api.post('/notifications/register-device', body: {'token': token, 'platform': platform});
+      api.post('/notifications/register-device',
+          body: {'token': token, 'platform': platform});
 }

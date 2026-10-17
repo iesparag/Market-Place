@@ -29,13 +29,25 @@ class CartLine {
   int get lineTotal => price * qty;
 
   CartLine copyWith({int? qty}) => CartLine(
-        productId: productId, variantSku: variantSku, title: title, image: image,
-        storeId: storeId, storeName: storeName, price: price, qty: qty ?? this.qty,
+        productId: productId,
+        variantSku: variantSku,
+        title: title,
+        image: image,
+        storeId: storeId,
+        storeName: storeName,
+        price: price,
+        qty: qty ?? this.qty,
       );
 
   Map<String, dynamic> toJson() => {
-        'productId': productId, 'variantSku': variantSku, 'title': title, 'image': image,
-        'storeId': storeId, 'storeName': storeName, 'price': price, 'qty': qty,
+        'productId': productId,
+        'variantSku': variantSku,
+        'title': title,
+        'image': image,
+        'storeId': storeId,
+        'storeName': storeName,
+        'price': price,
+        'qty': qty,
       };
   factory CartLine.fromJson(Map<String, dynamic> j) => CartLine(
         productId: j['productId'].toString(),
@@ -61,13 +73,16 @@ class CartController extends StateNotifier<List<CartLine>> {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key);
     if (raw == null) return;
-    final list = (jsonDecode(raw) as List).map((e) => CartLine.fromJson(e as Map<String, dynamic>)).toList();
+    final list = (jsonDecode(raw) as List)
+        .map((e) => CartLine.fromJson(e as Map<String, dynamic>))
+        .toList();
     state = list;
   }
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(state.map((e) => e.toJson()).toList()));
+    await prefs.setString(
+        _key, jsonEncode(state.map((e) => e.toJson()).toList()));
     _scheduleSync();
   }
 
@@ -102,7 +117,8 @@ class CartController extends StateNotifier<List<CartLine>> {
     if (qty <= 0) {
       state = state.where((l) => l.key != key).toList();
     } else {
-      state = state.map((l) => l.key == key ? l.copyWith(qty: qty) : l).toList();
+      state =
+          state.map((l) => l.key == key ? l.copyWith(qty: qty) : l).toList();
     }
     _save();
   }
@@ -128,7 +144,8 @@ class CartController extends StateNotifier<List<CartLine>> {
   }
 }
 
-final cartProvider = StateNotifierProvider<CartController, List<CartLine>>((ref) => CartController(ref));
+final cartProvider = StateNotifierProvider<CartController, List<CartLine>>(
+    (ref) => CartController(ref));
 
 /// Per-vendor "Instructions for <store>" notes from the cart screen — keyed by storeId
 /// since a multi-vendor cart needs one note per store, not one note smeared across all
@@ -146,7 +163,8 @@ class CartInstructionsController extends StateNotifier<Map<String, String>> {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key);
     if (raw == null) return;
-    state = (jsonDecode(raw) as Map).map((k, v) => MapEntry(k.toString(), v.toString()));
+    state = (jsonDecode(raw) as Map)
+        .map((k, v) => MapEntry(k.toString(), v.toString()));
   }
 
   Future<void> _save() async {
@@ -172,7 +190,8 @@ class CartInstructionsController extends StateNotifier<Map<String, String>> {
 }
 
 final cartInstructionsProvider =
-    StateNotifierProvider<CartInstructionsController, Map<String, String>>((ref) => CartInstructionsController());
+    StateNotifierProvider<CartInstructionsController, Map<String, String>>(
+        (ref) => CartInstructionsController());
 
 /// Slot selection per vendor on the cart screen:
 /// - Local stores: 'now' (default, 15-30 mins) or 'scheduled' (next 1, 2, 3 days with morning/afternoon/evening slots)
@@ -198,7 +217,8 @@ class VendorDeliverySlot {
       };
 }
 
-class CartDeliverySlotsController extends StateNotifier<Map<String, VendorDeliverySlot>> {
+class CartDeliverySlotsController
+    extends StateNotifier<Map<String, VendorDeliverySlot>> {
   CartDeliverySlotsController() : super({});
 
   void setSlot(String storeId, VendorDeliverySlot slot) {
@@ -210,7 +230,6 @@ class CartDeliverySlotsController extends StateNotifier<Map<String, VendorDelive
   }
 }
 
-final cartDeliverySlotsProvider =
-    StateNotifierProvider<CartDeliverySlotsController, Map<String, VendorDeliverySlot>>(
-        (ref) => CartDeliverySlotsController());
-
+final cartDeliverySlotsProvider = StateNotifierProvider<
+    CartDeliverySlotsController,
+    Map<String, VendorDeliverySlot>>((ref) => CartDeliverySlotsController());

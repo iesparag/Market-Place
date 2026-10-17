@@ -41,32 +41,49 @@ class _Department extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: BrandColors.border)),
+      decoration: BoxDecoration(
+          color: context.colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.colors.border)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
             leading: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: const Color(0xFFE7F6EC), borderRadius: BorderRadius.circular(12)),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                  color: const Color(0xFFE7F6EC),
+                  borderRadius: BorderRadius.circular(12)),
               alignment: Alignment.center,
-              child: Text(categoryEmoji(node.slug), style: const TextStyle(fontSize: 22)),
+              child: Text(categoryEmoji(node.slug),
+                  style: const TextStyle(fontSize: 22)),
             ),
-            title: Text(node.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            title: Text(node.name,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => context.push('/catalog?dept=${node.slug}&title=${Uri.encodeComponent(node.name)}'),
+            onTap: () => context.push(
+                '/catalog?dept=${node.slug}&title=${Uri.encodeComponent(node.name)}'),
           ),
           if (node.children.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
               child: Wrap(
-                spacing: 8, runSpacing: 8,
-                children: node.children.map((c) => ActionChip(
-                  label: Text(c.name),
-                  backgroundColor: BrandColors.bg,
-                  side: const BorderSide(color: BrandColors.border),
-                  onPressed: () => context.push('/catalog?category=${Uri.encodeComponent([node.slug, ...c.allSlugs].join(","))}&title=${Uri.encodeComponent(c.name)}'),
-                )).toList(),
+                spacing: 8,
+                runSpacing: 8,
+                children: node.children
+                    .map((c) => ActionChip(
+                          label: Text(c.name),
+                          backgroundColor: context.colors.bg,
+                          side: BorderSide(color: context.colors.border),
+                          onPressed: () => context.push(
+                              '/catalog?category=${Uri.encodeComponent([
+                            node.slug,
+                            ...c.allSlugs
+                          ].join(","))}&title=${Uri.encodeComponent(c.name)}'),
+                        ))
+                    .toList(),
               ),
             ),
         ],

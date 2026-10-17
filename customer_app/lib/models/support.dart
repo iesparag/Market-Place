@@ -10,7 +10,9 @@ class SupportMessage {
   factory SupportMessage.fromJson(Map<String, dynamic> j) => SupportMessage(
         role: (j['role'] ?? 'system').toString(),
         text: (j['text'] ?? '').toString(),
-        at: j['createdAt'] != null ? DateTime.tryParse(j['createdAt'].toString()) : null,
+        at: j['createdAt'] != null
+            ? DateTime.tryParse(j['createdAt'].toString())
+            : null,
       );
 
   bool get isMe => role == 'customer';

@@ -10,6 +10,7 @@ import '../../shared/widgets/cart_button.dart';
 import '../../shared/widgets/wishlist_button.dart';
 import '../../shared/widgets/search_bar_pill.dart';
 import '../home/home_screen.dart' show OutOfServiceArea;
+import '../../shared/category_emoji.dart';
 
 /// Bottom-nav "Now" tab — instant delivery in minutes from local stores.
 /// Features high-energy Quick-Commerce UI/UX with delivery badges, quick category
@@ -24,17 +25,31 @@ class NowScreen extends ConsumerStatefulWidget {
 class _NowScreenState extends ConsumerState<NowScreen> {
   String _selectedCategory = 'All';
 
-  static const _filters = ['All', 'Grocery', 'Fashion', 'Food', 'Tech', 'Pharmacy'];
+  /// Real vendor categories present among stores open right now — not a guessed
+  /// static list (previously included 'Tech'/'Pharmacy' even when no such vendors
+  /// existed in this marketplace's seed data).
+  List<String> _filtersFor(List<Vendor> vendors) {
+    final types = <String>{};
+    for (final v in vendors) {
+      final t = v.vendorType.trim();
+      if (t.isNotEmpty) types.add('${t[0].toUpperCase()}${t.substring(1)}');
+    }
+    final sorted = types.toList()..sort();
+    return ['All', ...sorted];
+  }
 
   @override
   Widget build(BuildContext context) {
     final b = context.brand;
     final loc = ref.watch(effectiveLocationProvider);
     final async = ref.watch(nowStoresProvider);
+    final filters = _filtersFor(async.valueOrNull ?? const []);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: b.canvas,
       appBar: AppBar(
+        // Deliberately always-dark (Blinkit "Now"-tab style accent bar), not
+        // theme-driven — intentional brand choice, not a missed dark-mode spot.
         backgroundColor: const Color(0xFF0F172A),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -49,10 +64,12 @@ class _NowScreenState extends ConsumerState<NowScreen> {
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('⚡', style: TextStyle(fontSize: 14)),
+                  Text('⚡',
+                      style:
+                          TextStyle(color: context.colors.ink, fontSize: 14)),
                   SizedBox(width: 4),
                   Text('NOW',
                       style: TextStyle(
@@ -95,7 +112,8 @@ class _NowScreenState extends ConsumerState<NowScreen> {
             width: double.infinity,
             color: const Color(0xFF0F172A),
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-            child: const SearchBarPill(hint: 'Search instant stores & products…'),
+            child:
+                const SearchBarPill(hint: 'Search instant stores & products…'),
           ),
 
           // Quick perks ticker
@@ -106,10 +124,11 @@ class _NowScreenState extends ConsumerState<NowScreen> {
               color: Color(0xFFFEF3C7),
               border: Border(bottom: BorderSide(color: Color(0xFFFDE68A))),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('⚡', style: TextStyle(fontSize: 12)),
+                Text('⚡',
+                    style: TextStyle(color: context.colors.ink, fontSize: 12)),
                 SizedBox(width: 5),
                 Text(
                   '15–30 Mins Delivery  •  🛵 Live Tracking  •  🛡️ Zero Extra Fee',
@@ -125,31 +144,33 @@ class _NowScreenState extends ConsumerState<NowScreen> {
 
           // Horizontal category filters
           Container(
-            color: Colors.white,
+            color: context.colors.surface,
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
-                children: _filters.map((cat) {
+                children: filters.map((cat) {
                   final selected = _selectedCategory == cat;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
                       label: Text(cat),
                       selected: selected,
-                      onSelected: (_) => setState(() => _selectedCategory = cat),
+                      onSelected: (_) =>
+                          setState(() => _selectedCategory = cat),
                       labelStyle: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: selected ? Colors.white : const Color(0xFF475569),
+                        color: selected ? Colors.white : context.colors.ink2,
                       ),
                       selectedColor: b.primary,
-                      backgroundColor: const Color(0xFFF1F5F9),
+                      backgroundColor: context.colors.bg,
                       side: BorderSide(
-                        color: selected ? b.primary : const Color(0xFFE2E8F0),
+                        color: selected ? b.primary : context.colors.border,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                     ),
                   );
                 }).toList(),
@@ -165,14 +186,16 @@ class _NowScreenState extends ConsumerState<NowScreen> {
               data: (pos) {
                 if (pos == null) return const _NoLocation();
                 return async.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => ErrorView(error: e),
                   data: (vendors) {
                     final filtered = _selectedCategory == 'All'
                         ? vendors
                         : vendors
-                            .where((v) =>
-                                v.vendorType.toLowerCase().contains(_selectedCategory.toLowerCase()))
+                            .where((v) => v.vendorType
+                                .toLowerCase()
+                                .contains(_selectedCategory.toLowerCase()))
                             .toList();
 
                     if (vendors.isEmpty) return const _NothingOpenNow();
@@ -187,28 +210,31 @@ class _NowScreenState extends ConsumerState<NowScreen> {
                             children: [
                               Text(
                                 '${filtered.length} Store${filtered.length == 1 ? '' : 's'} Open Now',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 15,
-                                  color: Color(0xFF0F172A),
+                                  color: context.colors.ink,
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFDCFCE7),
+                                  color: context.colors.success
+                                      .withValues(alpha: 0.16),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.circle, size: 7, color: Color(0xFF16A34A)),
-                                    SizedBox(width: 4),
+                                    Icon(Icons.circle,
+                                        size: 7, color: context.colors.success),
+                                    const SizedBox(width: 4),
                                     Text('Live',
                                         style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.w800,
-                                            color: Color(0xFF16A34A))),
+                                            color: context.colors.success)),
                                   ],
                                 ),
                               ),
@@ -228,8 +254,9 @@ class _NowScreenState extends ConsumerState<NowScreen> {
                               child: Center(
                                 child: Text(
                                   'No $_selectedCategory stores open right now.',
-                                  style: const TextStyle(
-                                      color: BrandColors.textMuted, fontSize: 13),
+                                  style: TextStyle(
+                                      color: context.colors.textMuted,
+                                      fontSize: 13),
                                 ),
                               ),
                             ),
@@ -277,9 +304,9 @@ class _NowTile extends StatelessWidget {
       onTap: () => context.push('/store/${vendor.slug}'),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: context.colors.border),
           boxShadow: const [
             BoxShadow(
               color: Color(0x0C000000),
@@ -300,14 +327,20 @@ class _NowTile extends StatelessWidget {
                     width: 70,
                     height: 70,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: context.colors.bg,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: context.colors.border),
                     ),
                     clipBehavior: Clip.antiAlias,
                     padding: const EdgeInsets.all(4),
                     child: vendor.logo != null
                         ? CachedNetworkImage(
+                            placeholder: (_, __) =>
+                                Container(color: context.colors.bg),
+                            errorWidget: (_, __, ___) => Container(
+                                color: context.colors.bg,
+                                child: Icon(Icons.image_not_supported_outlined,
+                                    color: context.colors.textMuted, size: 20)),
                             imageUrl: vendor.logo!,
                             fit: BoxFit.contain,
                           )
@@ -332,37 +365,44 @@ class _NowTile extends StatelessWidget {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEF3C7),
+                                color:
+                                    context.colors.star.withValues(alpha: 0.18),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFFDE68A)),
+                                border: Border.all(
+                                    color: context.colors.star
+                                        .withValues(alpha: 0.4)),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('⚡', style: TextStyle(fontSize: 10)),
-                                  SizedBox(width: 3),
+                                  const Text('⚡',
+                                      style: TextStyle(fontSize: 10)),
+                                  const SizedBox(width: 3),
                                   Text('15–25 MINS',
                                       style: TextStyle(
                                           fontSize: 9.5,
                                           fontWeight: FontWeight.w900,
-                                          color: Color(0xFF92400E))),
+                                          color: context.colors.star)),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFDCFCE7),
+                                color: context.colors.success
+                                    .withValues(alpha: 0.16),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Text('OPEN',
+                              child: Text('OPEN',
                                   style: TextStyle(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w900,
-                                      color: Color(0xFF16A34A))),
+                                      color: context.colors.success)),
                             ),
                           ],
                         ),
@@ -371,8 +411,8 @@ class _NowTile extends StatelessWidget {
                           vendor.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF0F172A),
+                          style: TextStyle(
+                            color: context.colors.ink,
                             fontWeight: FontWeight.w900,
                             fontSize: 15.5,
                           ),
@@ -385,17 +425,19 @@ class _NowTile extends StatelessWidget {
                           ].join(' · '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                          style: TextStyle(
+                              color: context.colors.textMuted, fontSize: 12),
                         ),
                         if (vendor.ratingCount > 0) ...[
                           const SizedBox(height: 3),
                           Row(
                             children: [
-                              const Icon(Icons.star_rounded, size: 14, color: BrandColors.star),
+                              Icon(Icons.star_rounded,
+                                  size: 14, color: context.colors.star),
                               Text(
                                 ' ${vendor.ratingAvg.toStringAsFixed(1)} (${vendor.ratingCount})',
-                                style: const TextStyle(
-                                    color: Color(0xFF334155),
+                                style: TextStyle(
+                                    color: context.colors.ink2,
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w700),
                               ),
@@ -410,8 +452,8 @@ class _NowTile extends StatelessWidget {
                   Container(
                     width: 34,
                     height: 34,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF1F5F9),
+                    decoration: BoxDecoration(
+                      color: context.colors.bg,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(Icons.chevron_right_rounded, color: b.primary),
@@ -423,19 +465,20 @@ class _NowTile extends StatelessWidget {
             // Store bottom offer bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8FAFC),
-                border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+              decoration: BoxDecoration(
+                color: context.colors.bg,
+                border: Border(top: BorderSide(color: context.colors.border)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.local_shipping_outlined, size: 14, color: Color(0xFF16A34A)),
-                  SizedBox(width: 6),
+                  Icon(Icons.local_shipping_outlined,
+                      size: 14, color: context.colors.success),
+                  const SizedBox(width: 6),
                   Text('Instant delivery available right now',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF16A34A))),
+                          color: context.colors.success)),
                 ],
               ),
             ),
@@ -447,81 +490,97 @@ class _NowTile extends StatelessWidget {
 }
 
 /// Instant delivery category grid to explore categories
-class _NowCategoriesGrid extends StatelessWidget {
+/// Real category tree (same source + emoji/color palette as home_screen.dart's
+/// "Shop by Category") — this used to be a fixed guess-list that included "Pharma",
+/// a vertical that doesn't exist in this marketplace's actual seeded departments.
+class _NowCategoriesGrid extends ConsumerWidget {
   const _NowCategoriesGrid();
 
-  static const _cats = [
-    {'name': 'Grocery', 'icon': '🛒', 'color': Color(0xFFFEF3C7)},
-    {'name': 'Snacks', 'icon': '🍿', 'color': Color(0xFFFFEDD5)},
-    {'name': 'Fresh Sabji', 'icon': '🥦', 'color': Color(0xFFD1FAE5)},
-    {'name': 'Fashion', 'icon': '👗', 'color': Color(0xFFFCE7F3)},
-    {'name': 'Tech', 'icon': '📱', 'color': Color(0xFFE0F2FE)},
-    {'name': 'Pharma', 'icon': '💊', 'color': Color(0xFFEDE9FE)},
+  static const _colors = [
+    Color(0xFFFEF3C7),
+    Color(0xFFFFEDD5),
+    Color(0xFFD1FAE5),
+    Color(0xFFFCE7F3),
+    Color(0xFFE0F2FE),
+    Color(0xFFEDE9FE),
   ];
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '⚡ Popular Instant Categories',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 10),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.15,
-          ),
-          itemCount: _cats.length,
-          itemBuilder: (context, i) {
-            final c = _cats[i];
-            return GestureDetector(
-              onTap: () => context.push('/categories'),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: c['color'] as Color,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(c['icon'] as String, style: const TextStyle(fontSize: 20)),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      c['name'] as String,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF334155),
-                      ),
-                    ),
-                  ],
-                ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tree = ref.watch(categoryTreeProvider);
+    return tree.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (depts) {
+        if (depts.isEmpty) return const SizedBox.shrink();
+        final shown = depts.take(6).toList();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '⚡ Popular Instant Categories',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: context.colors.ink,
               ),
-            );
-          },
-        ),
-      ],
+            ),
+            const SizedBox(height: 10),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.15,
+              ),
+              itemCount: shown.length,
+              itemBuilder: (context, i) {
+                final dept = shown[i];
+                return GestureDetector(
+                  onTap: () => context.push(
+                      '/catalog?dept=${dept.slug}&title=${Uri.encodeComponent(dept.name)}'),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: context.colors.border),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _colors[i % _colors.length],
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(categoryEmoji(dept.slug),
+                              style: const TextStyle(fontSize: 20)),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          dept.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: context.colors.ink2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -538,9 +597,9 @@ class _NowPerksCard extends StatelessWidget {
         color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Text('⚡', style: TextStyle(fontSize: 28)),
+          Text('⚡', style: TextStyle(color: context.colors.ink, fontSize: 28)),
           SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -571,19 +630,25 @@ class _NowPerksCard extends StatelessWidget {
 class _NoLocation extends StatelessWidget {
   const _NoLocation();
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('📍', style: TextStyle(fontSize: 48)),
+            Text('📍',
+                style: TextStyle(color: context.colors.ink, fontSize: 48)),
             SizedBox(height: 12),
             Text('Turn on location to see what\'s open now',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                style: TextStyle(
+                    color: context.colors.ink,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15)),
             SizedBox(height: 6),
-            Text('"Now" needs to know where you are to find instant-delivery stores nearby.',
+            Text(
+                '"Now" needs to know where you are to find instant-delivery stores nearby.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: BrandColors.textMuted, fontSize: 12.5)),
+                style:
+                    TextStyle(color: context.colors.textMuted, fontSize: 12.5)),
           ]),
         ),
       );

@@ -21,12 +21,14 @@ class StoreFavouriteCard extends ConsumerWidget {
     return GestureDetector(
       onTap: () => context.push('/store/${vendor.slug}'),
       child: Container(
-        width: 150,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: BrandColors.border),
-          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 3))],
+          border: Border.all(color: context.colors.border),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 3))
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -38,11 +40,20 @@ class StoreFavouriteCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   Container(
-                    color: const Color(0xFFF8FAFC),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    color: context.colors.bg,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     child: vendor.logo != null
                         ? Center(
                             child: CachedNetworkImage(
+                              placeholder: (_, __) =>
+                                  Container(color: context.colors.bg),
+                              errorWidget: (_, __, ___) => Container(
+                                  color: context.colors.bg,
+                                  child: Icon(
+                                      Icons.image_not_supported_outlined,
+                                      color: context.colors.textMuted,
+                                      size: 20)),
                               imageUrl: vendor.logo!,
                               fit: BoxFit.contain,
                             ),
@@ -50,8 +61,14 @@ class StoreFavouriteCard extends ConsumerWidget {
                         : Container(
                             decoration: BoxDecoration(gradient: b.gradient),
                             child: Center(
-                              child: Text(vendor.name.isNotEmpty ? vendor.name[0] : '🏬',
-                                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                              child: Text(
+                                  vendor.name.isNotEmpty
+                                      ? vendor.name[0]
+                                      : '🏬',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900)),
                             ),
                           ),
                   ),
@@ -60,14 +77,24 @@ class StoreFavouriteCard extends ConsumerWidget {
                     right: 4,
                     child: GestureDetector(
                       onTap: () async {
-                        final ok = await ref.read(favouriteStoresProvider.notifier).toggle(vendor.id);
+                        final ok = await ref
+                            .read(favouriteStoresProvider.notifier)
+                            .toggle(vendor.id);
                         if (!ok && context.mounted) context.push('/login');
                       },
                       child: Container(
-                        width: 28, height: 28,
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: Icon(isFav ? Icons.favorite : Icons.favorite_border_rounded,
-                            size: 16, color: isFav ? const Color(0xFFE11D48) : BrandColors.textMuted),
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle),
+                        child: Icon(
+                            isFav
+                                ? Icons.favorite
+                                : Icons.favorite_border_rounded,
+                            size: 16,
+                            color: isFav
+                                ? context.colors.danger
+                                : context.colors.textMuted),
                       ),
                     ),
                   ),
@@ -79,11 +106,19 @@ class StoreFavouriteCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(vendor.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                  Text(vendor.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: context.colors.ink,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13)),
                   const SizedBox(height: 2),
-                  Text(vendor.vendorType, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: BrandColors.textMuted, fontSize: 11.5)),
+                  Text(vendor.vendorType,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: context.colors.textMuted, fontSize: 11.5)),
                 ],
               ),
             ),

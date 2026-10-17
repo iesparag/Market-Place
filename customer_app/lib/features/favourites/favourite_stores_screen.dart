@@ -23,26 +23,34 @@ class FavouriteStoresScreen extends ConsumerWidget {
           leading: const AppBackButton(),
           title: const Text('Favourite stores'),
         ),
-      body: user == null
-          ? _SignIn(onSignIn: () => context.push('/login'))
-          : ref.watch(favouriteStoreVendorsProvider).when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => ErrorView(error: e),
-              data: (stores) {
-                final list = stores.where((s) => ids.contains(s.id)).toList();
-                if (list.isEmpty) return const _Empty();
-                return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(favouriteStoreVendorsProvider),
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(14),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, childAspectRatio: 0.82, crossAxisSpacing: 12, mainAxisSpacing: 12),
-                    itemCount: list.length,
-                    itemBuilder: (_, i) => StoreFavouriteCard(vendor: list[i]),
-                  ),
-                );
-              },
-            ),
+        body: user == null
+            ? _SignIn(onSignIn: () => context.push('/login'))
+            : ref.watch(favouriteStoreVendorsProvider).when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => ErrorView(error: e),
+                  data: (stores) {
+                    final list =
+                        stores.where((s) => ids.contains(s.id)).toList();
+                    if (list.isEmpty) return const _Empty();
+                    return RefreshIndicator(
+                      onRefresh: () async =>
+                          ref.invalidate(favouriteStoreVendorsProvider),
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(14),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.82,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) =>
+                            StoreFavouriteCard(vendor: list[i]),
+                      ),
+                    );
+                  },
+                ),
         bottomNavigationBar: const AppBottomNav(),
       ),
     );
@@ -55,9 +63,12 @@ class _SignIn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.storefront_outlined, size: 52, color: BrandColors.textMuted),
+          Icon(Icons.storefront_outlined,
+              size: 52, color: context.colors.textMuted),
           const SizedBox(height: 10),
-          const Text('Sign in to see your favourite stores', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text('Sign in to see your favourite stores',
+              style: TextStyle(
+                  color: context.colors.ink, fontWeight: FontWeight.w700)),
           const SizedBox(height: 14),
           ElevatedButton(onPressed: onSignIn, child: const Text('Sign in')),
         ]),
@@ -67,13 +78,16 @@ class _SignIn extends StatelessWidget {
 class _Empty extends StatelessWidget {
   const _Empty();
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('🏬', style: TextStyle(fontSize: 52)),
+          Text('🏬', style: TextStyle(color: context.colors.ink, fontSize: 52)),
           SizedBox(height: 10),
-          Text('No favourite stores yet', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text('No favourite stores yet',
+              style: TextStyle(
+                  color: context.colors.ink, fontWeight: FontWeight.w700)),
           SizedBox(height: 4),
-          Text('Tap the heart on any store to save it here', style: TextStyle(color: BrandColors.textMuted)),
+          Text('Tap the heart on any store to save it here',
+              style: TextStyle(color: context.colors.textMuted)),
         ]),
       );
 }

@@ -57,7 +57,8 @@ class PaymentController {
   CheckoutSession? _session;
 
   /// Start (or retry) payment for [orderId] using [method] (`razorpay` or `cod`).
-  Future<PayResult> pay({required String orderId, required String method}) async {
+  Future<PayResult> pay(
+      {required String orderId, required String method}) async {
     CheckoutSession session;
     try {
       session = await repo.startCheckout(orderId: orderId, method: method);
@@ -132,7 +133,8 @@ class PaymentController {
       // Whatever the native Razorpay plugin threw (a PlatformException, etc.) is not
       // something a customer should see verbatim — same judgment call as friendlyError()
       // in shared/widgets/error_view.dart, inlined here since this isn't an ApiException.
-      _finish(const PayFailed('Could not open the payment screen. Please try again.'));
+      _finish(const PayFailed(
+          'Could not open the payment screen. Please try again.'));
     }
     return completer.future;
   }
@@ -143,10 +145,13 @@ class PaymentController {
     final providerPaymentId = response.paymentId;
     final signature = response.signature;
 
-    if (providerOrderId == null || providerPaymentId == null || signature == null) {
+    if (providerOrderId == null ||
+        providerPaymentId == null ||
+        signature == null) {
       // Shouldn't happen with an order-backed checkout, but never assume: fall back
       // to asking our own server what it thinks.
-      await _finishWithServerTruth('We could not verify your payment. If money was debited it will be confirmed shortly.');
+      await _finishWithServerTruth(
+          'We could not verify your payment. If money was debited it will be confirmed shortly.');
       return;
     }
 
@@ -199,7 +204,8 @@ class PaymentController {
 
   void _onExternalWallet(ExternalWalletResponse response) {
     // The customer left for an external wallet app; the webhook will settle it.
-    _finish(PayPending('Complete the payment in ${response.walletName ?? 'your wallet app'} — we will confirm it automatically.'));
+    _finish(PayPending(
+        'Complete the payment in ${response.walletName ?? 'your wallet app'} — we will confirm it automatically.'));
   }
 
   Future<void> _finishWithServerTruth(String fallbackMessage) async {
@@ -230,12 +236,15 @@ class PaymentController {
   }
 
   /// Poll after an inconclusive attempt (UPI collect can settle minutes later).
-  Future<PaymentStatus?> waitForSettlement(String orderId, {Duration timeout = const Duration(seconds: 60)}) async {
+  Future<PaymentStatus?> waitForSettlement(String orderId,
+      {Duration timeout = const Duration(seconds: 60)}) async {
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(seconds: 3));
       final status = await _safeStatus(orderId);
-      if (status != null && status.paymentStatus != 'pending' && status.paymentStatus != 'unpaid') {
+      if (status != null &&
+          status.paymentStatus != 'pending' &&
+          status.paymentStatus != 'unpaid') {
         return status;
       }
     }
@@ -250,7 +259,8 @@ class PaymentController {
 
   static String _readableError(PaymentFailureResponse r) {
     final message = r.message;
-    if (message != null && message.trim().isNotEmpty && !message.contains('{')) return message;
+    if (message != null && message.trim().isNotEmpty && !message.contains('{'))
+      return message;
     return 'Payment failed. Please try another method.';
   }
 }

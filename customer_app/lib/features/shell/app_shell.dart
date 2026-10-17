@@ -20,7 +20,11 @@ class NavItem {
   final IconData selectedIcon;
   final String label;
   final Widget screen;
-  const NavItem({required this.icon, required this.selectedIcon, required this.label, required this.screen});
+  const NavItem(
+      {required this.icon,
+      required this.selectedIcon,
+      required this.label,
+      required this.screen});
 }
 
 /// The bottom-nav's tab list, built fresh each read so "Now" can come and go with
@@ -32,18 +36,32 @@ class NavItem {
 final shellNavItemsProvider = Provider.autoDispose<List<NavItem>>((ref) {
   final showNow = ref.watch(nowTabVisibleProvider);
   return [
-    const NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home', screen: HomeScreen()),
+    const NavItem(
+        icon: Icons.home_outlined,
+        selectedIcon: Icons.home_rounded,
+        label: 'Home',
+        screen: HomeScreen()),
     if (showNow)
-      const NavItem(icon: Icons.bolt_outlined, selectedIcon: Icons.bolt_rounded, label: 'Now', screen: NowScreen()),
+      const NavItem(
+          icon: Icons.bolt_outlined,
+          selectedIcon: Icons.bolt_rounded,
+          label: 'Now',
+          screen: NowScreen()),
     const NavItem(
         icon: Icons.grid_view_outlined,
         selectedIcon: Icons.grid_view_rounded,
         label: 'Products',
         screen: CatalogScreen(searchable: true, title: 'Products')),
     const NavItem(
-        icon: Icons.favorite_border_rounded, selectedIcon: Icons.favorite_rounded, label: 'Favourites', screen: FavouritesScreen()),
+        icon: Icons.favorite_border_rounded,
+        selectedIcon: Icons.favorite_rounded,
+        label: 'Favourites',
+        screen: FavouritesScreen()),
     const NavItem(
-        icon: Icons.storefront_outlined, selectedIcon: Icons.storefront_rounded, label: 'Stores', screen: StoresListScreen(embedded: true)),
+        icon: Icons.storefront_outlined,
+        selectedIcon: Icons.storefront_rounded,
+        label: 'Stores',
+        screen: StoresListScreen(embedded: true)),
   ];
 });
 
@@ -60,9 +78,8 @@ class AppBottomNav extends ConsumerWidget {
     if (activeTab != null) {
       final found = items.indexWhere(
           (it) => it.label.toLowerCase() == activeTab!.toLowerCase());
-      index = found >= 0
-          ? found
-          : (selectedIndex ?? ref.watch(shellTabProvider));
+      index =
+          found >= 0 ? found : (selectedIndex ?? ref.watch(shellTabProvider));
     } else {
       final int rawIndex = selectedIndex ?? ref.watch(shellTabProvider);
       index = rawIndex;
@@ -76,12 +93,12 @@ class AppBottomNav extends ConsumerWidget {
         ref.read(shellTabProvider.notifier).state = i;
         context.go('/');
       },
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       indicatorColor: b.soft,
       height: 60,
       destinations: items
           .map((it) => NavigationDestination(
-                icon: Icon(it.icon),
+                icon: Icon(it.icon, color: context.colors.textMuted),
                 selectedIcon: Icon(it.selectedIcon, color: b.primary),
                 label: it.label,
               ))
@@ -149,7 +166,8 @@ class _AppShellState extends ConsumerState<AppShell> {
         if (exit == true) SystemNavigator.pop();
       },
       child: Scaffold(
-        body: IndexedStack(index: index, children: items.map((it) => it.screen).toList()),
+        body: IndexedStack(
+            index: index, children: items.map((it) => it.screen).toList()),
         bottomNavigationBar: const AppBottomNav(),
       ),
     );

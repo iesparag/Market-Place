@@ -22,7 +22,8 @@ class _PayOrderButtonState extends ConsumerState<PayOrderButton> {
 
   /// Owned here (not a provider): the native Razorpay listener must survive the
   /// async gap while the sheet is open, then be torn down exactly once.
-  late final PaymentController _payment = PaymentController(ref.read(paymentRepoProvider));
+  late final PaymentController _payment =
+      PaymentController(ref.read(paymentRepoProvider));
 
   @override
   void dispose() {
@@ -37,19 +38,22 @@ class _PayOrderButtonState extends ConsumerState<PayOrderButton> {
 
   Future<void> _pay() async {
     setState(() => _paying = true);
-    final result = await _payment.pay(orderId: widget.orderId, method: 'razorpay');
+    final result =
+        await _payment.pay(orderId: widget.orderId, method: 'razorpay');
     if (!mounted) return;
     setState(() => _paying = false);
 
     final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case PayPaid():
-        messenger.showSnackBar(const SnackBar(content: Text('Payment successful 🎉')));
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Payment successful 🎉')));
         _refresh();
       case PayCod():
         _refresh();
       case PayCancelled():
-        messenger.showSnackBar(const SnackBar(content: Text('Payment cancelled — your order is still saved.')));
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Payment cancelled — your order is still saved.')));
       case PayPending(:final message):
         messenger.showSnackBar(SnackBar(content: Text(message)));
         // Outcome is uncertain, not absent — a UPI collect / wallet redirect can still
@@ -70,8 +74,13 @@ class _PayOrderButtonState extends ConsumerState<PayOrderButton> {
       child: ElevatedButton(
         onPressed: _paying ? null : _pay,
         child: _paying
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(widget.total > 0 ? 'Pay ${rupees(widget.total)}' : 'Pay now'),
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
+            : Text(
+                widget.total > 0 ? 'Pay ${rupees(widget.total)}' : 'Pay now'),
       ),
     );
   }

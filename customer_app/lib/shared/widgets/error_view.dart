@@ -9,7 +9,8 @@ import '../../core/theme/theme.dart';
 /// is a symptom of a client bug, not something a customer should see verbatim, so it's
 /// hidden behind one plain fallback instead of leaking `e.toString()` onto the screen.
 /// Shared by ErrorView (full-screen) and any SnackBar that needs the same judgment call.
-String friendlyError(Object error, {String fallback = 'Something went wrong. Please try again.'}) =>
+String friendlyError(Object error,
+        {String fallback = 'Something went wrong. Please try again.'}) =>
     error is ApiException ? error.message : fallback;
 
 /// Friendly error display for an AsyncValue's error branch — see [friendlyError].
@@ -22,7 +23,9 @@ class ErrorView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(friendlyError(error), textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted)),
+        child: Text(friendlyError(error),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.colors.textMuted)),
       ),
     );
   }

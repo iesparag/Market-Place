@@ -125,7 +125,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         }
       });
       if (_deptMode) {
-        _load(reset: true); // now that _deptAll is set, load the filtered products
+        _load(
+            reset:
+                true); // now that _deptAll is set, load the filtered products
       }
     }).catchError((Object _) {
       if (_deptMode && mounted) _load(reset: true); // fallback: don't get stuck
@@ -165,7 +167,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     }
     final band = _bandIndex >= 0 ? _bands[_bandIndex] : null;
     try {
-      final pinnedIds = widget.products?.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      final pinnedIds = widget.products
+          ?.split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
       final rows = await ref.read(catalogRepoProvider).products(
             q: widget.q,
             category: _effectiveCategory,
@@ -226,9 +232,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               ],
             )
           : _body(count),
-      bottomNavigationBar: widget.searchable
-          ? null
-          : const AppBottomNav(activeTab: 'Products'),
+      bottomNavigationBar:
+          widget.searchable ? null : const AppBottomNav(activeTab: 'Products'),
     );
 
     if (widget.searchable) return scaffold;
@@ -248,9 +253,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       );
     }
     if (_items.isEmpty) {
-      return const Center(
+      return Center(
           child: Text('No products here yet.',
-              style: TextStyle(color: BrandColors.textMuted)));
+              style: TextStyle(color: context.colors.textMuted)));
     }
     return RefreshIndicator(
       onRefresh: () => _load(reset: true),
@@ -280,11 +285,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           if (d.delta.dx > 3) setState(() => _railCollapsed = false);
         },
         onHorizontalDragEnd: (d) {
-          if ((d.primaryVelocity ?? 0) > 50) setState(() => _railCollapsed = false);
+          if ((d.primaryVelocity ?? 0) > 50)
+            setState(() => _railCollapsed = false);
         },
         child: Container(
-          width: 32,
-          color: const Color(0xFFF0F7F2),
+          width: 16,
+          color: context.colors.bg,
           alignment: Alignment.center,
           child: const EdgeHandle(collapsed: true),
         ),
@@ -296,7 +302,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         if (d.delta.dx < -3) setState(() => _railCollapsed = true);
       },
       onHorizontalDragEnd: (d) {
-        if ((d.primaryVelocity ?? 0) < -50) setState(() => _railCollapsed = true);
+        if ((d.primaryVelocity ?? 0) < -50)
+          setState(() => _railCollapsed = true);
       },
       child: SizedBox(
         width: 86,
@@ -304,7 +311,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           children: [
             Container(
               margin: const EdgeInsets.only(right: 14),
-              color: const Color(0xFFF0F7F2),
+              color: context.colors.bg,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
                 children: [
@@ -326,7 +333,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                   if (d.delta.dx < -3) setState(() => _railCollapsed = true);
                 },
                 onHorizontalDragEnd: (d) {
-                  if ((d.primaryVelocity ?? 0) < -50) setState(() => _railCollapsed = true);
+                  if ((d.primaryVelocity ?? 0) < -50)
+                    setState(() => _railCollapsed = true);
                 },
                 child: Container(
                   width: 22,
@@ -357,7 +365,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected ? context.colors.surface : Colors.transparent,
           border: Border(
               left: BorderSide(
                   color: selected ? b.primary : Colors.transparent, width: 3)),
@@ -368,12 +376,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: selected ? b.soft : Colors.white,
+                color: selected ? b.soft : context.colors.surface,
                 shape: BoxShape.circle,
                 border: Border.all(
                     color: selected
                         ? Color.lerp(b.soft, b.primary, 0.35)!
-                        : const Color(0xFFE4EFE8)),
+                        : context.colors.border),
               ),
               alignment: Alignment.center,
               child: Text(categoryEmoji(slug),
@@ -388,7 +396,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                     fontSize: 10.5,
                     height: 1.12,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                    color: selected ? b.primaryDark : BrandColors.ink)),
+                    color: selected ? b.primaryDark : context.colors.ink)),
           ],
         ),
       ),
@@ -405,7 +413,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   void _openFilters() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       isScrollControlled: true, // lets the sheet grow + scroll (no overflow)
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -430,15 +438,19 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           width: 40,
                           height: 4,
                           decoration: BoxDecoration(
-                              color: BrandColors.border,
+                              color: context.colors.border,
                               borderRadius: BorderRadius.circular(2)))),
                   const SizedBox(height: 14),
-                  const Text('Filters & sort',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                  Text('Filters & sort',
+                      style: TextStyle(
+                          color: context.colors.ink,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18)),
                   const SizedBox(height: 14),
-                  const Text('Sort by',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  Text('Sort by',
+                      style: TextStyle(
+                          color: context.colors.ink,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Wrap(spacing: 8, children: [
                     for (final s in const [
@@ -456,14 +468,18 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Veg only',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    title: Text('Veg only',
+                        style: TextStyle(
+                            color: context.colors.ink,
+                            fontWeight: FontWeight.w700)),
                     value: _veg,
-                    activeThumbColor: BrandColors.success,
+                    activeThumbColor: context.colors.success,
                     onChanged: (v) => refresh(() => _veg = v),
                   ),
-                  const Text('Price',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  Text('Price',
+                      style: TextStyle(
+                          color: context.colors.ink,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Wrap(spacing: 8, children: [
                     ChoiceChip(
@@ -477,8 +493,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           onSelected: (_) => refresh(() => _bandIndex = i)),
                   ]),
                   const SizedBox(height: 12),
-                  const Text('Rating',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  Text('Rating',
+                      style: TextStyle(
+                          color: context.colors.ink,
+                          fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Wrap(spacing: 8, children: [
                     ChoiceChip(
@@ -508,7 +526,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         }),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          side: const BorderSide(color: BrandColors.border),
+                          side: BorderSide(color: context.colors.border),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(13)),
                         ),

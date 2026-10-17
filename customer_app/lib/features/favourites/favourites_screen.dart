@@ -11,7 +11,12 @@ import '../../shared/widgets/store_favourite_card.dart';
 import '../wishlist/wishlist_controller.dart';
 import 'store_favourite_controller.dart';
 
-final _wishlistProductsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
+final _wishlistProductsProvider =
+    FutureProvider.autoDispose<List<Product>>((ref) async {
+  // Re-run whenever the ids set changes (e.g. toggling a heart elsewhere) — without
+  // this the bottom nav's IndexedStack keeps this provider alive indefinitely and a
+  // newly wishlisted product never appears until the screen is torn down and rebuilt.
+  ref.watch(wishlistProvider);
   final data = await ref.read(apiClientProvider).get('/wishlist') as List;
   return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
 });
@@ -72,7 +77,10 @@ class _ItemsTab extends ConsumerWidget {
               child: GridView.builder(
                 padding: const EdgeInsets.all(16),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, childAspectRatio: 0.58, crossAxisSpacing: 12, mainAxisSpacing: 12),
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.58,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12),
                 itemCount: list.length,
                 itemBuilder: (_, i) => ProductCard(product: list[i]),
               ),
@@ -108,11 +116,15 @@ class _StoresTab extends ConsumerWidget {
               );
             }
             return RefreshIndicator(
-              onRefresh: () async => ref.invalidate(favouriteStoreVendorsProvider),
+              onRefresh: () async =>
+                  ref.invalidate(favouriteStoreVendorsProvider),
               child: GridView.builder(
                 padding: const EdgeInsets.all(14),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, childAspectRatio: 0.82, crossAxisSpacing: 12, mainAxisSpacing: 12),
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.82,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12),
                 itemCount: list.length,
                 itemBuilder: (_, i) => StoreFavouriteCard(vendor: list[i]),
               ),
@@ -126,11 +138,12 @@ class _SignIn extends StatelessWidget {
   final IconData icon;
   final String message;
   final VoidCallback onSignIn;
-  const _SignIn({required this.icon, required this.message, required this.onSignIn});
+  const _SignIn(
+      {required this.icon, required this.message, required this.onSignIn});
   @override
   Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 52, color: BrandColors.textMuted),
+          Icon(icon, size: 52, color: context.colors.textMuted),
           const SizedBox(height: 10),
           Text(message, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 14),
@@ -143,7 +156,8 @@ class _Empty extends StatelessWidget {
   final String emoji;
   final String title;
   final String subtitle;
-  const _Empty({required this.emoji, required this.title, required this.subtitle});
+  const _Empty(
+      {required this.emoji, required this.title, required this.subtitle});
   @override
   Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -151,7 +165,7 @@ class _Empty extends StatelessWidget {
           const SizedBox(height: 10),
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: BrandColors.textMuted)),
+          Text(subtitle, style: TextStyle(color: context.colors.textMuted)),
         ]),
       );
 }

@@ -8,6 +8,7 @@ import 'data/providers.dart';
 import 'router.dart';
 
 const _themeCacheKey = 'cached_theme_json';
+const _themeDarkCacheKey = 'cached_theme_dark_json';
 
 void _handleNotificationLink(String raw) {
   final trimmed = raw.trim();
@@ -46,36 +47,48 @@ class MarketplaceApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(sharedPrefsProvider);
     final config = ref.watch(appConfigProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
-    // Persist the theme whenever fresh config arrives, so the NEXT cold start
-    // (splash included) is already themed instead of flashing the default green.
+    // Persist both palettes whenever fresh config arrives, so the NEXT cold start
+    // (splash included) is already themed instead of flashing the default green —
+    // in whichever mode (light/dark/system) ends up active at that next launch.
     ref.listen(appConfigProvider, (_, next) {
       next.whenData((c) {
         final theme = c['theme'];
+        final themeDark = c['themeDark'];
         if (theme != null) prefs.setString(_themeCacheKey, jsonEncode(theme));
+        if (themeDark != null)
+          prefs.setString(_themeDarkCacheKey, jsonEncode(themeDark));
       });
     });
 
     // Live config wins; while it loads (or offline) fall back to the last cached
     // theme so the app + splash open in the admin-chosen colour immediately.
     final live = config.asData?.value;
-    BrandTokens tokens;
+    BrandTokens lightTokens;
+    BrandTokens darkTokens;
     if (live != null) {
-      tokens = BrandTokens.fromConfig(
-          (live['theme'] as Map?)?.cast<String, dynamic>());
+      final lightMap = (live['theme'] as Map?)?.cast<String, dynamic>();
+      lightTokens = BrandTokens.fromConfig(lightMap);
+      darkTokens = BrandTokens.darkFromConfig(
+          (live['themeDark'] as Map?)?.cast<String, dynamic>(),
+          lightTokens.primary);
     } else {
-      tokens = _cachedTokens(prefs);
+      lightTokens = _cachedLightTokens(prefs);
+      darkTokens = _cachedDarkTokens(prefs, lightTokens.primary);
     }
 
     return MaterialApp.router(
       title: 'Marketplace',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(tokens),
+      theme: AppTheme.light(lightTokens),
+      darkTheme: AppTheme.dark(darkTokens),
+      themeMode: themeMode,
       routerConfig: appRouter,
     );
   }
 
-  BrandTokens _cachedTokens(SharedPreferences prefs) {
+  BrandTokens _cachedLightTokens(SharedPreferences prefs) {
     final raw = prefs.getString(_themeCacheKey);
     if (raw == null) return BrandTokens.green;
     try {
@@ -83,6 +96,17 @@ class MarketplaceApp extends ConsumerWidget {
           (jsonDecode(raw) as Map).cast<String, dynamic>());
     } catch (_) {
       return BrandTokens.green;
+    }
+  }
+
+  BrandTokens _cachedDarkTokens(SharedPreferences prefs, Color lightPrimary) {
+    final raw = prefs.getString(_themeDarkCacheKey);
+    if (raw == null) return BrandTokens.darkFromConfig(null, lightPrimary);
+    try {
+      return BrandTokens.darkFromConfig(
+          (jsonDecode(raw) as Map).cast<String, dynamic>(), lightPrimary);
+    } catch (_) {
+      return BrandTokens.darkFromConfig(null, lightPrimary);
     }
   }
 }

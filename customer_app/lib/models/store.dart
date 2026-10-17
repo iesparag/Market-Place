@@ -52,13 +52,19 @@ class Vendor {
     final coords = loc is Map ? loc['coordinates'] : null;
     final parsedLat = coords is List && coords.length == 2
         ? _dbl(coords[1])
-        : (j['lat'] != null ? _dbl(j['lat']) : (addr != null && addr['lat'] != null ? _dbl(addr['lat']) : null));
+        : (j['lat'] != null
+            ? _dbl(j['lat'])
+            : (addr != null && addr['lat'] != null ? _dbl(addr['lat']) : null));
     final parsedLng = coords is List && coords.length == 2
         ? _dbl(coords[0])
-        : (j['lng'] != null ? _dbl(j['lng']) : (addr != null && addr['lng'] != null ? _dbl(addr['lng']) : null));
+        : (j['lng'] != null
+            ? _dbl(j['lng'])
+            : (addr != null && addr['lng'] != null ? _dbl(addr['lng']) : null));
 
     final parsedCity = j['city']?.toString() ?? addr?['city']?.toString();
-    final parsedPincode = j['pincode']?.toString() ?? addr?['pincode']?.toString() ?? addr?['postalCode']?.toString();
+    final parsedPincode = j['pincode']?.toString() ??
+        addr?['pincode']?.toString() ??
+        addr?['postalCode']?.toString();
 
     return Vendor(
       id: (j['_id'] ?? j['id']).toString(),
@@ -123,7 +129,9 @@ class StoreProfile {
         slug: j['slug']?.toString() ?? '',
         description: j['description']?.toString(),
         logo: j['logo']?.toString(),
-        coverImages: (j['coverImages'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        coverImages:
+            (j['coverImages'] as List?)?.map((e) => e.toString()).toList() ??
+                [],
         vendorType: j['vendorType']?.toString(),
         contactEmail: j['contactEmail']?.toString(),
         isOpenNow: j['isOpenNow'] != false,

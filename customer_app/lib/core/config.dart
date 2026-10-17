@@ -35,7 +35,10 @@ class Config {
 
 /// true if [current] is older than [min] (simple semver compare).
 bool isVersionBelow(String current, String min) {
-  List<int> parse(String v) => v.split('.').map((p) => int.tryParse(p.split('+').first.trim()) ?? 0).toList();
+  List<int> parse(String v) => v
+      .split('.')
+      .map((p) => int.tryParse(p.split('+').first.trim()) ?? 0)
+      .toList();
   final a = parse(current), b = parse(min);
   for (var i = 0; i < 3; i++) {
     final x = i < a.length ? a[i] : 0;

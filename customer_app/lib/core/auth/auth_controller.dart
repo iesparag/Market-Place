@@ -8,17 +8,34 @@ class AuthUser {
   final String email;
   final String role;
   final bool whatsappOptIn;
-  AuthUser({required this.id, required this.name, required this.email, required this.role, this.whatsappOptIn = false});
+
+  /// 'system' | 'light' | 'dark' — mirrors backend/src/modules/auth/user.model.ts's
+  /// themePreference. Read once at login/restore to sync ThemeModeController; the
+  /// controller (not this field) is the live source of truth afterward.
+  final String themePreference;
+  AuthUser({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    this.whatsappOptIn = false,
+    this.themePreference = 'system',
+  });
   factory AuthUser.fromJson(Map<String, dynamic> j) => AuthUser(
         id: (j['id'] ?? j['_id'] ?? '').toString(),
         name: j['name']?.toString() ?? '',
         email: j['email']?.toString() ?? '',
         role: j['role']?.toString() ?? 'customer',
         whatsappOptIn: j['whatsappOptIn'] == true,
+        themePreference: j['themePreference']?.toString() ?? 'system',
       );
-  AuthUser copyWith({bool? whatsappOptIn}) => AuthUser(
-        id: id, name: name, email: email, role: role,
+  AuthUser copyWith({bool? whatsappOptIn, String? themePreference}) => AuthUser(
+        id: id,
+        name: name,
+        email: email,
+        role: role,
         whatsappOptIn: whatsappOptIn ?? this.whatsappOptIn,
+        themePreference: themePreference ?? this.themePreference,
       );
 }
 
@@ -34,14 +51,22 @@ class AuthController extends StateNotifier<AuthUser?> {
     // Lives for the app's whole lifetime regardless of login state — a token can
     // rotate (reinstall, app restore) before the user has even signed back in.
     fcmTokenRefreshStream()?.listen((token) {
-      if (isLoggedIn) ref.read(notificationsRepoProvider).registerDevice(token).catchError((_) {});
+      if (isLoggedIn)
+        ref
+            .read(notificationsRepoProvider)
+            .registerDevice(token)
+            .catchError((_) {});
     });
 
     final store = ref.read(tokenStoreProvider);
     if (await store.hasSession) {
       try {
-        final me = await ref.read(apiClientProvider).get('/me') as Map<String, dynamic>;
+        final me = await ref.read(apiClientProvider).get('/me')
+            as Map<String, dynamic>;
         state = AuthUser.fromJson(me);
+        ref
+            .read(themeModeProvider.notifier)
+            .syncFromAccount(state?.themePreference);
         await ref.read(appSocketProvider).connect();
         await _registerPush();
       } catch (_) {
@@ -63,21 +88,41 @@ class AuthController extends StateNotifier<AuthUser?> {
   }
 
   Future<void> login(String email, String password) async {
-    final d = await ref.read(apiClientProvider).post('/auth/login', body: {'email': email, 'password': password}) as Map<String, dynamic>;
-    await ref.read(tokenStoreProvider).save(d['token'] as String, d['refreshToken'] as String);
+    final d = await ref.read(apiClientProvider).post('/auth/login',
+        body: {'email': email, 'password': password}) as Map<String, dynamic>;
+    await ref
+        .read(tokenStoreProvider)
+        .save(d['token'] as String, d['refreshToken'] as String);
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
+    // /auth/login's own `user` payload doesn't carry themePreference (see
+    // auth.service.ts's toAuthUser) — fetch the full profile once so a login on a new
+    // device immediately picks up the account's saved light/dark/system choice instead
+    // of briefly defaulting to 'system' until the next /me call.
+    try {
+      final me =
+          await ref.read(apiClientProvider).get('/me') as Map<String, dynamic>;
+      state = AuthUser.fromJson(me);
+    } catch (_) {
+      /* non-fatal — state already has the login response's basics */
+    }
+    ref
+        .read(themeModeProvider.notifier)
+        .syncFromAccount(state?.themePreference);
     await ref.read(appSocketProvider).connect();
     await _registerPush();
   }
 
-  Future<void> register(String name, String email, String password, {String? phone}) async {
+  Future<void> register(String name, String email, String password,
+      {String? phone}) async {
     final d = await ref.read(apiClientProvider).post('/auth/register', body: {
       'name': name,
       'email': email,
       'password': password,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
     }) as Map<String, dynamic>;
-    await ref.read(tokenStoreProvider).save(d['token'] as String, d['refreshToken'] as String);
+    await ref
+        .read(tokenStoreProvider)
+        .save(d['token'] as String, d['refreshToken'] as String);
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
     await ref.read(appSocketProvider).connect();
     await _registerPush();
@@ -94,8 +139,11 @@ class AuthController extends StateNotifier<AuthUser?> {
     String? pan,
     String? city,
   }) async {
-    final d = await ref.read(apiClientProvider).post('/auth/register-vendor', body: {
-      'name': name, 'email': email, 'password': password,
+    final d =
+        await ref.read(apiClientProvider).post('/auth/register-vendor', body: {
+      'name': name,
+      'email': email,
+      'password': password,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
       'storeName': storeName,
       if (vendorType != null) 'vendorType': vendorType,
@@ -103,7 +151,9 @@ class AuthController extends StateNotifier<AuthUser?> {
       if (pan != null && pan.isNotEmpty) 'pan': pan,
       if (city != null && city.isNotEmpty) 'address': {'city': city},
     }) as Map<String, dynamic>;
-    await ref.read(tokenStoreProvider).save(d['token'] as String, d['refreshToken'] as String);
+    await ref
+        .read(tokenStoreProvider)
+        .save(d['token'] as String, d['refreshToken'] as String);
     state = AuthUser.fromJson(d['user'] as Map<String, dynamic>);
     await ref.read(appSocketProvider).connect();
     await _registerPush();
@@ -112,12 +162,15 @@ class AuthController extends StateNotifier<AuthUser?> {
   /// Step 1 of a password reset: emails a 6-digit code (valid 15 minutes).
   /// The API always reports success so it never reveals whether the email exists.
   Future<void> forgotPassword(String email) async {
-    await ref.read(apiClientProvider).post('/auth/forgot-password', body: {'email': email});
+    await ref
+        .read(apiClientProvider)
+        .post('/auth/forgot-password', body: {'email': email});
   }
 
   /// Step 2: the code is verified and the password replaced in one call — a code
   /// that is wrong, used or older than 15 minutes throws.
-  Future<void> resetPassword(String email, String code, String newPassword) async {
+  Future<void> resetPassword(
+      String email, String code, String newPassword) async {
     await ref.read(apiClientProvider).post('/auth/reset-password', body: {
       'email': email,
       'code': code,
@@ -132,7 +185,9 @@ class AuthController extends StateNotifier<AuthUser?> {
     if (prev == null) return;
     state = prev.copyWith(whatsappOptIn: value);
     try {
-      await ref.read(apiClientProvider).patch('/me', body: {'whatsappOptIn': value});
+      await ref
+          .read(apiClientProvider)
+          .patch('/me', body: {'whatsappOptIn': value});
     } catch (_) {
       state = prev;
       rethrow;
@@ -148,4 +203,5 @@ class AuthController extends StateNotifier<AuthUser?> {
   bool get isLoggedIn => state != null;
 }
 
-final authProvider = StateNotifierProvider<AuthController, AuthUser?>((ref) => AuthController(ref));
+final authProvider = StateNotifierProvider<AuthController, AuthUser?>(
+    (ref) => AuthController(ref));

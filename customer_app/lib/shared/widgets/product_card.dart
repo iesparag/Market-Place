@@ -21,9 +21,12 @@ class ProductCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ft = foodTypeOf(product.attributes, product.foodType);
     final v = _cheapest;
-    final targetVariant = v ?? (product.variants.isNotEmpty ? product.variants.first : null);
+    final targetVariant =
+        v ?? (product.variants.isNotEmpty ? product.variants.first : null);
     final sku = targetVariant?.sku ?? 'default';
-    final price = (targetVariant != null && targetVariant.price > 0) ? targetVariant.price : product.minPrice;
+    final price = (targetVariant != null && targetVariant.price > 0)
+        ? targetVariant.price
+        : product.minPrice;
     final b = context.brand;
     ref.watch(cartProvider); // rebuild on cart changes
     final cart = ref.read(cartProvider.notifier);
@@ -34,9 +37,9 @@ class ProductCard extends ConsumerWidget {
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE8EEF3)),
+          border: Border.all(color: context.colors.border),
           boxShadow: const [
             BoxShadow(
                 color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 3))
@@ -80,7 +83,8 @@ class ProductCard extends ConsumerWidget {
                     product.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
+                        color: context.colors.ink,
                         fontWeight: FontWeight.w700,
                         fontSize: 12.2,
                         height: 1.18),
@@ -91,15 +95,17 @@ class ProductCard extends ConsumerWidget {
                       child: Text('by ${product.store!.name}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: BrandColors.textMuted, fontSize: 10.5)),
+                          style: TextStyle(
+                              color: context.colors.textMuted, fontSize: 10.5)),
                     ),
                   const SizedBox(height: 5),
                   Row(
                     children: [
                       Text(rupees(product.minPrice),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 14.5)),
+                          style: TextStyle(
+                              color: context.colors.ink,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14.5)),
                       const Spacer(),
                       if (product.ratingCount > 0)
                         Container(
@@ -109,7 +115,8 @@ class ProductCard extends ConsumerWidget {
                               color: b.soft,
                               borderRadius: BorderRadius.circular(6)),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.star_rounded, size: 12, color: b.primary),
+                            Icon(Icons.star_rounded,
+                                size: 12, color: b.primary),
                             const SizedBox(width: 2),
                             Text(product.ratingAvg.toStringAsFixed(1),
                                 style: TextStyle(
@@ -127,12 +134,10 @@ class ProductCard extends ConsumerWidget {
                     child: qty > 0
                         ? _Stepper(
                             qty: qty,
-                            onDec: () => cart.setQty(
-                                '${product.id}|$sku',
-                                qty - 1),
-                            onInc: () => cart.setQty(
-                                '${product.id}|$sku',
-                                qty + 1),
+                            onDec: () =>
+                                cart.setQty('${product.id}|$sku', qty - 1),
+                            onInc: () =>
+                                cart.setQty('${product.id}|$sku', qty + 1),
                           )
                         : OutlinedButton(
                             style: OutlinedButton.styleFrom(
@@ -160,10 +165,12 @@ class ProductCard extends ConsumerWidget {
                                 price: price,
                                 qty: 1,
                               ));
-                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context)
+                                  .hideCurrentSnackBar();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Added "${product.title}" to cart'),
+                                  content:
+                                      Text('Added "${product.title}" to cart'),
                                   duration: const Duration(seconds: 2),
                                   action: SnackBarAction(
                                     label: 'VIEW CART',
@@ -194,8 +201,7 @@ class _Stepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-          color: context.brand.primary,
-          borderRadius: BorderRadius.circular(9)),
+          color: context.brand.primary, borderRadius: BorderRadius.circular(9)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -225,7 +231,9 @@ class _ImgFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
       color: const Color(0xFFF1F1F4),
-      child: const Center(child: Text('🛍️', style: TextStyle(fontSize: 28))));
+      child: Center(
+          child: Text('🛍️',
+              style: TextStyle(color: context.colors.ink, fontSize: 28))));
 }
 
 class _WishHeart extends ConsumerWidget {
@@ -252,7 +260,8 @@ class _WishHeart extends ConsumerWidget {
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0xFFE8EEF3))),
         child: Icon(on ? Icons.favorite : Icons.favorite_border_rounded,
-            size: 18, color: on ? BrandColors.danger : BrandColors.textMuted),
+            size: 18,
+            color: on ? context.colors.danger : context.colors.textMuted),
       ),
     );
   }

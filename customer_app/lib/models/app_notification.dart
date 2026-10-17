@@ -15,7 +15,8 @@ class NotificationProduct {
     this.image,
   });
 
-  factory NotificationProduct.fromJson(Map<String, dynamic> j) => NotificationProduct(
+  factory NotificationProduct.fromJson(Map<String, dynamic> j) =>
+      NotificationProduct(
         id: (j['id'] ?? j['_id'] ?? '').toString(),
         title: (j['title'] ?? '').toString(),
         slug: (j['slug'] ?? '').toString(),
@@ -34,7 +35,8 @@ class AppNotification {
   final String body;
   final String? link;
   final String? image;
-  final String layout; // 'standard' | 'big_picture' | 'product_showcase' | 'store_spotlight'
+  final String
+      layout; // 'standard' | 'big_picture' | 'product_showcase' | 'store_spotlight'
   final List<NotificationProduct> products;
   final String? storeSlug;
   final String? storeName;
@@ -63,7 +65,9 @@ class AppNotification {
   factory AppNotification.fromJson(Map<String, dynamic> j) {
     final rawProds = j['products'];
     final prods = rawProds is List
-        ? rawProds.map((p) => NotificationProduct.fromJson(p as Map<String, dynamic>)).toList()
+        ? rawProds
+            .map((p) => NotificationProduct.fromJson(p as Map<String, dynamic>))
+            .toList()
         : const <NotificationProduct>[];
 
     return AppNotification(
@@ -71,16 +75,28 @@ class AppNotification {
       type: (j['type'] ?? 'info').toString(),
       title: (j['title'] ?? '').toString(),
       body: (j['body'] ?? '').toString(),
-      link: (j['link']?.toString().isEmpty ?? true) ? null : j['link'].toString(),
-      image: (j['image']?.toString().isEmpty ?? true) ? null : j['image'].toString(),
+      link:
+          (j['link']?.toString().isEmpty ?? true) ? null : j['link'].toString(),
+      image: (j['image']?.toString().isEmpty ?? true)
+          ? null
+          : j['image'].toString(),
       layout: j['layout']?.toString() ?? 'standard',
       products: prods,
-      storeSlug: (j['storeSlug']?.toString().isEmpty ?? true) ? null : j['storeSlug'].toString(),
-      storeName: (j['storeName']?.toString().isEmpty ?? true) ? null : j['storeName'].toString(),
-      storeLogo: (j['storeLogo']?.toString().isEmpty ?? true) ? null : j['storeLogo'].toString(),
-      couponCode: (j['couponCode']?.toString().isEmpty ?? true) ? null : j['couponCode'].toString(),
+      storeSlug: (j['storeSlug']?.toString().isEmpty ?? true)
+          ? null
+          : j['storeSlug'].toString(),
+      storeName: (j['storeName']?.toString().isEmpty ?? true)
+          ? null
+          : j['storeName'].toString(),
+      storeLogo: (j['storeLogo']?.toString().isEmpty ?? true)
+          ? null
+          : j['storeLogo'].toString(),
+      couponCode: (j['couponCode']?.toString().isEmpty ?? true)
+          ? null
+          : j['couponCode'].toString(),
       read: j['read'] == true,
-      createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 }

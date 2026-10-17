@@ -11,14 +11,20 @@ class PlacesRepository {
   final ApiClient api;
   PlacesRepository(this.api);
 
-  Future<List<PlacePrediction>> autocomplete(String input, String sessionToken) async {
+  Future<List<PlacePrediction>> autocomplete(
+      String input, String sessionToken) async {
     if (input.trim().length < 3) return [];
-    final data = await api.get('/places/autocomplete', query: {'input': input, 'sessiontoken': sessionToken}) as List;
-    return data.map((e) => PlacePrediction.fromJson((e as Map).cast<String, dynamic>())).toList();
+    final data = await api.get('/places/autocomplete',
+        query: {'input': input, 'sessiontoken': sessionToken}) as List;
+    return data
+        .map(
+            (e) => PlacePrediction.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
   }
 
   Future<GeoSuggestion?> details(String placeId, String sessionToken) async {
-    final data = await api.get('/places/details', query: {'place_id': placeId, 'sessiontoken': sessionToken});
+    final data = await api.get('/places/details',
+        query: {'place_id': placeId, 'sessiontoken': sessionToken});
     if (data == null) return null;
     final j = (data as Map).cast<String, dynamic>();
     return GeoSuggestion.fromJson(j);

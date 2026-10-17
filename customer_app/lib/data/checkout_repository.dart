@@ -11,7 +11,9 @@ class CheckoutRepository {
 
   Future<List<Address>> addresses() async {
     final data = await api.get('/addresses') as List;
-    return data.map((e) => Address.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => Address.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Address> addAddress({
@@ -29,8 +31,11 @@ class CheckoutRepository {
     double? lng,
   }) async {
     final data = await api.post('/addresses', body: {
-      'label': label, 'line1': line1, 'city': city,
-      if (recipientName != null && recipientName.isNotEmpty) 'recipientName': recipientName,
+      'label': label,
+      'line1': line1,
+      'city': city,
+      if (recipientName != null && recipientName.isNotEmpty)
+        'recipientName': recipientName,
       if (line2 != null && line2.isNotEmpty) 'line2': line2,
       if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
       if (state != null && state.isNotEmpty) 'state': state,
@@ -62,7 +67,8 @@ class CheckoutRepository {
       'label': label,
       'line1': line1,
       'city': city,
-      if (recipientName != null && recipientName.isNotEmpty) 'recipientName': recipientName,
+      if (recipientName != null && recipientName.isNotEmpty)
+        'recipientName': recipientName,
       if (line2 != null && line2.isNotEmpty) 'line2': line2,
       if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
       if (state != null && state.isNotEmpty) 'state': state,
@@ -80,7 +86,8 @@ class CheckoutRepository {
   /// Switches the active delivery address — re-centers home/nearby/Now on this address
   /// (see effectiveLocationProvider in providers.dart), not just a label change.
   Future<Address> setDefaultAddress(String id) async {
-    final data = await api.patch('/addresses/$id/default') as Map<String, dynamic>;
+    final data =
+        await api.patch('/addresses/$id/default') as Map<String, dynamic>;
     return Address.fromJson(data);
   }
 
@@ -90,18 +97,28 @@ class CheckoutRepository {
     Map<String, String>? storeInstructions,
     Map<String, VendorDeliverySlot>? deliverySlots,
   }) async {
-    final items = lines.map((l) => {'productId': l.productId, 'variantSku': l.variantSku, 'qty': l.qty}).toList();
+    final items = lines
+        .map((l) => {
+              'productId': l.productId,
+              'variantSku': l.variantSku,
+              'qty': l.qty
+            })
+        .toList();
     final data = await api.post('/orders', body: {
       'items': items,
-      if (storeInstructions != null && storeInstructions.isNotEmpty) 'storeInstructions': storeInstructions,
+      if (storeInstructions != null && storeInstructions.isNotEmpty)
+        'storeInstructions': storeInstructions,
       if (deliverySlots != null && deliverySlots.isNotEmpty)
         'deliverySlots': deliverySlots.map((k, v) => MapEntry(k, v.toJson())),
       if (address != null)
         'shippingAddress': {
           'line1': address.line1, 'city': address.city,
-          if (address.line2 != null && address.line2!.isNotEmpty) 'line2': address.line2,
-          if (address.landmark != null && address.landmark!.isNotEmpty) 'landmark': address.landmark,
-          if (address.state != null && address.state!.isNotEmpty) 'state': address.state,
+          if (address.line2 != null && address.line2!.isNotEmpty)
+            'line2': address.line2,
+          if (address.landmark != null && address.landmark!.isNotEmpty)
+            'landmark': address.landmark,
+          if (address.state != null && address.state!.isNotEmpty)
+            'state': address.state,
           if (address.pincode != null) 'pincode': address.pincode,
           // Feeds DeliveryTask.dropAddress → the live rider→destination polyline.
           if (address.lat != null) 'lat': address.lat,
@@ -114,7 +131,9 @@ class CheckoutRepository {
 
   Future<List<OrderModel>> myOrders() async {
     final data = await api.get('/orders') as List;
-    return data.map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OrderModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<OrderModel> order(String id) async {

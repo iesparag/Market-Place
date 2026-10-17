@@ -6,11 +6,17 @@ class Variant {
   final Map<String, String> optionValues;
   final int price; // paise
   final int stock;
-  Variant({required this.sku, required this.optionValues, required this.price, required this.stock});
+  Variant(
+      {required this.sku,
+      required this.optionValues,
+      required this.price,
+      required this.stock});
 
   factory Variant.fromJson(Map<String, dynamic> j) => Variant(
         sku: j['sku']?.toString() ?? '',
-        optionValues: (j['optionValues'] as Map?)?.map((k, v) => MapEntry(k.toString(), v.toString())) ?? {},
+        optionValues: (j['optionValues'] as Map?)
+                ?.map((k, v) => MapEntry(k.toString(), v.toString())) ??
+            {},
         price: _int(j['price']),
         stock: _int(j['stock']),
       );
@@ -20,8 +26,8 @@ class ProductStore {
   final String name;
   final String slug;
   ProductStore({required this.name, required this.slug});
-  factory ProductStore.fromJson(Map<String, dynamic> j) =>
-      ProductStore(name: j['name']?.toString() ?? '', slug: j['slug']?.toString() ?? '');
+  factory ProductStore.fromJson(Map<String, dynamic> j) => ProductStore(
+      name: j['name']?.toString() ?? '', slug: j['slug']?.toString() ?? '');
 }
 
 class AttributeDef {
@@ -111,13 +117,23 @@ class Product {
       ratingAvg: _dbl(j['ratingAvg']),
       ratingCount: _int(j['ratingCount']),
       minPrice: minPrice,
-      discountPercent: j['discountPercent'] != null ? _int(j['discountPercent']) : null,
-      originalPrice: j['originalPrice'] != null ? _int(j['originalPrice']) : null,
+      discountPercent:
+          j['discountPercent'] != null ? _int(j['discountPercent']) : null,
+      originalPrice:
+          j['originalPrice'] != null ? _int(j['originalPrice']) : null,
       storeId: (j['storeId'] ?? '').toString(),
-      store: j['store'] is Map ? ProductStore.fromJson(j['store'] as Map<String, dynamic>) : null,
+      store: j['store'] is Map
+          ? ProductStore.fromJson(j['store'] as Map<String, dynamic>)
+          : null,
       categoryName: j['categoryName']?.toString(),
-      attributeDefs: (j['attributeDefs'] as List?)?.map((e) => AttributeDef.fromJson(e as Map<String, dynamic>)).toList() ?? [],
-      related: (j['related'] as List?)?.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+      attributeDefs: (j['attributeDefs'] as List?)
+              ?.map((e) => AttributeDef.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      related: (j['related'] as List?)
+              ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }

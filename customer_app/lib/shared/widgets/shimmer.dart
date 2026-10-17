@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/theme.dart';
 
 /// Lightweight shimmer placeholder (no extra package).
 class Shimmer extends StatefulWidget {
   final double width;
   final double height;
   final double radius;
-  const Shimmer({super.key, this.width = double.infinity, this.height = 14, this.radius = 8});
+  const Shimmer(
+      {super.key,
+      this.width = double.infinity,
+      this.height = 14,
+      this.radius = 8});
 
   @override
   State<Shimmer> createState() => _ShimmerState();
 }
 
 class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1200))
+    ..repeat();
 
   @override
   void dispose() {
@@ -27,6 +33,8 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
       animation: _c,
       builder: (context, _) {
         final v = _c.value;
+        final base = context.colors.bg;
+        final highlight = context.colors.border;
         return Container(
           width: widget.width,
           height: widget.height,
@@ -35,7 +43,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
             gradient: LinearGradient(
               begin: Alignment(-1 - 2 * v, 0),
               end: Alignment(1 - 2 * v, 0),
-              colors: const [Color(0xFFECECEC), Color(0xFFF6F6F6), Color(0xFFECECEC)],
+              colors: [base, highlight, base],
             ),
           ),
         );
@@ -51,9 +59,9 @@ class ProductCardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE7E7EC)),
+        border: Border.all(color: context.colors.border),
       ),
       padding: const EdgeInsets.all(10),
       child: const Column(

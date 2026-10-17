@@ -9,9 +9,11 @@ import '../../models/festival.dart';
 /// still deserves a fresh "good morning, happy Diwali" each day, just not twice in
 /// one session). Call from a screen's `build` via `ref.listen(festivalProvider, ...)`
 /// so it fires exactly once when the data arrives, not on every rebuild.
-Future<void> maybeShowFestivalGreeting(BuildContext context, WidgetRef ref, FestivalModel festival) async {
+Future<void> maybeShowFestivalGreeting(
+    BuildContext context, WidgetRef ref, FestivalModel festival) async {
   final prefs = ref.read(sharedPrefsProvider);
-  final todayKey = 'festival_seen_${festival.id}_${DateTime.now().toIso8601String().substring(0, 10)}';
+  final todayKey =
+      'festival_seen_${festival.id}_${DateTime.now().toIso8601String().substring(0, 10)}';
   if (prefs.getBool(todayKey) == true) return;
   await prefs.setBool(todayKey, true);
   if (!context.mounted) return;
@@ -42,20 +44,28 @@ class _FestivalGreetingDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+        decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(24)),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           SizedBox(
             height: 180,
             child: Lottie.network(
               festival.lottieUrl,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Icon(Icons.celebration_rounded, size: 72, color: accent),
+              errorBuilder: (_, __, ___) =>
+                  Icon(Icons.celebration_rounded, size: 72, color: accent),
             ),
           ),
-          Text(festival.greetingTitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          Text(festival.greetingTitle,
+              textAlign: TextAlign.center,
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           if (festival.greetingMessage.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(festival.greetingMessage, textAlign: TextAlign.center, style: const TextStyle(color: BrandColors.textMuted, height: 1.4)),
+            Text(festival.greetingMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.colors.textMuted, height: 1.4)),
           ],
           const SizedBox(height: 18),
           SizedBox(

@@ -38,56 +38,58 @@ class CartScreen extends ConsumerWidget {
               TextButton(onPressed: cart.clear, child: const Text('Clear')),
           ],
         ),
-      body: lines.isEmpty
-          ? _EmptyCart(onShop: () => context.go('/'))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _CartDeliveryAddressBar(
-                  address: activeAddress,
-                  onChange: () => _showAddressPicker(context, ref),
-                ),
-                const SizedBox(height: 12),
-                for (final entry in groups.entries) ...[
-                  _VendorGroup(storeId: entry.key, lines: entry.value, cart: cart),
-                  const SizedBox(height: 14),
-                ],
-              ],
-            ),
-      bottomNavigationBar: lines.isEmpty
-          ? const AppBottomNav()
-          : SafeArea(
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: BrandColors.border))),
-                child: Row(children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Subtotal',
-                          style: TextStyle(
-                              color: BrandColors.textMuted, fontSize: 12)),
-                      Text(rupees(subtotal),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 18)),
-                    ],
+        body: lines.isEmpty
+            ? _EmptyCart(onShop: () => context.go('/'))
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _CartDeliveryAddressBar(
+                    address: activeAddress,
+                    onChange: () => _showAddressPicker(context, ref),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: () => context.push('/checkout'),
-                        child: const Text('Proceed to checkout'),
+                  const SizedBox(height: 12),
+                  for (final entry in groups.entries) ...[
+                    _VendorGroup(
+                        storeId: entry.key, lines: entry.value, cart: cart),
+                    const SizedBox(height: 14),
+                  ],
+                ],
+              ),
+        bottomNavigationBar: lines.isEmpty
+            ? const AppBottomNav()
+            : SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      border: Border(
+                          top: BorderSide(color: context.colors.border))),
+                  child: Row(children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Subtotal',
+                            style: TextStyle(
+                                color: context.colors.textMuted, fontSize: 12)),
+                        Text(rupees(subtotal),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900, fontSize: 18)),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () => context.push('/checkout'),
+                          child: const Text('Proceed to checkout'),
+                        ),
                       ),
                     ),
-                  ),
-                ]),
+                  ]),
+                ),
               ),
-            ),
       ),
     );
   }
@@ -97,7 +99,8 @@ class _VendorGroup extends ConsumerStatefulWidget {
   final String storeId;
   final List<CartLine> lines;
   final CartController cart;
-  const _VendorGroup({required this.storeId, required this.lines, required this.cart});
+  const _VendorGroup(
+      {required this.storeId, required this.lines, required this.cart});
 
   @override
   ConsumerState<_VendorGroup> createState() => _VendorGroupState();
@@ -204,7 +207,8 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
   Widget build(BuildContext context) {
     final b = context.brand;
     final storeName = widget.lines.first.storeName;
-    final instructions = ref.watch(cartInstructionsProvider)[widget.storeId] ?? '';
+    final instructions =
+        ref.watch(cartInstructionsProvider)[widget.storeId] ?? '';
     final stores = ref.watch(vendorsProvider).valueOrNull ?? [];
     final vendor = _findVendor(stores);
     final activeAddress = ref.watch(activeDeliveryAddressProvider);
@@ -273,11 +277,12 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: BrandColors.border),
+        border: Border.all(color: context.colors.border),
         boxShadow: const [
-          BoxShadow(color: Color(0x06000000), blurRadius: 8, offset: Offset(0, 3)),
+          BoxShadow(
+              color: Color(0x06000000), blurRadius: 8, offset: Offset(0, 3)),
         ],
       ),
       padding: const EdgeInsets.all(12),
@@ -296,7 +301,8 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                       color: b.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.storefront_rounded, size: 16, color: b.primary),
+                    child: Icon(Icons.storefront_rounded,
+                        size: 16, color: b.primary),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -304,60 +310,77 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(storeName,
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900, fontSize: 14)),
                         if (vendor != null && vendor.vendorType.isNotEmpty)
                           Text(vendor.vendorType,
-                              style: const TextStyle(color: BrandColors.textMuted, fontSize: 11)),
+                              style: TextStyle(
+                                  color: context.colors.textMuted,
+                                  fontSize: 11)),
                       ],
                     ),
                   ),
                   if (!isOpen)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEE2E2),
+                        color: context.colors.danger.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                        border: Border.all(
+                            color:
+                                context.colors.danger.withValues(alpha: 0.4)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF991B1B)),
-                          SizedBox(width: 3),
+                          Icon(Icons.schedule_rounded,
+                              size: 11, color: context.colors.danger),
+                          const SizedBox(width: 3),
                           Text('Store Closed',
                               style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF991B1B))),
+                                  color: context.colors.danger)),
                         ],
                       ),
                     )
                   else if (isLocal)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: context.colors.star.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text('⚡ Instant Available',
+                      child: Text('⚡ Instant Available',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF92400E))),
+                              color: context.colors.star)),
                     )
                   else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE0F2FE),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text('📦 Intercity Store',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0369A1))),
-                    ),
+                    Builder(builder: (context) {
+                      final isDark =
+                          Theme.of(context).brightness == Brightness.dark;
+                      final infoColor = isDark
+                          ? const Color(0xFF7DD3FC)
+                          : const Color(0xFF0369A1);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color:
+                              infoColor.withValues(alpha: isDark ? 0.18 : 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text('📦 Intercity Store',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: infoColor)),
+                      );
+                    }),
                 ],
               ),
             ),
@@ -367,29 +390,29 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: context.colors.bg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: context.colors.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF475569)),
-                    SizedBox(width: 5),
+                    Icon(Icons.schedule_rounded,
+                        size: 14, color: context.colors.ink2),
+                    const SizedBox(width: 5),
                     Text(
                       'Delivery Slot',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF334155),
+                        color: context.colors.ink2,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-
                 if (isLocal) ...[
                   // Local store: Now or Schedule for later
                   Row(
@@ -399,27 +422,33 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                           onTap: isOpen
                               ? _selectNow
                               : () {
-                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context)
+                                      .hideCurrentSnackBar();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Store is closed right now. Please choose Schedule Later.'),
+                                      content: Text(
+                                          'Store is closed right now. Please choose Schedule Later.'),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                 },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 10),
                             decoration: BoxDecoration(
                               color: !isOpen
-                                  ? const Color(0xFFF1F5F9)
-                                  : (_mode == 'now' ? const Color(0xFFFEF3C7) : Colors.white),
+                                  ? context.colors.bg
+                                  : (_mode == 'now'
+                                      ? context.colors.star
+                                          .withValues(alpha: 0.18)
+                                      : context.colors.surface),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: !isOpen
-                                    ? const Color(0xFFE2E8F0)
+                                    ? context.colors.border
                                     : (_mode == 'now'
                                         ? const Color(0xFFF59E0B)
-                                        : const Color(0xFFCBD5E1)),
+                                        : context.colors.border),
                                 width: (_mode == 'now' && isOpen) ? 1.8 : 1,
                               ),
                             ),
@@ -429,31 +458,33 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                                 Text('⚡',
                                     style: TextStyle(
                                         fontSize: 13,
-                                        color: !isOpen ? const Color(0xFF94A3B8) : null)),
+                                        color: !isOpen
+                                            ? context.colors.textMuted
+                                            : null)),
                                 const SizedBox(width: 4),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      !isOpen ? 'Now (Closed)' : 'Now (Default)',
+                                      !isOpen
+                                          ? 'Now (Closed)'
+                                          : 'Now (Default)',
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w900,
                                         color: !isOpen
-                                            ? const Color(0xFF94A3B8)
+                                            ? context.colors.textMuted
                                             : (_mode == 'now'
-                                                ? const Color(0xFF92400E)
-                                                : const Color(0xFF334155)),
+                                                ? context.colors.star
+                                                : context.colors.ink2),
                                       ),
                                     ),
                                     Text(
                                       !isOpen ? 'Opens later' : '15–30 mins',
                                       style: TextStyle(
                                         fontSize: 9.5,
-                                        color: !isOpen
-                                            ? const Color(0xFF94A3B8)
-                                            : const Color(0xFF64748B),
+                                        color: context.colors.textMuted,
                                       ),
                                     ),
                                   ],
@@ -466,16 +497,21 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => _updateScheduled(_selectedDay, _selectedSlot),
+                          onTap: () =>
+                              _updateScheduled(_selectedDay, _selectedSlot),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 10),
                             decoration: BoxDecoration(
-                              color: _mode == 'scheduled' ? const Color(0xFFEDE9FE) : Colors.white,
+                              color: _mode == 'scheduled'
+                                  ? const Color(0xFF7C3AED)
+                                      .withValues(alpha: 0.16)
+                                  : context.colors.surface,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: _mode == 'scheduled'
                                     ? const Color(0xFF7C3AED)
-                                    : const Color(0xFFCBD5E1),
+                                    : context.colors.border,
                                 width: _mode == 'scheduled' ? 1.8 : 1,
                               ),
                             ),
@@ -490,17 +526,24 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      !isOpen ? 'Schedule (Default)' : 'Schedule Later',
+                                      !isOpen
+                                          ? 'Schedule (Default)'
+                                          : 'Schedule Later',
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w900,
                                         color: _mode == 'scheduled'
-                                            ? const Color(0xFF5B21B6)
-                                            : const Color(0xFF334155),
+                                            ? (Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? const Color(0xFFC4B5FD)
+                                                : const Color(0xFF5B21B6))
+                                            : context.colors.ink2,
                                       ),
                                     ),
-                                    const Text('Next 1–3 days',
-                                        style: TextStyle(fontSize: 9.5, color: Color(0xFF64748B))),
+                                    Text('Next 1–3 days',
+                                        style: TextStyle(
+                                            fontSize: 9.5,
+                                            color: context.colors.textMuted)),
                                   ],
                                 ),
                               ],
@@ -514,22 +557,26 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                   if (!isOpen)
                     Container(
                       margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: context.colors.danger.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFFECACA)),
+                        border: Border.all(
+                            color:
+                                context.colors.danger.withValues(alpha: 0.4)),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFB91C1C)),
-                          SizedBox(width: 6),
+                          Icon(Icons.info_outline_rounded,
+                              size: 14, color: context.colors.danger),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'Store is closed right now. Your order will be prepared & delivered in your chosen slot.',
                               style: TextStyle(
                                   fontSize: 10.5,
-                                  color: Color(0xFF7F1D1D),
+                                  color: context.colors.danger,
                                   fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -551,16 +598,19 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                             child: ChoiceChip(
                               label: Text(day),
                               selected: sel,
-                              onSelected: (_) => _updateScheduled(day, _selectedSlot),
+                              onSelected: (_) =>
+                                  _updateScheduled(day, _selectedSlot),
                               labelStyle: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: sel ? Colors.white : const Color(0xFF475569),
+                                color: sel ? Colors.white : context.colors.ink2,
                               ),
                               selectedColor: const Color(0xFF7C3AED),
-                              backgroundColor: Colors.white,
+                              backgroundColor: context.colors.bg,
                               side: BorderSide(
-                                color: sel ? const Color(0xFF7C3AED) : const Color(0xFFCBD5E1),
+                                color: sel
+                                    ? const Color(0xFF7C3AED)
+                                    : context.colors.border,
                               ),
                               visualDensity: VisualDensity.compact,
                             ),
@@ -572,19 +622,24 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
 
                     // Time Slot Dropdown
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.colors.surface,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                        border: Border.all(color: context.colors.border),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedSlot,
                           isExpanded: true,
-                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF1E293B), fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: context.colors.ink,
+                              fontWeight: FontWeight.w700),
                           items: _slots
-                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                              .map((s) =>
+                                  DropdownMenuItem(value: s, child: Text(s)))
                               .toList(),
                           onChanged: (v) {
                             if (v != null) _updateScheduled(_selectedDay, v);
@@ -595,48 +650,66 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
                   ],
                 ] else ...[
                   // Intercity Store: Standard Delivery (Estimated 5–7 Days)
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFBFDBFE)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('📦', style: TextStyle(fontSize: 18)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Standard Courier Delivery · 5–7 Days',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12.5,
-                                  color: Color(0xFF1E40AF),
+                  Builder(builder: (context) {
+                    final isDark =
+                        Theme.of(context).brightness == Brightness.dark;
+                    final infoColor = isDark
+                        ? const Color(0xFF93C5FD)
+                        : const Color(0xFF1E40AF);
+                    final infoColorMuted = isDark
+                        ? const Color(0xFFBFDBFE)
+                        : const Color(0xFF1E3A8A);
+                    return Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color:
+                            infoColor.withValues(alpha: isDark ? 0.16 : 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border:
+                            Border.all(color: infoColor.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('📦',
+                              style: TextStyle(
+                                  color: context.colors.ink, fontSize: 18)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Standard Courier Delivery · 5–7 Days',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12.5,
+                                    color: infoColor,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                activeAddress != null
-                                    ? 'Intercity shipping to ${activeAddress.label} (${activeAddress.city}${activeAddress.pincode != null ? ' - ${activeAddress.pincode}' : ''}) from ${vendor?.city ?? 'vendor location'}.'
-                                    : 'Store is outside local delivery zone. Order will be shipped safely via courier.',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF1E3A8A)),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                '🚚 Express 15-30m / scheduled morning slots are only available within the store\'s local city.',
-                                style: TextStyle(fontSize: 10, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
-                              ),
-                            ],
+                                const SizedBox(height: 3),
+                                Text(
+                                  activeAddress != null
+                                      ? 'Intercity shipping to ${activeAddress.label} (${activeAddress.city}${activeAddress.pincode != null ? ' - ${activeAddress.pincode}' : ''}) from ${vendor?.city ?? 'vendor location'}.'
+                                      : 'Store is outside local delivery zone. Order will be shipped safely via courier.',
+                                  style: TextStyle(
+                                      fontSize: 11, color: infoColorMuted),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '🚚 Express 15-30m / scheduled morning slots are only available within the store\'s local city.',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: infoColor,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
               ],
             ),
@@ -662,8 +735,9 @@ class _VendorGroupState extends ConsumerState<_VendorGroup> {
               hintText: 'e.g. ring the bell, no onions, leave at the door…',
               border: const OutlineInputBorder(),
             ),
-            onChanged: (v) =>
-                ref.read(cartInstructionsProvider.notifier).set(widget.storeId, v),
+            onChanged: (v) => ref
+                .read(cartInstructionsProvider.notifier)
+                .set(widget.storeId, v),
           ),
         ],
       ),
@@ -685,8 +759,18 @@ class _CartLineRow extends StatelessWidget {
           width: 64,
           height: 64,
           child: line.image != null
-              ? CachedNetworkImage(imageUrl: line.image!, fit: BoxFit.cover)
-              : Container(color: const Color(0xFFF1F1F4), child: const Icon(Icons.image_outlined)),
+              ? CachedNetworkImage(
+                  placeholder: (_, __) => Container(color: context.colors.bg),
+                  errorWidget: (_, __, ___) => Container(
+                      color: context.colors.bg,
+                      child: Icon(Icons.image_not_supported_outlined,
+                          color: context.colors.textMuted, size: 20)),
+                  imageUrl: line.image!,
+                  fit: BoxFit.cover)
+              : Container(
+                  color: context.colors.bg,
+                  child: Icon(Icons.image_outlined,
+                      color: context.colors.textMuted)),
         ),
       ),
       const SizedBox(width: 12),
@@ -695,10 +779,13 @@ class _CartLineRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(line.title,
-                maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13.5)),
             const SizedBox(height: 6),
-            Text(rupees(line.price), style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text(rupees(line.price),
+                style: const TextStyle(fontWeight: FontWeight.w800)),
           ],
         ),
       ),
@@ -754,14 +841,19 @@ class _EmptyCart extends StatelessWidget {
             height: 132,
             decoration: BoxDecoration(color: b.soft, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: const Text('🛒', style: TextStyle(fontSize: 58)),
+            child: Text('🛒',
+                style: TextStyle(color: context.colors.ink, fontSize: 58)),
           ),
           const SizedBox(height: 22),
-          const Text('Your cart is empty',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19)),
+          Text('Your cart is empty',
+              style: TextStyle(
+                  color: context.colors.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 19)),
           const SizedBox(height: 6),
-          const Text('Add products to get started',
-              style: TextStyle(color: BrandColors.textMuted, fontSize: 13.5)),
+          Text('Add products to get started',
+              style:
+                  TextStyle(color: context.colors.textMuted, fontSize: 13.5)),
           const SizedBox(height: 24),
           SizedBox(
             height: 50,
@@ -784,7 +876,8 @@ class _CartDeliveryAddressBar extends StatelessWidget {
   final Address? address;
   final VoidCallback onChange;
 
-  const _CartDeliveryAddressBar({required this.address, required this.onChange});
+  const _CartDeliveryAddressBar(
+      {required this.address, required this.onChange});
 
   @override
   Widget build(BuildContext context) {
@@ -792,11 +885,12 @@ class _CartDeliveryAddressBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.colors.bg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: context.colors.border),
         boxShadow: const [
-          BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2)),
+          BoxShadow(
+              color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -818,20 +912,29 @@ class _CartDeliveryAddressBar extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      address != null ? 'Deliver to: ${address!.label}' : 'Delivery destination',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                      address != null
+                          ? 'Deliver to: ${address!.label}'
+                          : 'Delivery destination',
+                      style: TextStyle(
+                          color: context.colors.ink,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13),
                     ),
                     if (address?.isDefault == true) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE7F6EC),
+                          color: context.colors.success.withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
+                        child: Text(
                           'DEFAULT',
-                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: BrandColors.success),
+                          style: TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              color: context.colors.success),
                         ),
                       ),
                     ],
@@ -839,10 +942,13 @@ class _CartDeliveryAddressBar extends StatelessWidget {
                 ),
                 const SizedBox(height: 1),
                 Text(
-                  address != null ? address!.oneLine : 'Select your address to calculate accurate delivery time',
+                  address != null
+                      ? address!.oneLine
+                      : 'Select your address to calculate accurate delivery time',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: BrandColors.textMuted, fontSize: 11.5),
+                  style: TextStyle(
+                      color: context.colors.textMuted, fontSize: 11.5),
                 ),
               ],
             ),
@@ -855,7 +961,8 @@ class _CartDeliveryAddressBar extends StatelessWidget {
             ),
             child: Text(
               address != null ? 'Change' : 'Select',
-              style: TextStyle(fontWeight: FontWeight.w900, color: b.primary, fontSize: 13),
+              style: TextStyle(
+                  fontWeight: FontWeight.w900, color: b.primary, fontSize: 13),
             ),
           ),
         ],
@@ -886,22 +993,28 @@ void _showAddressPicker(BuildContext context, WidgetRef ref) {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Choose Delivery Address',
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+                      Text('Choose Delivery Address',
+                          style: TextStyle(
+                              color: context.colors.ink,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 17)),
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
-                  const Text('Delivery timeline & slots are based on your selected address',
-                      style: TextStyle(fontSize: 12, color: BrandColors.textMuted)),
+                  Text(
+                      'Delivery timeline & slots are based on your selected address',
+                      style: TextStyle(
+                          fontSize: 12, color: context.colors.textMuted)),
                   const SizedBox(height: 12),
                   if (addresses.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
-                        child: Text('No saved addresses yet', style: TextStyle(color: BrandColors.textMuted)),
+                        child: Text('No saved addresses yet',
+                            style: TextStyle(color: context.colors.textMuted)),
                       ),
                     )
                   else
@@ -910,35 +1023,55 @@ void _showAddressPicker(BuildContext context, WidgetRef ref) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
-                          color: isSelected ? context.brand.soft : Colors.white,
+                          color: isSelected
+                              ? context.brand.soft
+                              : context.colors.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? context.brand.primary : const Color(0xFFE2E8F0),
+                            color: isSelected
+                                ? context.brand.primary
+                                : context.colors.border,
                             width: isSelected ? 1.5 : 1,
                           ),
                         ),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 2),
                           leading: Icon(
-                            isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                            color: isSelected ? context.brand.primary : BrandColors.textMuted,
+                            isSelected
+                                ? Icons.radio_button_checked_rounded
+                                : Icons.radio_button_off_rounded,
+                            color: isSelected
+                                ? context.brand.primary
+                                : context.colors.textMuted,
                           ),
                           title: Row(
                             children: [
-                              Text(a.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                              Text(a.label,
+                                  style: TextStyle(
+                                      color: context.colors.ink,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13.5)),
                               if (a.city.isNotEmpty)
-                                Text(' (${a.city})', style: const TextStyle(fontSize: 12, color: BrandColors.textMuted)),
+                                Text(' (${a.city})',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: context.colors.textMuted)),
                               if (a.isDefault) ...[
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE7F6EC),
+                                    color: context.colors.success
+                                        .withValues(alpha: 0.16),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: const Text('DEFAULT',
+                                  child: Text('DEFAULT',
                                       style: TextStyle(
-                                          fontSize: 8.5, fontWeight: FontWeight.w800, color: BrandColors.success)),
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: context.colors.success)),
                                 ),
                               ],
                             ],
@@ -950,7 +1083,8 @@ void _showAddressPicker(BuildContext context, WidgetRef ref) {
                             style: const TextStyle(fontSize: 11.5),
                           ),
                           onTap: () {
-                            ref.read(activeAddressIdProvider.notifier).state = a.id;
+                            ref.read(activeAddressIdProvider.notifier).state =
+                                a.id;
                             Navigator.pop(ctx);
                           },
                         ),
@@ -961,7 +1095,8 @@ void _showAddressPicker(BuildContext context, WidgetRef ref) {
                     width: double.infinity,
                     height: 46,
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+                      icon:
+                          const Icon(Icons.add_location_alt_rounded, size: 18),
                       label: const Text('Add new address'),
                       onPressed: () {
                         Navigator.pop(ctx);

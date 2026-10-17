@@ -33,7 +33,9 @@ class WishlistController extends StateNotifier<Set<String>> {
       if (was) {
         await ref.read(apiClientProvider).delete('/wishlist/$id');
       } else {
-        await ref.read(apiClientProvider).post('/wishlist', body: {'productId': id});
+        await ref
+            .read(apiClientProvider)
+            .post('/wishlist', body: {'productId': id});
       }
     } catch (_) {
       state = was ? {...state, id} : ({...state}..remove(id)); // revert
@@ -42,4 +44,5 @@ class WishlistController extends StateNotifier<Set<String>> {
   }
 }
 
-final wishlistProvider = StateNotifierProvider<WishlistController, Set<String>>((ref) => WishlistController(ref));
+final wishlistProvider = StateNotifierProvider<WishlistController, Set<String>>(
+    (ref) => WishlistController(ref));

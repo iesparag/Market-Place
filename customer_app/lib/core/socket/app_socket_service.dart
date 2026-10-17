@@ -16,10 +16,12 @@ class AppSocketService {
   AppSocketService(this.tokens);
 
   io.Socket? _socket;
-  final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   /// `{id, title, body, at}`
-  Stream<Map<String, dynamic>> get notifications => _notificationController.stream;
+  Stream<Map<String, dynamic>> get notifications =>
+      _notificationController.stream;
 
   Future<void> connect() async {
     if (_socket != null) return;
@@ -28,10 +30,12 @@ class AppSocketService {
 
     _socket = io.io(
       Config.socketUrl,
-      io.OptionBuilder().setTransports(['websocket']).setAuth({'token': token}).build(),
+      io.OptionBuilder()
+          .setTransports(['websocket']).setAuth({'token': token}).build(),
     );
     _socket!.on('notification:new', (data) {
-      if (data is Map) _notificationController.add(data.cast<String, dynamic>());
+      if (data is Map)
+        _notificationController.add(data.cast<String, dynamic>());
     });
   }
 

@@ -11,11 +11,14 @@ class GeocodeRepository {
   Future<List<GeoSuggestion>> search(String query) async {
     if (query.trim().length < 3) return [];
     final data = await api.get('/geocode/search', query: {'q': query}) as List;
-    return data.map((e) => GeoSuggestion.fromJson((e as Map).cast<String, dynamic>())).toList();
+    return data
+        .map((e) => GeoSuggestion.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
   }
 
   Future<GeoSuggestion?> reverse(double lat, double lng) async {
-    final data = await api.get('/geocode/reverse', query: {'lat': lat, 'lng': lng});
+    final data =
+        await api.get('/geocode/reverse', query: {'lat': lat, 'lng': lng});
     if (data == null) return null;
     return GeoSuggestion.fromJson((data as Map).cast<String, dynamic>());
   }

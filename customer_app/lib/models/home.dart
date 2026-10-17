@@ -10,7 +10,14 @@ class PromoBanner {
   final String? bg;
   final String? image;
   final String? imageUrl;
-  PromoBanner({required this.title, required this.subtitle, this.ctaText, this.link, this.bg, this.image, this.imageUrl});
+  PromoBanner(
+      {required this.title,
+      required this.subtitle,
+      this.ctaText,
+      this.link,
+      this.bg,
+      this.image,
+      this.imageUrl});
   factory PromoBanner.fromJson(Map<String, dynamic> j) => PromoBanner(
         title: j['title']?.toString() ?? '',
         subtitle: j['subtitle']?.toString() ?? '',
@@ -27,7 +34,11 @@ class DealsTimer {
   final int minutes;
   final int seconds;
   final int? endsAt;
-  DealsTimer({required this.hours, required this.minutes, required this.seconds, this.endsAt});
+  DealsTimer(
+      {required this.hours,
+      required this.minutes,
+      required this.seconds,
+      this.endsAt});
   factory DealsTimer.fromJson(Map<String, dynamic> j) => DealsTimer(
         hours: (j['hours'] as num?)?.toInt() ?? 10,
         minutes: (j['minutes'] as num?)?.toInt() ?? 18,
@@ -79,12 +90,30 @@ class HomeSection {
       source: j['source']?.toString(),
       sort: j['sort']?.toString(),
       category: j['category']?.toString(),
-      dealsTimer: j['dealsTimer'] is Map ? DealsTimer.fromJson(j['dealsTimer'] as Map<String, dynamic>) : null,
+      dealsTimer: j['dealsTimer'] is Map
+          ? DealsTimer.fromJson(j['dealsTimer'] as Map<String, dynamic>)
+          : null,
       outOfServiceArea: j['outOfServiceArea'] == true,
-      banners: type == 'banners' ? items.map((e) => PromoBanner.fromJson(e as Map<String, dynamic>)).toList() : [],
-      categories: type == 'categories' ? items.map((e) => CatNode.fromJson(e as Map<String, dynamic>)).toList() : [],
-      products: type == 'products' ? items.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList() : [],
-      vendors: type == 'vendors' ? items.map((e) => Vendor.fromJson(e as Map<String, dynamic>)).toList() : [],
+      banners: type == 'banners'
+          ? items
+              .map((e) => PromoBanner.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : [],
+      categories: type == 'categories'
+          ? items
+              .map((e) => CatNode.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : [],
+      products: type == 'products'
+          ? items
+              .map((e) => Product.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : [],
+      vendors: type == 'vendors'
+          ? items
+              .map((e) => Vendor.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : [],
     );
   }
 }

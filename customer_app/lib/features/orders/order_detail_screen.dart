@@ -49,9 +49,12 @@ const _taskStepOrder = [
 /// so it has no delivery task yet). Placed / Paid (or Cash on delivery) / Fulfilled,
 /// branching to Cancelled/Refunded.
 List<_Stage> _timeline(OrderModel o) {
-  final stages = <_Stage>[_Stage('Order placed', o.createdAt, true, Icons.shopping_bag_outlined)];
+  final stages = <_Stage>[
+    _Stage('Order placed', o.createdAt, true, Icons.shopping_bag_outlined)
+  ];
   if (o.status == 'cancelled') {
-    stages.add(_Stage('Order cancelled', o.updatedAt, true, Icons.cancel_outlined));
+    stages.add(
+        _Stage('Order cancelled', o.updatedAt, true, Icons.cancel_outlined));
     return stages;
   }
   final paidOrCod = o.isPaid || o.paymentMethod == 'cod';
@@ -62,16 +65,20 @@ List<_Stage> _timeline(OrderModel o) {
     Icons.payments_outlined,
   ));
   if (o.status == 'refunded') {
-    stages.add(_Stage('Refund processed', o.updatedAt, true, Icons.replay_rounded));
+    stages.add(
+        _Stage('Refund processed', o.updatedAt, true, Icons.replay_rounded));
     return stages;
   }
-  stages.add(_Stage('Fulfilled', o.status == 'fulfilled' ? o.updatedAt : null, o.status == 'fulfilled', Icons.local_shipping_outlined));
+  stages.add(_Stage('Fulfilled', o.status == 'fulfilled' ? o.updatedAt : null,
+      o.status == 'fulfilled', Icons.local_shipping_outlined));
   return stages;
 }
 
 /// Real per-store delivery timeline, once the order has a committed `DeliveryTask`.
 List<_Stage> _timelineForTask(OrderModel o, DeliveryTaskInfo task) {
-  final stages = <_Stage>[_Stage('Order placed', o.createdAt, true, Icons.shopping_bag_outlined)];
+  final stages = <_Stage>[
+    _Stage('Order placed', o.createdAt, true, Icons.shopping_bag_outlined)
+  ];
   final paidOrCod = o.isPaid || o.paymentMethod == 'cod';
   stages.add(_Stage(
     o.paymentMethod == 'cod' ? 'Cash on delivery' : 'Payment confirmed',
@@ -103,10 +110,12 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
-  late final OrderSocketService _socket = OrderSocketService(ref.read(tokenStoreProvider));
+  late final OrderSocketService _socket =
+      OrderSocketService(ref.read(tokenStoreProvider));
   ll.LatLng? _riderLatLng;
   List<ll.LatLng>? _routePoints;
-  ll.LatLng? _routeFetchedFor; // guards against refetching the same rider position repeatedly
+  ll.LatLng?
+      _routeFetchedFor; // guards against refetching the same rider position repeatedly
 
   @override
   void initState() {
@@ -134,119 +143,173 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(orderProvider(widget.orderId));
     return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (Navigator.of(context).canPop()) {
-          context.pop();
-        } else {
-          context.go('/orders');
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: 'Back',
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                context.pop();
-              } else {
-                context.go('/orders');
-              }
-            },
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (Navigator.of(context).canPop()) {
+            context.pop();
+          } else {
+            context.go('/orders');
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'Back',
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/orders');
+                }
+              },
+            ),
+            title: const Text('Order details'),
           ),
-          title: const Text('Order details'),
-        ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorView(error: e),
-        data: (order) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(orderProvider(widget.orderId)),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _card(child: Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(order.number, style: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'monospace', fontSize: 15)),
-                    if (order.createdAt != null)
-                      Text(timeAgo(order.createdAt), style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
-                  ]),
-                ),
-                Text(rupees(order.total), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-              ])),
-              const SizedBox(height: 14),
-
-              ..._statusSections(order),
-
-              if (order.shippingAddress != null || order.contact != null)
-                _section('Delivery details', Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  if (order.shippingAddress != null && order.shippingAddress!.oneLine.isNotEmpty)
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Icon(Icons.location_on_outlined, size: 18, color: BrandColors.textMuted),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(order.shippingAddress!.oneLine, style: const TextStyle(fontSize: 13.5))),
-                    ]),
-                  if (order.contact?.phone != null && order.contact!.phone!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
+          body: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => ErrorView(error: e),
+            data: (order) => RefreshIndicator(
+              onRefresh: () async =>
+                  ref.invalidate(orderProvider(widget.orderId)),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _card(
                       child: Row(children: [
-                        const Icon(Icons.call_outlined, size: 18, color: BrandColors.textMuted),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(order.number,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontFamily: 'monospace',
+                                    fontSize: 15)),
+                            if (order.createdAt != null)
+                              Text(timeAgo(order.createdAt),
+                                  style: TextStyle(
+                                      color: context.colors.textMuted,
+                                      fontSize: 12)),
+                          ]),
+                    ),
+                    Text(rupees(order.total),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 18)),
+                  ])),
+                  const SizedBox(height: 14),
+                  ..._statusSections(order),
+                  if (order.shippingAddress != null || order.contact != null)
+                    _section(
+                        'Delivery details',
+                        Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (order.shippingAddress != null &&
+                                  order.shippingAddress!.oneLine.isNotEmpty)
+                                Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(Icons.location_on_outlined,
+                                          size: 18,
+                                          color: context.colors.textMuted),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                          child: Text(
+                                              order.shippingAddress!.oneLine,
+                                              style: const TextStyle(
+                                                  fontSize: 13.5))),
+                                    ]),
+                              if (order.contact?.phone != null &&
+                                  order.contact!.phone!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Row(children: [
+                                    Icon(Icons.call_outlined,
+                                        size: 18,
+                                        color: context.colors.textMuted),
+                                    const SizedBox(width: 8),
+                                    Text(order.contact!.phone!,
+                                        style: const TextStyle(fontSize: 13.5)),
+                                  ]),
+                                ),
+                            ])),
+                  if (order.shippingAddress != null || order.contact != null)
+                    const SizedBox(height: 14),
+                  _section(
+                      'Items',
+                      Column(
+                        children: order.items
+                            .map((it) => _ItemRow(item: it))
+                            .toList(),
+                      )),
+                  const SizedBox(height: 14),
+                  if (order.amounts != null)
+                    _section(
+                        'Price details',
+                        Column(children: [
+                          _priceRow(
+                              'Items total', rupees(order.amounts!.itemsTotal)),
+                          if (order.amounts!.discount > 0)
+                            _priceRow('Discount',
+                                '− ${rupees(order.amounts!.discount)}',
+                                color: context.colors.success),
+                          _priceRow('Tax', rupees(order.amounts!.tax)),
+                          _priceRow(
+                              'Delivery',
+                              order.amounts!.delivery == 0
+                                  ? 'FREE'
+                                  : rupees(order.amounts!.delivery),
+                              color: order.amounts!.delivery == 0
+                                  ? context.colors.success
+                                  : null),
+                          const Divider(height: 20),
+                          _priceRow('Total', rupees(order.amounts!.grandTotal),
+                              bold: true),
+                          if (order.refundedAmount > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: _priceRow(
+                                  'Refunded', rupees(order.refundedAmount),
+                                  color: context.colors.success),
+                            ),
+                        ])),
+                  const SizedBox(height: 14),
+                  _section(
+                      'Payment',
+                      Row(children: [
+                        Icon(
+                            order.paymentMethod == 'cod'
+                                ? Icons.payments_outlined
+                                : Icons.credit_card_outlined,
+                            size: 18,
+                            color: context.colors.textMuted),
                         const SizedBox(width: 8),
-                        Text(order.contact!.phone!, style: const TextStyle(fontSize: 13.5)),
-                      ]),
+                        Text(_paymentLabel(order),
+                            style: const TextStyle(fontSize: 13.5)),
+                      ])),
+                  const SizedBox(height: 20),
+                  if (order.needsPayment)
+                    PayOrderButton(orderId: order.id, total: order.total),
+                  if (order.canCancel) ...[
+                    if (order.needsPayment) const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: () => _cancel(context, ref, order.id),
+                        child: const Text('Cancel order'),
+                      ),
                     ),
-                ])),
-              if (order.shippingAddress != null || order.contact != null) const SizedBox(height: 14),
-
-              _section('Items', Column(
-                children: order.items.map((it) => _ItemRow(item: it)).toList(),
-              )),
-              const SizedBox(height: 14),
-
-              if (order.amounts != null)
-                _section('Price details', Column(children: [
-                  _priceRow('Items total', rupees(order.amounts!.itemsTotal)),
-                  if (order.amounts!.discount > 0) _priceRow('Discount', '− ${rupees(order.amounts!.discount)}', color: BrandColors.success),
-                  _priceRow('Tax', rupees(order.amounts!.tax)),
-                  _priceRow('Delivery', order.amounts!.delivery == 0 ? 'FREE' : rupees(order.amounts!.delivery),
-                      color: order.amounts!.delivery == 0 ? BrandColors.success : null),
-                  const Divider(height: 20),
-                  _priceRow('Total', rupees(order.amounts!.grandTotal), bold: true),
-                  if (order.refundedAmount > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: _priceRow('Refunded', rupees(order.refundedAmount), color: BrandColors.success),
-                    ),
-                ])),
-              const SizedBox(height: 14),
-
-              _section('Payment', Row(children: [
-                Icon(order.paymentMethod == 'cod' ? Icons.payments_outlined : Icons.credit_card_outlined, size: 18, color: BrandColors.textMuted),
-                const SizedBox(width: 8),
-                Text(_paymentLabel(order), style: const TextStyle(fontSize: 13.5)),
-              ])),
-
-              const SizedBox(height: 20),
-              if (order.needsPayment) PayOrderButton(orderId: order.id, total: order.total),
-              if (order.canCancel) ...[
-                if (order.needsPayment) const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: () => _cancel(context, ref, order.id),
-                    child: const Text('Cancel order'),
-                  ),
-                ),
-              ],
-            ],
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
-      bottomNavigationBar: const AppBottomNav(),
-    ));
+          bottomNavigationBar: const AppBottomNav(),
+        ));
   }
 
   /// One "Status" section per delivery task (almost always just one — multi-vendor
@@ -263,7 +326,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final widgets = <Widget>[];
     for (var i = 0; i < order.deliveryTasks.length; i++) {
       final task = order.deliveryTasks[i];
-      final title = order.deliveryTasks.length > 1 ? 'Status — package ${i + 1} of ${order.deliveryTasks.length}' : 'Status';
+      final title = order.deliveryTasks.length > 1
+          ? 'Status — package ${i + 1} of ${order.deliveryTasks.length}'
+          : 'Status';
       widgets.add(_section(
         title,
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -282,7 +347,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   List<Widget> _timelineRows(List<_Stage> stages) => stages
       .asMap()
       .entries
-      .map((e) => _TimelineRow(stage: e.value, isLast: e.key == stages.length - 1))
+      .map((e) =>
+          _TimelineRow(stage: e.value, isLast: e.key == stages.length - 1))
       .toList();
 
   Widget _liveMapFor(DeliveryTaskInfo task) {
@@ -293,14 +359,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     if (position == null) {
       return Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: BrandColors.bg, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+            color: context.colors.bg, borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
-          const Icon(Icons.two_wheeler, size: 18, color: BrandColors.textMuted),
+          Icon(Icons.two_wheeler, size: 18, color: context.colors.textMuted),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              task.rider != null ? '${task.rider!.name} is on the way — waiting for their live location…' : 'Rider is on the way',
-              style: const TextStyle(color: BrandColors.textMuted, fontSize: 12.5),
+              task.rider != null
+                  ? '${task.rider!.name} is on the way — waiting for their live location…'
+                  : 'Rider is on the way',
+              style: TextStyle(color: context.colors.textMuted, fontSize: 12.5),
             ),
           ),
         ]),
@@ -313,19 +382,28 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final dropLat = task.dropLat, dropLng = task.dropLng;
     if (dropLat != null && dropLng != null && _routeFetchedFor != position) {
       _routeFetchedFor = position;
-      ref.read(routingRepoProvider).route(from: position, to: ll.LatLng(dropLat, dropLng)).then((pts) {
+      ref
+          .read(routingRepoProvider)
+          .route(from: position, to: ll.LatLng(dropLat, dropLng))
+          .then((pts) {
         if (mounted) setState(() => _routePoints = pts);
       });
     }
 
-    final destination = (dropLat != null && dropLng != null) ? ll.LatLng(dropLat, dropLng) : null;
-    final bounds = destination != null ? LatLngBounds.fromPoints([position, destination]) : null;
+    final destination = (dropLat != null && dropLng != null)
+        ? ll.LatLng(dropLat, dropLng)
+        : null;
+    final bounds = destination != null
+        ? LatLngBounds.fromPoints([position, destination])
+        : null;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (task.rider != null)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: Text('${task.rider!.name} · ${task.rider!.vehicleType ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          child: Text('${task.rider!.name} · ${task.rider!.vehicleType ?? ''}',
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         ),
       ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -333,30 +411,38 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           height: 200,
           child: FlutterMap(
             options: bounds != null
-                ? MapOptions(initialCameraFit: CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)))
+                ? MapOptions(
+                    initialCameraFit: CameraFit.bounds(
+                        bounds: bounds, padding: const EdgeInsets.all(40)))
                 : MapOptions(initialCenter: position, initialZoom: 15),
             children: [
               TileLayer(
-                urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate:
+                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.customer_app',
               ),
               if (_routePoints != null)
                 PolylineLayer(polylines: [
-                  Polyline(points: _routePoints!, strokeWidth: 4, color: context.brand.primary),
+                  Polyline(
+                      points: _routePoints!,
+                      strokeWidth: 4,
+                      color: context.brand.primary),
                 ]),
               MarkerLayer(markers: [
                 Marker(
                   point: position,
                   width: 40,
                   height: 40,
-                  child: Icon(Icons.two_wheeler, color: context.brand.primary, size: 32),
+                  child: Icon(Icons.two_wheeler,
+                      color: context.brand.primary, size: 32),
                 ),
                 if (destination != null)
                   Marker(
                     point: destination,
                     width: 34,
                     height: 34,
-                    child: const Icon(Icons.location_on_rounded, color: Color(0xFFE11D48), size: 30),
+                    child: const Icon(Icons.location_on_rounded,
+                        color: Color(0xFFE11D48), size: 30),
                   ),
               ]),
             ],
@@ -391,8 +477,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         title: const Text('Cancel this order?'),
         content: const Text('This cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Yes, cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(dCtx, false),
+              child: const Text('No')),
+          TextButton(
+              onPressed: () => Navigator.pop(dCtx, true),
+              child: const Text('Yes, cancel')),
         ],
       ),
     );
@@ -402,36 +492,52 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       ref.invalidate(orderProvider(id));
       ref.invalidate(myOrdersProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order cancelled')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Order cancelled')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(friendlyError(e, fallback: 'Could not cancel the order. Please try again.'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(friendlyError(e,
+                fallback: 'Could not cancel the order. Please try again.'))));
       }
     }
   }
 
   Widget _card({required Widget child}) => Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: BrandColors.border)),
+        decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: context.colors.border)),
         child: child,
       );
 
   Widget _section(String title, Widget child) => _card(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          Text(title,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
           const SizedBox(height: 10),
           child,
         ]),
       );
 
-  Widget _priceRow(String k, String v, {bool bold = false, Color? color}) => Padding(
+  Widget _priceRow(String k, String v, {bool bold = false, Color? color}) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [
-          Text(k, style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w500, fontSize: bold ? 15 : 13.5)),
+          Text(k,
+              style: TextStyle(
+                  color: context.colors.ink,
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+                  fontSize: bold ? 15 : 13.5)),
           const Spacer(),
-          Text(v, style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w600, fontSize: bold ? 15 : 13.5, color: color)),
+          Text(v,
+              style: TextStyle(
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: bold ? 15 : 13.5,
+                  color: color)),
         ]),
       );
 }
@@ -443,32 +549,49 @@ class _TimelineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = stage.done ? context.brand.primary : BrandColors.textMuted;
+    final color = stage.done ? context.brand.primary : context.colors.textMuted;
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Column(children: [
             Container(
-              width: 28, height: 28,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: stage.done ? color.withValues(alpha: 0.12) : BrandColors.bg,
+                color: stage.done
+                    ? color.withValues(alpha: 0.12)
+                    : context.colors.bg,
                 border: Border.all(color: color, width: 1.5),
               ),
               child: Icon(stage.icon, size: 15, color: color),
             ),
-            if (!isLast) Expanded(child: Container(width: 2, color: stage.done ? color : BrandColors.border)),
+            if (!isLast)
+              Expanded(
+                  child: Container(
+                      width: 2,
+                      color: stage.done ? color : context.colors.border)),
           ]),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 18),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(stage.label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: stage.done ? BrandColors.ink : BrandColors.textMuted)),
-                if (stage.time != null)
-                  Text(timeAgo(stage.time), style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(stage.label,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            color: stage.done
+                                ? context.colors.ink
+                                : context.colors.textMuted)),
+                    if (stage.time != null)
+                      Text(timeAgo(stage.time),
+                          style: TextStyle(
+                              color: context.colors.textMuted, fontSize: 12)),
+                  ]),
             ),
           ),
         ],
@@ -496,7 +619,9 @@ class _ItemRowState extends ConsumerState<_ItemRow> {
     if (_loading) return;
     setState(() => _loading = true);
     try {
-      final resolved = await ref.read(catalogRepoProvider).productSlugById(widget.item.productId);
+      final resolved = await ref
+          .read(catalogRepoProvider)
+          .productSlugById(widget.item.productId);
       if (!mounted) return;
       final diff = resolved.currentPrice - widget.item.unitPrice;
       if (diff != 0) {
@@ -509,8 +634,8 @@ class _ItemRowState extends ConsumerState<_ItemRow> {
       if (mounted) context.push('/p/${resolved.slug}');
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('This product is no longer available.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('This product is no longer available.')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -531,25 +656,42 @@ class _ItemRowState extends ConsumerState<_ItemRow> {
             child: item.image != null && item.image!.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: item.image!,
-                    width: 48, height: 48, fit: BoxFit.cover,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
                     errorWidget: (_, __, ___) => _placeholder(),
                   )
                 : _placeholder(),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13.5)),
               if (item.variantLabel != null)
-                Text(item.variantLabel!, style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
-              Text('Qty ${item.qty}', style: const TextStyle(color: BrandColors.textMuted, fontSize: 12)),
+                Text(item.variantLabel!,
+                    style: TextStyle(
+                        color: context.colors.textMuted, fontSize: 12)),
+              Text('Qty ${item.qty}',
+                  style:
+                      TextStyle(color: context.colors.textMuted, fontSize: 12)),
             ]),
           ),
           if (_loading)
-            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+            const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2))
           else ...[
-            Text(rupees(item.lineTotal), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-            const Icon(Icons.chevron_right_rounded, size: 18, color: BrandColors.textMuted),
+            Text(rupees(item.lineTotal),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 13.5)),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: context.colors.textMuted),
           ],
         ]),
       ),
@@ -557,8 +699,10 @@ class _ItemRowState extends ConsumerState<_ItemRow> {
   }
 
   Widget _placeholder() => Container(
-        width: 48, height: 48,
-        color: BrandColors.bg,
-        child: const Icon(Icons.image_not_supported_outlined, size: 20, color: BrandColors.textMuted),
+        width: 48,
+        height: 48,
+        color: context.colors.bg,
+        child: Icon(Icons.image_not_supported_outlined,
+            size: 20, color: context.colors.textMuted),
       );
 }

@@ -23,17 +23,36 @@ class RiderShell extends ConsumerWidget {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        onDestinationSelected: (i) => ref.read(riderShellTabProvider.notifier).state = i,
-        backgroundColor: Colors.white,
+        onDestinationSelected: (i) =>
+            ref.read(riderShellTabProvider.notifier).state = i,
+        backgroundColor: RiderColors.surface,
         indicatorColor: RiderColors.primary.withValues(alpha: 0.12),
         height: 60,
         destinations: [
-          const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
-          const NavigationDestination(icon: Icon(Icons.history_rounded), selectedIcon: Icon(Icons.history_rounded), label: 'History'),
           NavigationDestination(
-              icon: const Icon(Icons.account_balance_wallet_outlined),
-              selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: RiderColors.primary),
-              label: 'Payouts'),
+            icon: Icon(Icons.home_outlined, color: RiderColors.textMuted),
+            selectedIcon: Icon(Icons.home_rounded, color: RiderColors.primary),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_rounded, color: RiderColors.textMuted),
+            selectedIcon: Icon(
+              Icons.history_rounded,
+              color: RiderColors.primary,
+            ),
+            label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(
+              Icons.account_balance_wallet_outlined,
+              color: RiderColors.textMuted,
+            ),
+            selectedIcon: Icon(
+              Icons.account_balance_wallet_rounded,
+              color: RiderColors.primary,
+            ),
+            label: 'Payouts',
+          ),
         ],
       ),
     );

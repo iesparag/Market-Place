@@ -18,18 +18,21 @@ class OrderSocketService {
   String? _orderId;
 
   final _statusController = StreamController<Map<String, dynamic>>.broadcast();
-  final _locationController = StreamController<Map<String, dynamic>>.broadcast();
+  final _locationController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   /// Emits whenever this order's status (or one of its delivery tasks') changes.
   Stream<Map<String, dynamic>> get statusUpdates => _statusController.stream;
 
   /// Emits `{lat, lng, at}` while a rider is actively delivering this order.
-  Stream<Map<String, dynamic>> get locationUpdates => _locationController.stream;
+  Stream<Map<String, dynamic>> get locationUpdates =>
+      _locationController.stream;
 
   Future<void> join(String orderId) async {
     _orderId = orderId;
     final token = await tokens.access();
-    if (token == null) return; // not signed in — no live updates, REST still works
+    if (token == null)
+      return; // not signed in — no live updates, REST still works
 
     if (_socket == null) {
       _socket = io.io(

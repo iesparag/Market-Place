@@ -9,10 +9,13 @@ class RoutingRepository {
   final ApiClient api;
   RoutingRepository(this.api);
 
-  Future<List<ll.LatLng>?> route({required ll.LatLng from, required ll.LatLng to}) async {
+  Future<List<ll.LatLng>?> route(
+      {required ll.LatLng from, required ll.LatLng to}) async {
     final data = await api.get('/routing', query: {
-      'fromLat': from.latitude, 'fromLng': from.longitude,
-      'toLat': to.latitude, 'toLng': to.longitude,
+      'fromLat': from.latitude,
+      'fromLng': from.longitude,
+      'toLat': to.latitude,
+      'toLng': to.longitude,
     });
     if (data == null) return null;
     final coords = (data as Map)['coordinates'] as List?;
@@ -20,7 +23,8 @@ class RoutingRepository {
     // Backend returns [lng, lat] pairs (GeoJSON order) — flip to flutter_map's LatLng(lat, lng).
     return coords
         .whereType<List>()
-        .map((c) => ll.LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+        .map((c) =>
+            ll.LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
         .toList();
   }
 }

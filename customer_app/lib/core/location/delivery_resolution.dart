@@ -20,7 +20,10 @@ double haversineDistanceKm(double lat1, double lon1, double lat2, double lon2) {
   const p = 0.017453292519943295; // Math.PI / 180
   final a = 0.5 -
       math.cos((lat2 - lat1) * p) / 2 +
-      math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
+      math.cos(lat1 * p) *
+          math.cos(lat2 * p) *
+          (1 - math.cos((lon2 - lon1) * p)) /
+          2;
   return 12742 * math.asin(math.sqrt(a)); // 2 * R; R = 6371 km
 }
 
@@ -49,15 +52,24 @@ DeliverabilityResult evaluateDeliverability({
     final local = vendor.isLocal;
     return DeliverabilityResult(
       isLocal: local,
-      estimatedSLA: local ? (vendor.isOpenNow ? '15–30 mins' : 'Next 1–3 days') : '5–7 business days',
-      description: local ? 'Select address to confirm delivery time' : 'Standard Courier Delivery',
+      estimatedSLA: local
+          ? (vendor.isOpenNow ? '15–30 mins' : 'Next 1–3 days')
+          : '5–7 business days',
+      description: local
+          ? 'Select address to confirm delivery time'
+          : 'Standard Courier Delivery',
     );
   }
 
   // 2. Exact GPS Distance (Authoritative for all of India and globally)
-  if (address.lat != null && address.lng != null && vendor.lat != null && vendor.lng != null) {
-    final dist = haversineDistanceKm(address.lat!, address.lng!, vendor.lat!, vendor.lng!);
-    const localRadiusKm = 25.0; // 25 km covers entire metropolitan delivery radius
+  if (address.lat != null &&
+      address.lng != null &&
+      vendor.lat != null &&
+      vendor.lng != null) {
+    final dist = haversineDistanceKm(
+        address.lat!, address.lng!, vendor.lat!, vendor.lng!);
+    const localRadiusKm =
+        25.0; // 25 km covers entire metropolitan delivery radius
     if (dist <= localRadiusKm) {
       return DeliverabilityResult(
         isLocal: true,
@@ -74,7 +86,8 @@ DeliverabilityResult evaluateDeliverability({
         isLocal: false,
         distanceKm: dist,
         estimatedSLA: '5–7 business days',
-        description: '📦 Intercity Courier (${dist.toStringAsFixed(0)} km away)',
+        description:
+            '📦 Intercity Courier (${dist.toStringAsFixed(0)} km away)',
       );
     }
   }
@@ -102,7 +115,9 @@ DeliverabilityResult evaluateDeliverability({
   // 4. Pincode regional prefix check
   if (addrPin.length >= 2) {
     // If vendor is in Ahmedabad/Gujarat (postal prefix 36-39) but destination is outside (e.g. 47xxxx MP)
-    if (vendorCity.contains('ahmedabad') || vendor.city == null || vendor.city!.isEmpty) {
+    if (vendorCity.contains('ahmedabad') ||
+        vendor.city == null ||
+        vendor.city!.isEmpty) {
       final isGujarat = addrPin.startsWith('36') ||
           addrPin.startsWith('37') ||
           addrPin.startsWith('38') ||
@@ -111,7 +126,8 @@ DeliverabilityResult evaluateDeliverability({
         return DeliverabilityResult(
           isLocal: false,
           estimatedSLA: '5–7 business days',
-          description: '📦 Standard Courier Delivery (${address.city} · ${address.pincode})',
+          description:
+              '📦 Standard Courier Delivery (${address.city} · ${address.pincode})',
         );
       }
     }
@@ -130,6 +146,7 @@ DeliverabilityResult evaluateDeliverability({
   return DeliverabilityResult(
     isLocal: true,
     estimatedSLA: vendor.isOpenNow ? '15–30 mins' : 'Next 1–3 days',
-    description: '⚡ Local Delivery (${address.city.isNotEmpty ? address.city : "Same City"})',
+    description:
+        '⚡ Local Delivery (${address.city.isNotEmpty ? address.city : "Same City"})',
   );
 }

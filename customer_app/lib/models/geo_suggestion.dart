@@ -23,8 +23,12 @@ class GeoSuggestion {
         label: j['label']?.toString() ?? '',
         line1: j['line1']?.toString() ?? '',
         city: j['city']?.toString() ?? '',
-        state: (j['state'] as String?)?.trim().isEmpty == true ? null : j['state']?.toString(),
-        pincode: (j['pincode'] as String?)?.trim().isEmpty == true ? null : j['pincode']?.toString(),
+        state: (j['state'] as String?)?.trim().isEmpty == true
+            ? null
+            : j['state']?.toString(),
+        pincode: (j['pincode'] as String?)?.trim().isEmpty == true
+            ? null
+            : j['pincode']?.toString(),
         lat: (j['lat'] as num?)?.toDouble() ?? 0,
         lng: (j['lng'] as num?)?.toDouble() ?? 0,
       );

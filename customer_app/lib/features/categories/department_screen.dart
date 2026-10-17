@@ -34,93 +34,95 @@ class DepartmentScreen extends ConsumerWidget {
           leading: const AppBackButton(),
           actions: const [WishlistButton(), CartButton()],
         ),
-      body: tree.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorView(error: e),
-        data: (nodes) {
-          final dept = _find(nodes, slug);
-          if (dept == null) return const Center(child: Text('Not found'));
-          final leaves = dept.children;
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(dept.name,
-                          style: const TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 4),
-                      GestureDetector(
-                        onTap: () => context.push(
-                            '/catalog?category=${Uri.encodeComponent(dept.allSlugs.join(","))}&title=${Uri.encodeComponent("All ${dept.name}")}'),
-                        child: Row(children: [
-                          Text('View all products',
-                              style: TextStyle(
-                                  color: context.brand.primaryDark,
-                                  fontWeight: FontWeight.w700)),
-                          Icon(Icons.arrow_forward_rounded,
-                              size: 16, color: context.brand.primaryDark),
-                        ]),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.82,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10),
-                  delegate: SliverChildBuilderDelegate(
-                    (_, i) {
-                      final c = leaves[i];
-                      return GestureDetector(
-                        onTap: () => context.push(
-                            '/catalog?category=${Uri.encodeComponent([
-                          dept.slug,
-                          ...c.allSlugs
-                        ].join(","))}&title=${Uri.encodeComponent(c.name)}'),
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                    color: const Color(0xFFE7F6EC),
-                                    borderRadius: BorderRadius.circular(16)),
-                                alignment: Alignment.center,
-                                child: Text(categoryEmoji(c.slug),
-                                    style: const TextStyle(fontSize: 34)),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(c.name,
-                                maxLines: 2,
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.w600)),
-                          ],
+        body: tree.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErrorView(error: e),
+          data: (nodes) {
+            final dept = _find(nodes, slug);
+            if (dept == null) return const Center(child: Text('Not found'));
+            final leaves = dept.children;
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(dept.name,
+                            style: const TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => context.push(
+                              '/catalog?category=${Uri.encodeComponent(dept.allSlugs.join(","))}&title=${Uri.encodeComponent("All ${dept.name}")}'),
+                          child: Row(children: [
+                            Text('View all products',
+                                style: TextStyle(
+                                    color: context.brand.primaryDark,
+                                    fontWeight: FontWeight.w700)),
+                            Icon(Icons.arrow_forward_rounded,
+                                size: 16, color: context.brand.primaryDark),
+                          ]),
                         ),
-                      );
-                    },
-                    childCount: leaves.length,
+                        const SizedBox(height: 12),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                  sliver: SliverGrid(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            childAspectRatio: 0.82,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10),
+                    delegate: SliverChildBuilderDelegate(
+                      (_, i) {
+                        final c = leaves[i];
+                        return GestureDetector(
+                          onTap: () => context.push(
+                              '/catalog?category=${Uri.encodeComponent([
+                            dept.slug,
+                            ...c.allSlugs
+                          ].join(","))}&title=${Uri.encodeComponent(c.name)}'),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xFFE7F6EC),
+                                      borderRadius: BorderRadius.circular(16)),
+                                  alignment: Alignment.center,
+                                  child: Text(categoryEmoji(c.slug),
+                                      style: const TextStyle(fontSize: 34)),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(c.name,
+                                  maxLines: 2,
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        );
+                      },
+                      childCount: leaves.length,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        bottomNavigationBar: const AppBottomNav(activeTab: 'Products'),
       ),
-      bottomNavigationBar: const AppBottomNav(activeTab: 'Products'),
-    ),
-  );
-}
+    );
+  }
 }

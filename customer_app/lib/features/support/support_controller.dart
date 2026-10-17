@@ -14,19 +14,27 @@ class SupportController extends StateNotifier<SupportState> {
   Future<void> _init() async {
     try {
       // 1) public config — greeting + whether the bot / app channel is on.
-      final cfg = (await _api.get('/support/config/public') as Map).cast<String, dynamic>();
-      final channels = (cfg['channels'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final cfg = (await _api.get('/support/config/public') as Map)
+          .cast<String, dynamic>();
+      final channels =
+          (cfg['channels'] as Map?)?.cast<String, dynamic>() ?? const {};
       final botEnabled = cfg['botEnabled'] != false;
       final channelOn = channels['app'] != false;
       final greeting = (cfg['greeting'] ?? '').toString();
 
       if (!channelOn) {
-        state = state.copyWith(loading: false, botEnabled: botEnabled, channelOn: false, greeting: greeting);
+        state = state.copyWith(
+            loading: false,
+            botEnabled: botEnabled,
+            channelOn: false,
+            greeting: greeting);
         return;
       }
 
       // 2) open (or reuse) my thread — returns the transcript so far.
-      final thread = (await _api.post('/support/threads', body: {'channel': 'app'}) as Map).cast<String, dynamic>();
+      final thread =
+          (await _api.post('/support/threads', body: {'channel': 'app'}) as Map)
+              .cast<String, dynamic>();
       state = state.copyWith(
         loading: false,
         botEnabled: botEnabled,
@@ -39,11 +47,13 @@ class SupportController extends StateNotifier<SupportState> {
     } on ApiException catch (e) {
       state = state.copyWith(loading: false, error: e.message);
     } catch (_) {
-      state = state.copyWith(loading: false, error: 'Could not start support chat.');
+      state = state.copyWith(
+          loading: false, error: 'Could not start support chat.');
     }
   }
 
-  Future<void> send(String text, {String? orderId, String? productTitle}) async {
+  Future<void> send(String text,
+      {String? orderId, String? productTitle}) async {
     final body = text.trim();
     final id = state.threadId;
     if (body.isEmpty || id == null || state.sending) return;
@@ -52,23 +62,31 @@ class SupportController extends StateNotifier<SupportState> {
     state = state.copyWith(
       sending: true,
       error: null,
-      messages: [...state.messages, SupportMessage(role: 'customer', text: body, at: DateTime.now())],
+      messages: [
+        ...state.messages,
+        SupportMessage(role: 'customer', text: body, at: DateTime.now())
+      ],
     );
 
     final context = <String, dynamic>{
       if (orderId != null && orderId.isNotEmpty) 'orderId': orderId,
-      if (productTitle != null && productTitle.isNotEmpty) 'productTitle': productTitle,
+      if (productTitle != null && productTitle.isNotEmpty)
+        'productTitle': productTitle,
     };
 
     try {
-      final res = (await _api.post('/support/threads/$id/message',
-              body: {'text': body, if (context.isNotEmpty) 'context': context}) as Map)
+      final res = (await _api.post('/support/threads/$id/message', body: {
+        'text': body,
+        if (context.isNotEmpty) 'context': context
+      }) as Map)
           .cast<String, dynamic>();
       final thread = (res['thread'] as Map?)?.cast<String, dynamic>();
       state = state.copyWith(
         sending: false,
         // Rebuild from the authoritative server transcript (dedupes the optimistic bubble).
-        messages: thread != null ? _parseMessages(thread['messages']) : state.messages,
+        messages: thread != null
+            ? _parseMessages(thread['messages'])
+            : state.messages,
         escalated: res['escalated'] == true || state.escalated,
       );
     } on ApiException catch (e) {
@@ -76,7 +94,9 @@ class SupportController extends StateNotifier<SupportState> {
       state = state.copyWith(
         sending: false,
         messages: state.messages.take(state.messages.length - 1).toList(),
-        error: e.status == 429 ? 'You’re sending messages too fast — give it a moment.' : e.message,
+        error: e.status == 429
+            ? 'You’re sending messages too fast — give it a moment.'
+            : e.message,
       );
     } catch (_) {
       state = state.copyWith(

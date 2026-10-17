@@ -17,13 +17,17 @@ Future<void> initPush() async {
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    if (kDebugMode) debugPrint('[push] Firebase not configured — push disabled ($e)');
+    if (kDebugMode)
+      debugPrint('[push] Firebase not configured — push disabled ($e)');
     return;
   }
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   try {
-    await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
-  } catch (_) {/* permission dialog dismissed or unsupported platform — push just won't arrive */}
+    await FirebaseMessaging.instance
+        .requestPermission(alert: true, badge: true, sound: true);
+  } catch (_) {
+    /* permission dialog dismissed or unsupported platform — push just won't arrive */
+  }
 }
 
 /// The device's current FCM token, or null if Firebase isn't configured/ready yet.
@@ -58,12 +62,16 @@ Stream<String>? fcmTokenRefreshStream() {
 void listenForNotificationTaps(void Function(String link) onLink) {
   try {
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final link = (message.data['actionLink'] as String?) ?? (message.data['link'] as String?);
+      final link = (message.data['actionLink'] as String?) ??
+          (message.data['link'] as String?);
       if (link != null && link.isNotEmpty) onLink(link);
     });
     FirebaseMessaging.instance.getInitialMessage().then((message) {
-      final link = (message?.data['actionLink'] as String?) ?? (message?.data['link'] as String?);
+      final link = (message?.data['actionLink'] as String?) ??
+          (message?.data['link'] as String?);
       if (link != null && link.isNotEmpty) onLink(link);
     });
-  } catch (_) {/* Firebase not configured on this build — push just won't deep-link */}
+  } catch (_) {
+    /* Firebase not configured on this build — push just won't deep-link */
+  }
 }

@@ -60,7 +60,8 @@ class ApiClient {
       final r = await Dio(BaseOptions(baseUrl: Config.apiBaseUrl))
           .post('/auth/refresh', data: {'refreshToken': rt});
       final data = r.data['data'] as Map<String, dynamic>;
-      await tokens.save(data['token'] as String, data['refreshToken'] as String);
+      await tokens.save(
+          data['token'] as String, data['refreshToken'] as String);
       return true;
     } catch (_) {
       await tokens.clear();
@@ -71,7 +72,9 @@ class ApiClient {
   dynamic _unwrap(Response r) {
     final data = r.data;
     if (data is Map && data['ok'] == true) return data['data'];
-    final msg = data is Map ? (data['error']?['message'] ?? 'Something went wrong') : 'Something went wrong';
+    final msg = data is Map
+        ? (data['error']?['message'] ?? 'Something went wrong')
+        : 'Something went wrong';
     throw ApiException(msg.toString(), status: r.statusCode);
   }
 
@@ -122,7 +125,9 @@ class ApiClient {
 
   ApiException _fromDio(DioException e) {
     final data = e.response?.data;
-    final msg = data is Map ? (data['error']?['message'] ?? e.message) : e.message;
-    return ApiException((msg ?? 'Network error').toString(), status: e.response?.statusCode);
+    final msg =
+        data is Map ? (data['error']?['message'] ?? e.message) : e.message;
+    return ApiException((msg ?? 'Network error').toString(),
+        status: e.response?.statusCode);
   }
 }

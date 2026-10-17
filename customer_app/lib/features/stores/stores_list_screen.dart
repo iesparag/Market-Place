@@ -26,7 +26,14 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
   final _searchCtrl = TextEditingController();
   String _selectedCategory = 'All';
 
-  static const _categories = ['All', 'Grocery', 'Fashion', 'Food', 'Tech', 'Pharmacy'];
+  static const _categories = [
+    'All',
+    'Grocery',
+    'Fashion',
+    'Food',
+    'Tech',
+    'Pharmacy'
+  ];
 
   @override
   void dispose() {
@@ -40,23 +47,26 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
     final async = ref.watch(vendorsProvider);
 
     final scaffold = Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: b.canvas,
       appBar: AppBar(
         leading: widget.embedded ? null : const AppBackButton(),
         titleSpacing: widget.embedded ? 12 : 0,
         title: Container(
           height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
+            color: context.colors.bg,
             borderRadius: BorderRadius.circular(22),
           ),
           child: TextField(
             controller: _searchCtrl,
             onChanged: (_) => setState(() {}),
+            style: TextStyle(color: context.colors.ink),
             decoration: InputDecoration(
               hintText: 'Search stores & categories…',
-              hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-              prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF64748B)),
+              hintStyle:
+                  TextStyle(fontSize: 13, color: context.colors.textMuted),
+              prefixIcon: Icon(Icons.search_rounded,
+                  size: 20, color: context.colors.textMuted),
               suffixIcon: _searchCtrl.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear_rounded, size: 18),
@@ -77,7 +87,7 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
         children: [
           // Quick Category Filters
           Container(
-            color: Colors.white,
+            color: context.colors.surface,
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -90,18 +100,20 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
                     child: ChoiceChip(
                       label: Text(cat),
                       selected: sel,
-                      onSelected: (_) => setState(() => _selectedCategory = cat),
+                      onSelected: (_) =>
+                          setState(() => _selectedCategory = cat),
                       labelStyle: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: sel ? Colors.white : const Color(0xFF475569),
+                        color: sel ? Colors.white : context.colors.ink2,
                       ),
                       selectedColor: b.primary,
-                      backgroundColor: const Color(0xFFF1F5F9),
+                      backgroundColor: context.colors.bg,
                       side: BorderSide(
-                        color: sel ? b.primary : const Color(0xFFE2E8F0),
+                        color: sel ? b.primary : context.colors.border,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                     ),
                   );
                 }).toList(),
@@ -117,7 +129,9 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
               data: (vendors) {
                 final filtered = vendors.where((v) {
                   final matchesCat = _selectedCategory == 'All' ||
-                      v.vendorType.toLowerCase().contains(_selectedCategory.toLowerCase());
+                      v.vendorType
+                          .toLowerCase()
+                          .contains(_selectedCategory.toLowerCase());
                   final q = _searchCtrl.text.trim().toLowerCase();
                   final matchesSearch = q.isEmpty ||
                       v.name.toLowerCase().contains(q) ||
@@ -130,14 +144,20 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
                     onRefresh: () async => ref.invalidate(vendorsProvider),
                     child: ListView(
                       padding: const EdgeInsets.all(24),
-                      children: const [
-                        SizedBox(height: 60),
-                        Center(child: Text('🏬', style: TextStyle(fontSize: 48))),
+                      children: [
+                        const SizedBox(height: 60),
+                        Center(
+                            child: Text('🏬',
+                                style: TextStyle(
+                                    color: context.colors.ink, fontSize: 48))),
                         SizedBox(height: 12),
                         Center(
                           child: Text(
                             'No stores available',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                            style: TextStyle(
+                                color: context.colors.ink,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16),
                           ),
                         ),
                         SizedBox(height: 6),
@@ -145,7 +165,8 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
                           child: Text(
                             'Check back soon as new vendors join the marketplace.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: BrandColors.textMuted, fontSize: 13),
+                            style: TextStyle(
+                                color: context.colors.textMuted, fontSize: 13),
                           ),
                         ),
                       ],
@@ -168,18 +189,18 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
                             children: [
                               Text(
                                 '${filtered.length} Marketplace Store${filtered.length == 1 ? '' : 's'}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 14,
-                                  color: Color(0xFF334155),
+                                  color: context.colors.ink2,
                                 ),
                               ),
-                              const Text(
+                              Text(
                                 'Pan-India Delivery',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0284C7),
+                                  color: context.brand.primaryDark,
                                 ),
                               ),
                             ],
@@ -195,9 +216,8 @@ class _StoresListScreenState extends ConsumerState<StoresListScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: widget.embedded
-          ? null
-          : const AppBottomNav(activeTab: 'Stores'),
+      bottomNavigationBar:
+          widget.embedded ? null : const AppBottomNav(activeTab: 'Stores'),
     );
 
     if (widget.embedded) return scaffold;
@@ -226,9 +246,9 @@ class _StoreRow extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: context.colors.border),
           boxShadow: const [
             BoxShadow(
               color: Color(0x06000000),
@@ -247,14 +267,20 @@ class _StoreRow extends ConsumerWidget {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: context.colors.bg,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: context.colors.border),
                   ),
                   clipBehavior: Clip.antiAlias,
                   padding: const EdgeInsets.all(4),
                   child: vendor.logo != null
                       ? CachedNetworkImage(
+                          placeholder: (_, __) =>
+                              Container(color: context.colors.bg),
+                          errorWidget: (_, __, ___) => Container(
+                              color: context.colors.bg,
+                              child: Icon(Icons.image_not_supported_outlined,
+                                  color: context.colors.textMuted, size: 20)),
                           imageUrl: vendor.logo!,
                           fit: BoxFit.contain,
                         )
@@ -283,17 +309,17 @@ class _StoreRow extends ConsumerWidget {
                         vendor.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 15.5,
-                          color: Color(0xFF0F172A),
+                          color: context.colors.ink,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${vendor.productCount} products · ${vendor.vendorType}',
-                        style: const TextStyle(
-                          color: BrandColors.textMuted,
+                        style: TextStyle(
+                          color: context.colors.textMuted,
                           fontSize: 12.5,
                         ),
                       ),
@@ -302,20 +328,25 @@ class _StoreRow extends ConsumerWidget {
                           padding: const EdgeInsets.only(top: 3),
                           child: Row(
                             children: [
-                              const Icon(Icons.star_rounded, size: 14, color: BrandColors.star),
+                              Icon(Icons.star_rounded,
+                                  size: 14, color: context.colors.star),
                               Text(
                                 ' ${vendor.ratingAvg.toStringAsFixed(1)} (${vendor.ratingCount})',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF334155),
+                                  color: context.colors.ink2,
                                 ),
                               ),
                               if (_distanceLabel.isNotEmpty) ...[
-                                const Text(' · ', style: TextStyle(color: Color(0xFF94A3B8))),
+                                Text(' · ',
+                                    style: TextStyle(
+                                        color: context.colors.textMuted)),
                                 Text(
                                   _distanceLabel,
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: context.colors.textMuted),
                                 ),
                               ],
                             ],
@@ -329,11 +360,15 @@ class _StoreRow extends ConsumerWidget {
                 IconButton(
                   icon: Icon(
                     isFav ? Icons.favorite : Icons.favorite_border_rounded,
-                    color: isFav ? const Color(0xFFE11D48) : BrandColors.textMuted,
+                    color: isFav
+                        ? context.colors.danger
+                        : context.colors.textMuted,
                     size: 20,
                   ),
                   onPressed: () async {
-                    final ok = await ref.read(favouriteStoresProvider.notifier).toggle(vendor.id);
+                    final ok = await ref
+                        .read(favouriteStoresProvider.notifier)
+                        .toggle(vendor.id);
                     if (!ok && context.mounted) context.push('/login');
                   },
                 ),
@@ -343,36 +378,45 @@ class _StoreRow extends ConsumerWidget {
             const SizedBox(height: 8),
 
             // Delivery Badge Row
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: vendor.isNowEligible
-                    ? const Color(0xFFFEF3C7)
-                    : (vendor.isLocal ? const Color(0xFFDCFCE7) : const Color(0xFFE0F2FE)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    vendor.isNowEligible ? '⚡' : (vendor.isLocal ? '⚡' : '📦'),
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    vendor.estimatedDelivery ??
-                        (vendor.isLocal ? '⚡ Instant Delivery' : '📦 Standard Delivery · 5–6 days'),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: vendor.isNowEligible
-                          ? const Color(0xFF92400E)
-                          : (vendor.isLocal ? const Color(0xFF16A34A) : const Color(0xFF0369A1)),
+            Builder(builder: (context) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final infoColor =
+                  isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1);
+              final badgeColor = vendor.isNowEligible
+                  ? context.colors.star
+                  : (vendor.isLocal ? context.colors.success : infoColor);
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: isDark ? 0.18 : 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      vendor.isNowEligible
+                          ? '⚡'
+                          : (vendor.isLocal ? '⚡' : '📦'),
+                      style: const TextStyle(fontSize: 11),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                    const SizedBox(width: 5),
+                    Text(
+                      vendor.estimatedDelivery ??
+                          (vendor.isLocal
+                              ? '⚡ Instant Delivery'
+                              : '📦 Standard Delivery · 5–6 days'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: badgeColor,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),

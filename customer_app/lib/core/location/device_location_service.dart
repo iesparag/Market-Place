@@ -13,13 +13,15 @@ class DeviceLocationService {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         return null;
       }
 
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium, // city-level is enough for serviceability; don't demand "precise"
+          accuracy: LocationAccuracy
+              .medium, // city-level is enough for serviceability; don't demand "precise"
           timeLimit: Duration(seconds: 8),
         ),
       );

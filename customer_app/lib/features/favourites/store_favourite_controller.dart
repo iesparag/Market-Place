@@ -19,7 +19,8 @@ class StoreFavouriteController extends StateNotifier<Set<String>> {
       return;
     }
     try {
-      final data = await ref.read(apiClientProvider).get('/favourite-stores') as List;
+      final data =
+          await ref.read(apiClientProvider).get('/favourite-stores') as List;
       state = data.map((s) => (s['_id']).toString()).toSet();
     } catch (_) {/* ignore */}
   }
@@ -35,7 +36,9 @@ class StoreFavouriteController extends StateNotifier<Set<String>> {
       if (was) {
         await ref.read(apiClientProvider).delete('/favourite-stores/$id');
       } else {
-        await ref.read(apiClientProvider).post('/favourite-stores', body: {'storeId': id});
+        await ref
+            .read(apiClientProvider)
+            .post('/favourite-stores', body: {'storeId': id});
       }
     } catch (_) {
       state = was ? {...state, id} : ({...state}..remove(id)); // revert
@@ -44,4 +47,6 @@ class StoreFavouriteController extends StateNotifier<Set<String>> {
   }
 }
 
-final favouriteStoresProvider = StateNotifierProvider<StoreFavouriteController, Set<String>>((ref) => StoreFavouriteController(ref));
+final favouriteStoresProvider =
+    StateNotifierProvider<StoreFavouriteController, Set<String>>(
+        (ref) => StoreFavouriteController(ref));

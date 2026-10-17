@@ -21,45 +21,45 @@ class NotificationsScreen extends ConsumerWidget {
         appBar: AppBar(
           leading: const AppBackButton(),
           title: const Text('Notifications'),
-        actions: [
-          list.maybeWhen(
-            data: (items) => items.any((n) => !n.read)
-                ? TextButton(
-                    onPressed: () async {
-                      await ref.read(notificationsRepoProvider).markAllRead();
-                      ref.invalidate(notificationsProvider);
-                      ref.invalidate(unreadCountProvider);
-                    },
-                    child: const Text('Mark all read'),
-                  )
-                : const SizedBox.shrink(),
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
-      ),
-      body: list.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorView(error: e),
-        data: (items) {
-          if (items.isEmpty) return const _Empty();
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(notificationsProvider);
-              ref.invalidate(unreadCountProvider);
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _NotificationTile(n: items[i]),
+          actions: [
+            list.maybeWhen(
+              data: (items) => items.any((n) => !n.read)
+                  ? TextButton(
+                      onPressed: () async {
+                        await ref.read(notificationsRepoProvider).markAllRead();
+                        ref.invalidate(notificationsProvider);
+                        ref.invalidate(unreadCountProvider);
+                      },
+                      child: const Text('Mark all read'),
+                    )
+                  : const SizedBox.shrink(),
+              orElse: () => const SizedBox.shrink(),
             ),
-          );
-        },
+          ],
+        ),
+        body: list.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErrorView(error: e),
+          data: (items) {
+            if (items.isEmpty) return const _Empty();
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(notificationsProvider);
+                ref.invalidate(unreadCountProvider);
+              },
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) => _NotificationTile(n: items[i]),
+              ),
+            );
+          },
+        ),
+        bottomNavigationBar: const AppBottomNav(),
       ),
-      bottomNavigationBar: const AppBottomNav(),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _NotificationTile extends ConsumerWidget {
@@ -87,7 +87,7 @@ class _NotificationTile extends ConsumerWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: BrandColors.border)),
+              border: Border.all(color: context.colors.border)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -102,7 +102,8 @@ class _NotificationTile extends ConsumerWidget {
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => _TypeIcon(type: n.type, brand: b),
+                        errorWidget: (_, __, ___) =>
+                            _TypeIcon(type: n.type, brand: b),
                       ),
                     )
                   else
@@ -114,19 +115,21 @@ class _NotificationTile extends ConsumerWidget {
                       children: [
                         Text(n.title,
                             style: TextStyle(
+                                color: context.colors.ink,
                                 fontWeight:
                                     n.read ? FontWeight.w600 : FontWeight.w800,
                                 fontSize: 14)),
                         if (n.body.isNotEmpty) ...[
                           const SizedBox(height: 3),
                           Text(n.body,
-                              style: const TextStyle(
-                                  color: BrandColors.textMuted, fontSize: 12.5)),
+                              style: TextStyle(
+                                  color: context.colors.textMuted,
+                                  fontSize: 12.5)),
                         ],
                         const SizedBox(height: 6),
                         Text(DateFormat('d MMM, h:mm a').format(n.createdAt),
-                            style: const TextStyle(
-                                color: BrandColors.textMuted, fontSize: 11)),
+                            style: TextStyle(
+                                color: context.colors.textMuted, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -135,7 +138,8 @@ class _NotificationTile extends ConsumerWidget {
                       width: 8,
                       height: 8,
                       margin: const EdgeInsets.only(top: 4),
-                      decoration: BoxDecoration(color: b.primary, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                          color: b.primary, shape: BoxShape.circle),
                     ),
                 ],
               ),
@@ -169,27 +173,48 @@ class _NotificationTile extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(8),
                                   child: p.image != null
                                       ? CachedNetworkImage(
+                                          placeholder: (_, __) => Container(
+                                              color: context.colors.bg),
+                                          errorWidget: (_, __, ___) => Container(
+                                              color: context.colors.bg,
+                                              child: Icon(
+                                                  Icons
+                                                      .image_not_supported_outlined,
+                                                  color:
+                                                      context.colors.textMuted,
+                                                  size: 20)),
                                           imageUrl: p.image!,
                                           fit: BoxFit.cover,
                                           width: double.infinity,
                                         )
-                                      : Container(color: const Color(0xFFE2E8F0)),
+                                      : Container(
+                                          color: const Color(0xFFE2E8F0)),
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(p.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700)),
                               const SizedBox(height: 2),
                               Row(
                                 children: [
                                   Text(rupees(p.price),
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: BrandColors.ink)),
-                                  if (p.originalPrice != null && p.originalPrice! > p.price) ...[
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w900,
+                                          color: context.colors.ink)),
+                                  if (p.originalPrice != null &&
+                                      p.originalPrice! > p.price) ...[
                                     const SizedBox(width: 4),
                                     Text(rupees(p.originalPrice!),
-                                        style: const TextStyle(fontSize: 9.5, decoration: TextDecoration.lineThrough, color: BrandColors.textMuted)),
+                                        style: TextStyle(
+                                            fontSize: 9.5,
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                            color: context.colors.textMuted)),
                                   ],
                                 ],
                               ),
@@ -208,21 +233,28 @@ class _NotificationTile extends ConsumerWidget {
                 GestureDetector(
                   onTap: () => context.push('/store/${n.storeSlug}'),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: b.soft,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: b.primary.withValues(alpha: 0.2)),
+                      border:
+                          Border.all(color: b.primary.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.storefront_rounded, size: 16, color: b.primaryDark),
+                        Icon(Icons.storefront_rounded,
+                            size: 16, color: b.primaryDark),
                         const SizedBox(width: 6),
                         Text(n.storeName ?? 'Visit Store',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: b.primaryDark)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                                color: b.primaryDark)),
                         const SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 10, color: b.primaryDark),
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            size: 10, color: b.primaryDark),
                       ],
                     ),
                   ),
@@ -235,6 +267,11 @@ class _NotificationTile extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: CachedNetworkImage(
+                    placeholder: (_, __) => Container(color: context.colors.bg),
+                    errorWidget: (_, __, ___) => Container(
+                        color: context.colors.bg,
+                        child: Icon(Icons.image_not_supported_outlined,
+                            color: context.colors.textMuted, size: 20)),
                     imageUrl: n.image!,
                     height: 120,
                     width: double.infinity,
@@ -248,7 +285,6 @@ class _NotificationTile extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 class _TypeIcon extends StatelessWidget {
@@ -289,15 +325,18 @@ class _Empty extends StatelessWidget {
             height: 112,
             decoration: BoxDecoration(color: b.soft, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: const Icon(Icons.notifications_none_rounded,
-                size: 48, color: BrandColors.textMuted),
+            child: Icon(Icons.notifications_none_rounded,
+                size: 48, color: context.colors.textMuted),
           ),
           const SizedBox(height: 18),
-          const Text('No notifications yet',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          Text('No notifications yet',
+              style: TextStyle(
+                  color: context.colors.ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17)),
           const SizedBox(height: 6),
-          const Text("We'll let you know when something happens",
-              style: TextStyle(color: BrandColors.textMuted, fontSize: 13)),
+          Text("We'll let you know when something happens",
+              style: TextStyle(color: context.colors.textMuted, fontSize: 13)),
         ],
       ),
     );

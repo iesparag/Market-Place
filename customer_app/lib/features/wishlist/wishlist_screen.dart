@@ -11,7 +11,8 @@ import 'wishlist_controller.dart';
 import '../../shared/widgets/safe_pop_scope.dart';
 import '../shell/app_shell.dart';
 
-final _wishlistProductsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
+final _wishlistProductsProvider =
+    FutureProvider.autoDispose<List<Product>>((ref) async {
   final data = await ref.read(apiClientProvider).get('/wishlist') as List;
   return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
 });
@@ -28,27 +29,34 @@ class WishlistScreen extends ConsumerWidget {
           leading: const AppBackButton(),
           title: const Text('Wishlist'),
         ),
-      body: user == null
-          ? _SignIn(onSignIn: () => context.push('/login'))
-          : ref.watch(_wishlistProductsProvider).when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => ErrorView(error: e),
-              data: (products) {
-                // Reflect live removals (heart toggled off) without refetching.
-                final list = products.where((p) => ids.contains(p.id)).toList();
-                if (list.isEmpty) return const _Empty();
-                return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(_wishlistProductsProvider),
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, childAspectRatio: 0.58, crossAxisSpacing: 12, mainAxisSpacing: 12),
-                    itemCount: list.length,
-                    itemBuilder: (_, i) => ProductCard(product: list[i]),
-                  ),
-                );
-              },
-            ),
+        body: user == null
+            ? _SignIn(onSignIn: () => context.push('/login'))
+            : ref.watch(_wishlistProductsProvider).when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => ErrorView(error: e),
+                  data: (products) {
+                    // Reflect live removals (heart toggled off) without refetching.
+                    final list =
+                        products.where((p) => ids.contains(p.id)).toList();
+                    if (list.isEmpty) return const _Empty();
+                    return RefreshIndicator(
+                      onRefresh: () async =>
+                          ref.invalidate(_wishlistProductsProvider),
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.58,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) => ProductCard(product: list[i]),
+                      ),
+                    );
+                  },
+                ),
         bottomNavigationBar: const AppBottomNav(),
       ),
     );
@@ -61,9 +69,12 @@ class _SignIn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.favorite_border_rounded, size: 52, color: BrandColors.textMuted),
+          Icon(Icons.favorite_border_rounded,
+              size: 52, color: context.colors.textMuted),
           const SizedBox(height: 10),
-          const Text('Sign in to see your wishlist', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text('Sign in to see your wishlist',
+              style: TextStyle(
+                  color: context.colors.ink, fontWeight: FontWeight.w700)),
           const SizedBox(height: 14),
           ElevatedButton(onPressed: onSignIn, child: const Text('Sign in')),
         ]),
@@ -73,13 +84,16 @@ class _SignIn extends StatelessWidget {
 class _Empty extends StatelessWidget {
   const _Empty();
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('🤍', style: TextStyle(fontSize: 52)),
+          Text('🤍', style: TextStyle(color: context.colors.ink, fontSize: 52)),
           SizedBox(height: 10),
-          Text('No saved items yet', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text('No saved items yet',
+              style: TextStyle(
+                  color: context.colors.ink, fontWeight: FontWeight.w700)),
           SizedBox(height: 4),
-          Text('Tap the heart on any product', style: TextStyle(color: BrandColors.textMuted)),
+          Text('Tap the heart on any product',
+              style: TextStyle(color: context.colors.textMuted)),
         ]),
       );
 }
