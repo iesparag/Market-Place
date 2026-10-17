@@ -132,10 +132,18 @@ export async function notify(
     // A native Android/iOS notification can only ever show ONE image — there is no
     // multi-image "carousel" notification type (the admin portal's carousel preview is
     // a UI mockup with no native equivalent, see docs/.. / adminDashboard's
-    // announcements composer). So when products are attached, always prefer a REAL
-    // product photo over whatever generic campaign-art `image` was left on the form —
-    // a relevant product photo beats a stock "shopping bags" placeholder every time.
-    const heroImage = firstProd?.image || data.image;
+    // announcements composer). So when products are attached, prefer a REAL product
+    // photo over whatever generic campaign-art `image` was left on the form — a
+    // relevant product photo beats a stock "shopping bags" placeholder every time.
+    //
+    // BUT only if it's actually a publicly-fetchable https:// URL. A locally-uploaded
+    // product image is `${PUBLIC_URL}/uploads/...` (see media.module.ts) — if PUBLIC_URL
+    // is still its localhost default (env.ts) because it was never set on the deployed
+    // backend, that URL is unreachable from a real device and FCM silently fails to
+    // render ANY image (not even a fallback) rather than erroring visibly. Skip a
+    // non-public-looking image rather than shipping a guaranteed-broken notification.
+    const isPubliclyFetchable = (url?: string) => !!url && /^https:\/\//.test(url) && !/localhost|127\.0\.0\.1/.test(url);
+    const heroImage = [firstProd?.image, data.image].find(isPubliclyFetchable);
 
     // Tapping a product-showcase notification should land on exactly the attached
     // products, "at the top" — the closest a single-image notification can get to the
