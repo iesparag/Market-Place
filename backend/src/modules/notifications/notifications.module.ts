@@ -142,10 +142,14 @@ export async function notify(
   // mismatched plain version.
   let body = data.body ?? '';
   if (data.products && data.products.length > 1) {
+    // NOTE: data.products[].price is already in whole rupees here, NOT paise — the
+    // admin portal's productMapFn (announcements.page.ts) converts minPrice/variant
+    // price out of minor units before ever attaching a product to a campaign. Don't
+    // divide by 100 again.
     const rest = data.products.slice(1, 4); // first is already the hero image; cap the list so it doesn't get unreadable
-    const list = rest.map((p) => `${p.title} ₹${(p.price / 100).toFixed(0)}`).join(', ');
+    const list = rest.map((p) => `${p.title} ₹${p.price}`).join(', ');
     const more = data.products.length > 4 ? ` +${data.products.length - 4} more` : '';
-    const suffix = `🛍️ ${data.products.length} items: ${firstProd!.title} ₹${(firstProd!.price / 100).toFixed(0)}, ${list}${more}`;
+    const suffix = `🛍️ ${data.products.length} items: ${firstProd!.title} ₹${firstProd!.price}, ${list}${more}`;
     body = body ? `${body}\n${suffix}` : suffix;
   }
 

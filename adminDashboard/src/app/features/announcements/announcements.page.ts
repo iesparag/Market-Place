@@ -86,8 +86,8 @@ interface CampaignHistoryItem {
             (click)="setLayout('product_showcase')">
             <span class="layout-icon">🛍️</span>
             <div class="layout-text">
-              <b>Multi-Product Carousel</b>
-              <span class="muted small">Flipkart/Meesho style — 2 to 4 items in a row with prices & direct click-to-buy</span>
+              <b>Multi-Product Deal</b>
+              <span class="muted small">Attach 2-4 products — first one becomes the notification image, all are listed with prices in the message text and open together when tapped. (Neither push notifications nor WhatsApp messages can show more than one image, so this is the real behavior — not a visual carousel.)</span>
             </div>
           </button>
 
@@ -405,40 +405,22 @@ interface CampaignHistoryItem {
                   <div class="notif-subtitle-row">
                     {{ form.controls.subtitle.value || 'Pick up to find the best 🥰' }}
                   </div>
-                  @if (form.controls.body.value) {
-                    <div class="notif-message-body">{{ form.controls.body.value }}</div>
-                  }
-
-                  <!-- ── 1. MULTI-PRODUCT CAROUSEL (Flipkart Style from Screenshot) ── -->
+                  <!-- Real send behavior (see notifications.module.ts's notify()): ONE image
+                       (the first attached product — Android/push can never show more than
+                       one), every attached product listed by name+price in the message
+                       body text, tapping opens all of them. No carousel UI exists on a real
+                       device, so this preview doesn't pretend one does. -->
                   @if (layout() === 'product_showcase' && attachedProducts().length) {
-                    <div class="flipkart-carousel">
-                      <div class="carousel-items-row">
-                        @for (p of attachedProducts(); track p.id) {
-                          <div class="carousel-prod-card">
-                            <div class="carousel-img-wrap">
-                              <img [src]="p.image || 'assets/placeholder.png'" class="carousel-prod-img" alt="Product" />
-                            </div>
-                            <div class="carousel-prod-title">{{ p.title }}</div>
-                            <div class="carousel-prod-price-row">
-                              <span class="carousel-sale-price">₹{{ p.price }}</span>
-                              @if (p.originalPrice && p.originalPrice > p.price) {
-                                <span class="carousel-mrp-price">₹{{ p.originalPrice }}</span>
-                              }
-                            </div>
-                          </div>
-                        }
-                      </div>
-
-                      <!-- Pagination Carousel Controls from Flipkart screenshot -->
-                      <div class="carousel-nav-footer">
-                        <button type="button" class="carousel-arrow-btn">‹</button>
-                        <div class="carousel-dots">
-                          <span class="dot active"></span>
-                          <span class="dot"></span>
-                          <span class="dot"></span>
-                        </div>
-                        <button type="button" class="carousel-arrow-btn">›</button>
-                      </div>
+                    <div class="notif-hero-container">
+                      <img class="notif-hero-img" [src]="attachedProducts()[0]?.image || 'assets/placeholder.png'" alt="Featured product" />
+                    </div>
+                  }
+                  @if (form.controls.body.value || (layout() === 'product_showcase' && attachedProducts().length)) {
+                    <div class="notif-message-body">
+                      {{ form.controls.body.value }}
+                      @if (layout() === 'product_showcase' && attachedProducts().length > 1) {
+                        <div>🛍️ {{ attachedProducts().length }} items: {{ productSummaryLine() }}</div>
+                      }
                     </div>
                   }
 
@@ -1001,6 +983,18 @@ export class AnnouncementsPage implements OnInit {
         },
       ]);
     }
+  }
+
+  /** Mirrors notifications.module.ts's notify() body-enrichment exactly, so this
+   * preview shows the literal text a real device will receive — not an approximation. */
+  productSummaryLine(): string {
+    const products = this.attachedProducts();
+    if (products.length < 2) return '';
+    const first = products[0]!;
+    const rest = products.slice(1, 4);
+    const list = rest.map((p) => `${p.title} ₹${p.price}`).join(', ');
+    const more = products.length > 4 ? ` +${products.length - 4} more` : '';
+    return `${first.title} ₹${first.price}, ${list}${more}`;
   }
 
   removeProduct(index: number): void {
