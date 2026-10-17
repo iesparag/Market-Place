@@ -49,6 +49,7 @@ class CatalogRepository {
     bool veg = false,
     int page = 1,
     int limit = Config.pageSize,
+    List<String>? ids,
   }) async {
     final query = <String, dynamic>{'page': page, 'limit': limit};
     if (q != null && q.isNotEmpty) query['q'] = q;
@@ -58,6 +59,7 @@ class CatalogRepository {
     if (priceMax != null) query['priceMax'] = priceMax;
     if (ratingMin != null && ratingMin > 0) query['ratingMin'] = ratingMin;
     if (veg) query['veg'] = 'true';
+    if (ids != null && ids.isNotEmpty) query['products'] = ids.join(',');
     final data = await api.get('/catalog/products', query: query) as List;
     return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
   }

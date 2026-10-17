@@ -128,7 +128,29 @@ export async function notify(
   const tokens = (await DeviceToken.find({ userId }).select('token').lean()).map((t) => t.token);
   if (tokens.length) {
     const firstProd = data.products && data.products.length ? data.products[0] : undefined;
-    const heroImage = data.image || firstProd?.image;
+
+    // A native Android/iOS notification can only ever show ONE image — there is no
+    // multi-image "carousel" notification type (the admin portal's carousel preview is
+    // a UI mockup with no native equivalent, see docs/.. / adminDashboard's
+    // announcements composer). So when products are attached, always prefer a REAL
+    // product photo over whatever generic campaign-art `image` was left on the form —
+    // a relevant product photo beats a stock "shopping bags" placeholder every time.
+    const heroImage = firstProd?.image || data.image;
+
+    // Tapping a product-showcase notification should land on exactly the attached
+    // products, "at the top" — the closest a single-image notification can get to the
+    // carousel the admin configured. Overrides whatever `link` the composer defaulted
+    // to; a single product goes straight to its page, multiple go to a pinned-ids
+    // catalog view (see catalog.service.ts's `ids` query / CatalogScreen's `products`
+    // param) that shows exactly those products, in that order, before anything else.
+    const derivedLink =
+      data.products && data.products.length === 1
+        ? `/p/${data.products[0]!.slug}`
+        : data.products && data.products.length > 1
+          ? `/catalog?products=${data.products.map((p) => p.id).join(',')}`
+          : undefined;
+    const link = derivedLink ?? data.link ?? '/';
+
     void pushProvider.send({
       tokens,
       title: data.title,
@@ -136,11 +158,11 @@ export async function notify(
       body: data.body ?? '',
       imageUrl: heroImage,
       actionText: data.actionText,
-      actionLink: data.actionLink || data.link,
+      actionLink: data.actionLink || link,
       priority: data.priority ?? 'high',
       data: {
-        link: data.link ?? '/',
-        actionLink: data.actionLink ?? data.link ?? '/',
+        link,
+        actionLink: data.actionLink ?? link,
         actionText: data.actionText ?? 'SHOP NOW',
         layout: data.layout ?? 'standard',
         products: data.products ? JSON.stringify(data.products) : '[]',
@@ -343,6 +365,16 @@ notificationsRoutes.post('/send', authorize('notification:manage'), asyncHandler
   const actionText = String(req.body.actionText ?? 'SHOP NOW');
   const actionLink = String(req.body.actionLink ?? link);
   const type = String(req.body.type ?? 'promo');
+  // Previously dropped entirely on this route (unlike /broadcast and /test) — a
+  // "product showcase" send to specific recipients silently lost which products were
+  // attached, so notify() had nothing to derive the hero image / tap-target from.
+  const layout = String(req.body.layout ?? 'standard');
+  const products = Array.isArray(req.body.products) ? req.body.products : [];
+  const storeId = String(req.body.storeId ?? '');
+  const storeSlug = String(req.body.storeSlug ?? '');
+  const storeName = String(req.body.storeName ?? '');
+  const storeLogo = String(req.body.storeLogo ?? '');
+  const couponCode = String(req.body.couponCode ?? '');
 
   for (const userId of userIds) {
     await notify(userId, {
@@ -355,6 +387,13 @@ notificationsRoutes.post('/send', authorize('notification:manage'), asyncHandler
       actionText,
       actionLink,
       priority: 'high',
+      layout,
+      products,
+      storeId,
+      storeSlug,
+      storeName,
+      storeLogo,
+      couponCode,
     });
   }
 

@@ -21,6 +21,9 @@ export const catalogController = {
       await catalogService.listProducts({
         q: req.query.q as string | undefined,
         category: req.query.category as string | undefined,
+        ids: typeof req.query.products === 'string'
+          ? req.query.products.split(',').map((s) => s.trim()).filter(Boolean)
+          : undefined,
         priceMin: req.query.priceMin ? Number(req.query.priceMin) : undefined,
         priceMax: req.query.priceMax ? Number(req.query.priceMax) : undefined,
         ratingMin: req.query.ratingMin ? Number(req.query.ratingMin) : undefined,

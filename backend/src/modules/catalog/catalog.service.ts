@@ -35,7 +35,7 @@ function buildTree(cats: CatLite[]): CatNode[] {
 /** Public storefront reads. Only active + public products from APPROVED stores. */
 export const catalogService = {
   async listProducts(
-    query: { q?: string; category?: string; priceMin?: number; priceMax?: number; ratingMin?: number; veg?: boolean; sort?: string; page?: number; limit?: number } = {},
+    query: { q?: string; category?: string; priceMin?: number; priceMax?: number; ratingMin?: number; veg?: boolean; sort?: string; page?: number; limit?: number; ids?: string[] } = {},
   ) {
     const limit = Math.min(query.limit ?? 12, 60);
     const page = Math.max(query.page ?? 1, 1);
@@ -44,6 +44,22 @@ export const catalogService = {
       visibility: 'public',
       storeId: { $in: await approvedStoreIds() }, // hide suspended-vendor products
     };
+
+    // Pinned-ids mode: a push-notification "product showcase" tap deep-links here with
+    // the exact products that were attached in the admin composer, so they land "at the
+    // top" — literally the only things shown, in the order they were attached, ignoring
+    // every other filter/sort. See notifications.module.ts's notify() for where this
+    // link gets built.
+    if (query.ids?.length) {
+      const docs = await Product.find({ _id: { $in: query.ids }, ...filter }).lean();
+      const byId = new Map(docs.map((p) => [String(p._id), p]));
+      const ordered = query.ids.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
+      const storeIds = [...new Set(ordered.map((p) => String(p.storeId)))];
+      const stores = await Store.find({ _id: { $in: storeIds } }).select('name slug').lean();
+      const storeMap = new Map(stores.map((s) => [String(s._id), s]));
+      return ordered.map((p) => ({ ...p, store: storeMap.get(String(p.storeId)) ?? null }));
+    }
+
     // category may be a single slug OR a comma-separated list (multi-select) → match any.
     if (query.category) {
       const slugs = query.category.split(',').map((s) => s.trim()).filter(Boolean);

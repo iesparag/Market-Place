@@ -47,6 +47,7 @@ final appRouter = GoRouter(
         sort: s.uri.queryParameters['sort'],
         q: s.uri.queryParameters['q'],
         title: s.uri.queryParameters['title'],
+        products: s.uri.queryParameters['products'],
       ),
     ),
     GoRoute(

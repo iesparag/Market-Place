@@ -35,6 +35,12 @@ class CatalogScreen extends ConsumerStatefulWidget {
   final String? q;
   final String? title;
   final bool searchable; // Products tab → show a search bar instead of a title
+  /// Comma-separated product IDs — set when this screen is opened from a push
+  /// notification's "product showcase" layout (see notifications.module.ts's notify())
+  /// so the exact attached products show, pinned in that order, ignoring every other
+  /// filter — the closest a single-image native notification can get to "the carousel
+  /// I attached is what you see when you tap."
+  final String? products;
   const CatalogScreen(
       {super.key,
       this.category,
@@ -42,7 +48,8 @@ class CatalogScreen extends ConsumerStatefulWidget {
       this.sort,
       this.q,
       this.title,
-      this.searchable = false});
+      this.searchable = false,
+      this.products});
 
   @override
   ConsumerState<CatalogScreen> createState() => _CatalogScreenState();
@@ -158,6 +165,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     }
     final band = _bandIndex >= 0 ? _bands[_bandIndex] : null;
     try {
+      final pinnedIds = widget.products?.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
       final rows = await ref.read(catalogRepoProvider).products(
             q: widget.q,
             category: _effectiveCategory,
@@ -168,6 +176,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             veg: _veg,
             page: _page,
             limit: Config.pageSize,
+            ids: (pinnedIds != null && pinnedIds.isNotEmpty) ? pinnedIds : null,
           );
       setState(() {
         if (reset) _items.clear();
