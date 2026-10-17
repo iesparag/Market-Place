@@ -5,9 +5,7 @@ import { ok } from '../../common/apiResponse.js';
 import { User } from '../auth/user.model.js';
 import { Order } from '../orders/order.model.js';
 import { creditBonusPoints } from '../loyalty/loyalty.module.js';
-
-/** Reward paid to the referrer when their invite makes their first real purchase. 1000 points = ₹100. */
-const REFERRAL_REWARD_POINTS = 1000;
+import { getSettings } from '../settings/settings.model.js';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — easy to read aloud/type
 function randomCode(len = 6): string {
@@ -40,12 +38,19 @@ referralRoutes.use(authenticate);
 referralRoutes.get(
   '/me',
   asyncHandler(async (req, res) => {
-    const code = await getOrCreateReferralCode(req.user!.id);
-    const [referredCount, rewardedCount] = await Promise.all([
+    const [code, settings, referredCount, rewardedCount] = await Promise.all([
+      getOrCreateReferralCode(req.user!.id),
+      getSettings(),
       User.countDocuments({ referredBy: req.user!.id }),
       User.countDocuments({ referredBy: req.user!.id, referralRewarded: true }),
     ]);
-    ok(res, { code, rewardPoints: REFERRAL_REWARD_POINTS, referredCount, rewardedCount });
+    ok(res, {
+      code,
+      rewardPoints: settings.referralRewardPoints,
+      rewardValuePaise: settings.referralRewardPoints * settings.loyaltyPointValuePaise,
+      referredCount,
+      rewardedCount,
+    });
   }),
 );
 
@@ -75,9 +80,10 @@ export async function rewardReferrerForFirstOrder(order: { _id: unknown; custome
   );
   if (claimed.modifiedCount === 0) return;
 
+  const settings = await getSettings();
   await creditBonusPoints(
     customer.referredBy,
-    REFERRAL_REWARD_POINTS,
+    settings.referralRewardPoints,
     'Referral reward — your invite made their first purchase',
     `referral:${String(order.customerId)}`,
   );

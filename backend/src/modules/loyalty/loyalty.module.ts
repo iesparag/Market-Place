@@ -6,13 +6,7 @@ import { asyncHandler } from '../../common/asyncHandler.js';
 import { ok } from '../../common/apiResponse.js';
 import { AppError } from '../../common/AppError.js';
 import { LoyaltyEntry } from './loyalty.model.js';
-
-/** Earn 1 point per ₹10 spent (itemsTotal is minor units: 1000 paise = ₹10). */
-const EARN_DIVISOR_PAISE = 1000;
-/** Redemption rate: 1 point = ₹0.10 (10 paise) off. */
-const POINT_VALUE_PAISE = 10;
-/** A customer can never zero out an order with points — caps redemption at 50% of itemsTotal. */
-const MAX_REDEEM_SHARE = 0.5;
+import { getSettings } from '../settings/settings.model.js';
 
 export const loyaltyRoutes = Router();
 loyaltyRoutes.use(authenticate);
@@ -28,24 +22,30 @@ async function balanceFor(userId: string): Promise<number> {
 loyaltyRoutes.get(
   '/balance',
   asyncHandler(async (req, res) => {
-    const points = await balanceFor(req.user!.id);
-    ok(res, { points, valuePaise: points * POINT_VALUE_PAISE });
+    const [points, settings] = await Promise.all([balanceFor(req.user!.id), getSettings()]);
+    ok(res, { points, valuePaise: points * settings.loyaltyPointValuePaise });
   }),
 );
 
 const PreviewSchema = z.object({ points: z.number().int().min(1), itemsTotal: z.number().int().positive() });
 
 /** How much of the requested points can actually be redeemed against this subtotal. */
-export function redeemableDiscount(points: number, balance: number, itemsTotal: number): { points: number; discount: number } {
-  const capPoints = Math.floor((itemsTotal * MAX_REDEEM_SHARE) / POINT_VALUE_PAISE);
+export function redeemableDiscount(
+  points: number,
+  balance: number,
+  itemsTotal: number,
+  pointValuePaise: number,
+  maxRedeemShare: number,
+): { points: number; discount: number } {
+  const capPoints = Math.floor((itemsTotal * maxRedeemShare) / pointValuePaise);
   const applied = Math.max(0, Math.min(points, balance, capPoints));
-  return { points: applied, discount: applied * POINT_VALUE_PAISE };
+  return { points: applied, discount: applied * pointValuePaise };
 }
 
 /** Balance-aware preview — how many of the requested points can actually be spent right now. */
 export async function previewRedeem(userId: string, points: number, itemsTotal: number) {
-  const balance = await balanceFor(userId);
-  return redeemableDiscount(points, balance, itemsTotal);
+  const [balance, settings] = await Promise.all([balanceFor(userId), getSettings()]);
+  return redeemableDiscount(points, balance, itemsTotal, settings.loyaltyPointValuePaise, settings.loyaltyMaxRedeemShare);
 }
 
 loyaltyRoutes.post(
@@ -67,7 +67,8 @@ export async function creditLoyaltyPoints(order: {
   customerId: unknown;
   amounts?: { itemsTotal?: number | null } | null;
 }): Promise<void> {
-  const points = Math.floor((order.amounts?.itemsTotal ?? 0) / EARN_DIVISOR_PAISE);
+  const settings = await getSettings();
+  const points = Math.floor((order.amounts?.itemsTotal ?? 0) / settings.loyaltyEarnDivisor);
   if (points <= 0) return;
   await LoyaltyEntry.create({
     userId: order.customerId,

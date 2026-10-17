@@ -32,7 +32,7 @@ class ReferralScreen extends ConsumerWidget {
                       color: Colors.white, size: 40),
                   const SizedBox(height: 10),
                   Text(
-                      'Give your friends a reason to shop here — you earn ${info.rewardPoints} points (₹${(info.rewardPoints * 0.1).toStringAsFixed(0)}) when their first order is delivered.',
+                      'Give your friends a reason to shop here — you earn ${info.rewardPoints} points (₹${(info.rewardValuePaise / 100).toStringAsFixed(0)}) when their first order is delivered.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                           color: Colors.white,

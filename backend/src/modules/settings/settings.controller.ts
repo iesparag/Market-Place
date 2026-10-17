@@ -13,6 +13,10 @@ const UpdateSchema = z.object({
   codMaxOrderValue: z.number().int().min(0).optional(),
   onlinePaymentEnabled: z.boolean().optional(),
   paymentExpiryMinutes: z.number().int().min(0).max(1440).optional(),
+  loyaltyEarnDivisor: z.number().int().min(1).optional(),
+  loyaltyPointValuePaise: z.number().int().min(1).optional(),
+  loyaltyMaxRedeemShare: z.number().min(0).max(1).optional(),
+  referralRewardPoints: z.number().int().min(0).optional(),
 });
 
 export const settingsController = {

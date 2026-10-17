@@ -6,6 +6,8 @@ import { ok } from '../../common/apiResponse.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { logger } from '../../config/logger.js';
+import { env } from '../../config/env.js';
+import { emailProvider } from '../../providers/email/index.js';
 import { ErrorLog } from './error-log.model.js';
 
 /**
@@ -43,7 +45,45 @@ export function captureErrorLog(
     query: trim(req.query),
     params: trim(req.params),
     body: trim(req.body),
-  }).catch((err) => logger.error({ err }, 'Failed to persist ErrorLog'));
+  })
+    .then(() => void checkSpikeAndAlert())
+    .catch((err) => logger.error({ err }, 'Failed to persist ErrorLog'));
+}
+
+// A burst of failures is the signal worth waking someone up for — a single scattered
+// 500 isn't. In-memory cooldown (not DB-backed) is enough here: it only needs to survive
+// one process's uptime, and surviving a restart by re-alerting once is harmless.
+const SPIKE_THRESHOLD = 5;
+const SPIKE_WINDOW_MS = 10 * 60_000; // 10 minutes
+const ALERT_COOLDOWN_MS = 30 * 60_000; // don't alert again for 30 minutes after one fires
+let lastAlertAt = 0;
+
+async function checkSpikeAndAlert(): Promise<void> {
+  if (!env.ERROR_ALERT_EMAIL) return; // alerting is opt-in — unset = disabled, like every other optional integration here
+  if (Date.now() - lastAlertAt < ALERT_COOLDOWN_MS) return;
+
+  const since = new Date(Date.now() - SPIKE_WINDOW_MS);
+  const recent = await ErrorLog.find({ createdAt: { $gte: since } }).select('path statusCode message').lean();
+  if (recent.length < SPIKE_THRESHOLD) return;
+
+  lastAlertAt = Date.now(); // claim before sending — a slow send must not let a second trigger double-fire
+  const byPath = new Map<string, number>();
+  for (const r of recent) byPath.set(r.path, (byPath.get(r.path) ?? 0) + 1);
+  const topRows = [...byPath.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([path, count]) => `<tr><td>${path}</td><td>${count}</td></tr>`)
+    .join('');
+
+  await emailProvider
+    .send({
+      to: env.ERROR_ALERT_EMAIL,
+      subject: `⚠️ ${recent.length} server errors in the last 10 minutes`,
+      html: `<p>${recent.length} failed requests (5xx) in the last 10 minutes — more than the usual noise.</p>
+        <table border="1" cellpadding="6"><tr><th>Route</th><th>Count</th></tr>${topRows}</table>
+        <p>Check the Error Reports dashboard for details.</p>`,
+    })
+    .catch((err) => logger.error({ err }, 'Failed to send error-spike alert email'));
 }
 
 const ListQuery = z.object({

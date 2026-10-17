@@ -35,6 +35,8 @@ const EnvSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().optional(), // e.g. "Marketplace <no-reply@yourdomain.com>"
+  // Who gets the error-spike alert email (errorlog.module.ts). Unset = alerting disabled.
+  ERROR_ALERT_EMAIL: z.string().optional(),
   // Firebase Cloud Messaging (push notifications for the Flutter app). Optional — stub logs if unset.
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),

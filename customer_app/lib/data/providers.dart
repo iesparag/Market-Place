@@ -204,8 +204,13 @@ final loyaltyBalanceProvider =
 
 /// Referral code + invite stats for the "Invite a friend" screen.
 final referralInfoProvider = FutureProvider.autoDispose<
-    ({String code, int rewardPoints, int referredCount, int rewardedCount})>(
-    (ref) => ref.read(checkoutRepoProvider).referralInfo());
+    ({
+      String code,
+      int rewardPoints,
+      int rewardValuePaise,
+      int referredCount,
+      int rewardedCount
+    })>((ref) => ref.read(checkoutRepoProvider).referralInfo());
 final storeProvider = FutureProvider.autoDispose.family<StorePageData, String>(
     (ref, slug) => ref.read(catalogRepoProvider).store(slug));
 

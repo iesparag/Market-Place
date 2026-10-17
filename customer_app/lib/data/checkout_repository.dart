@@ -111,12 +111,19 @@ class CheckoutRepository {
   }
 
   /// This user's referral code + how many invites have paid off.
-  Future<({String code, int rewardPoints, int referredCount, int rewardedCount})>
-      referralInfo() async {
+  Future<
+      ({
+        String code,
+        int rewardPoints,
+        int rewardValuePaise,
+        int referredCount,
+        int rewardedCount
+      })> referralInfo() async {
     final data = await api.get('/referral/me') as Map<String, dynamic>;
     return (
       code: data['code'] as String,
       rewardPoints: (data['rewardPoints'] as num).toInt(),
+      rewardValuePaise: (data['rewardValuePaise'] as num).toInt(),
       referredCount: (data['referredCount'] as num).toInt(),
       rewardedCount: (data['rewardedCount'] as num).toInt(),
     );

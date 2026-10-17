@@ -7,6 +7,8 @@ interface Settings {
   commissionPercent: number; taxPercent: number; deliveryFee: number; freeDeliveryAbove: number;
   payoutHoldDays: number; currency: string;
   codEnabled: boolean; codMaxOrderValue: number; onlinePaymentEnabled: boolean; paymentExpiryMinutes: number;
+  loyaltyEarnDivisor: number; loyaltyPointValuePaise: number; loyaltyMaxRedeemShare: number;
+  referralRewardPoints: number;
 }
 
 @Component({
@@ -45,6 +47,17 @@ interface Settings {
       <input class="input" type="number" formControlName="paymentExpiryMinutes" />
       <p class="hint">An online order that is never paid is cancelled and its stock returned. 0 disables this.</p>
 
+      <h3 class="section">Loyalty & referral</h3>
+      <label class="label">Customer spends ₹ to earn 1 point</label>
+      <input class="input" type="number" formControlName="loyaltyEarnRupees" />
+      <label class="label">1 point is worth (₹)</label>
+      <input class="input" type="number" step="0.01" formControlName="loyaltyPointValueRupees" />
+      <label class="label">Max share of an order points can discount (%)</label>
+      <input class="input" type="number" formControlName="loyaltyMaxRedeemSharePercent" />
+      <p class="hint">Points can never fully zero out an order — this caps how much of the subtotal they can cover.</p>
+      <label class="label">Referral reward (points) — paid when an invite's first order is delivered</label>
+      <input class="input" type="number" formControlName="referralRewardPoints" />
+
       <button class="btn btn-primary" [disabled]="form.invalid || saving()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
     </form>
   `,
@@ -76,6 +89,10 @@ export class SettingsPage implements OnInit {
     codEnabled: [true],
     codMaxOrderValue: [5000, [Validators.required, Validators.min(0)]],
     paymentExpiryMinutes: [30, [Validators.required, Validators.min(0), Validators.max(1440)]],
+    loyaltyEarnRupees: [10, [Validators.required, Validators.min(1)]],
+    loyaltyPointValueRupees: [0.1, [Validators.required, Validators.min(0.01)]],
+    loyaltyMaxRedeemSharePercent: [50, [Validators.required, Validators.min(0), Validators.max(100)]],
+    referralRewardPoints: [1000, [Validators.required, Validators.min(0)]],
   });
 
   ngOnInit(): void {
@@ -91,6 +108,10 @@ export class SettingsPage implements OnInit {
           codEnabled: s.codEnabled !== false,
           codMaxOrderValue: (s.codMaxOrderValue ?? 0) / 100,
           paymentExpiryMinutes: s.paymentExpiryMinutes ?? 30,
+          loyaltyEarnRupees: (s.loyaltyEarnDivisor ?? 1000) / 100,
+          loyaltyPointValueRupees: (s.loyaltyPointValuePaise ?? 10) / 100,
+          loyaltyMaxRedeemSharePercent: (s.loyaltyMaxRedeemShare ?? 0.5) * 100,
+          referralRewardPoints: s.referralRewardPoints ?? 1000,
         }),
     });
   }
@@ -109,6 +130,10 @@ export class SettingsPage implements OnInit {
       codEnabled: v.codEnabled,
       codMaxOrderValue: Math.round(v.codMaxOrderValue * 100),
       paymentExpiryMinutes: v.paymentExpiryMinutes,
+      loyaltyEarnDivisor: Math.round(v.loyaltyEarnRupees * 100),
+      loyaltyPointValuePaise: Math.round(v.loyaltyPointValueRupees * 100),
+      loyaltyMaxRedeemShare: v.loyaltyMaxRedeemSharePercent / 100,
+      referralRewardPoints: v.referralRewardPoints,
     };
     this.api.patch('/settings', body).subscribe({
       next: () => { this.notify.push('Settings saved', undefined, 'success'); this.saving.set(false); },

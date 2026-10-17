@@ -20,6 +20,15 @@ const settingsSchema = new Schema(
     onlinePaymentEnabled: { type: Boolean, default: true },
     /** Cancel + restock an unpaid online order after this long. 0 disables the sweep. */
     paymentExpiryMinutes: { type: Number, default: 30 },
+    // ── Loyalty & referral (docs/06-ROADMAP.md) ──────────────────────────────
+    /** Earn 1 point per this many rupees spent (minor units: 1000 = ₹10). */
+    loyaltyEarnDivisor: { type: Number, default: 1000 },
+    /** Redemption rate: 1 point = this many minor units off. */
+    loyaltyPointValuePaise: { type: Number, default: 10 },
+    /** Cap on how much of an order's subtotal points can zero out, 0–1. */
+    loyaltyMaxRedeemShare: { type: Number, default: 0.5 },
+    /** Points credited to the referrer when their invite's first order is delivered. */
+    referralRewardPoints: { type: Number, default: 1000 },
   },
   { timestamps: true },
 );
@@ -38,6 +47,10 @@ const SETTINGS_DEFAULTS = {
   codMaxOrderValue: 500000,
   onlinePaymentEnabled: true,
   paymentExpiryMinutes: 30,
+  loyaltyEarnDivisor: 1000,
+  loyaltyPointValuePaise: 10,
+  loyaltyMaxRedeemShare: 0.5,
+  referralRewardPoints: 1000,
 };
 
 export async function getSettings() {

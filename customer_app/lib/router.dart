@@ -109,7 +109,10 @@ final appRouter = GoRouter(
         path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
     GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
     GoRoute(path: '/refer', builder: (_, __) => const ReferralScreen()),
-    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(
+        path: '/login',
+        builder: (_, state) =>
+            LoginScreen(referralCode: state.uri.queryParameters['ref'])),
     GoRoute(
         path: '/forgot-password',
         builder: (_, __) => const ForgotPasswordScreen()),

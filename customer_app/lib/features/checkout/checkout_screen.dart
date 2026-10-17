@@ -33,6 +33,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   bool _usePoints = false;
   int _pointsBalance = 0;
+  int _pointsBalanceValuePaise = 0;
   int _pointsToRedeem = 0;
   int _pointsDiscount = 0;
 
@@ -45,7 +46,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   void initState() {
     super.initState();
     ref.read(checkoutRepoProvider).loyaltyBalance().then((b) {
-      if (mounted) setState(() => _pointsBalance = b.points);
+      if (mounted) {
+        setState(() {
+          _pointsBalance = b.points;
+          _pointsBalanceValuePaise = b.valuePaise;
+        });
+      }
     }).catchError((_) {});
   }
 
@@ -638,7 +644,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   child: Text(
                       _usePoints
                           ? 'Using $_pointsToRedeem points · −${rupees(_pointsDiscount)}'
-                          : 'You have $_pointsBalance points (worth ₹${(_pointsBalance * 0.1).toStringAsFixed(0)})',
+                          : 'You have $_pointsBalance points (worth ₹${(_pointsBalanceValuePaise / 100).toStringAsFixed(0)})',
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 13)),
                 ),

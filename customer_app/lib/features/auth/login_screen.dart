@@ -5,19 +5,24 @@ import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  /// Prefilled from a `/login?ref=CODE` deep link — e.g. an invite link shared via
+  /// the referral screen, once such a link can actually reopen the app (needs
+  /// Android App Links / iOS Universal Links wired to a real domain; the in-app
+  /// route itself is ready for that today).
+  final String? referralCode;
+  const LoginScreen({super.key, this.referralCode});
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  bool _register = false;
+  late bool _register = widget.referralCode != null && widget.referralCode!.isNotEmpty;
   bool _busy = false;
   String? _error;
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  final _referralCode = TextEditingController();
+  late final _referralCode = TextEditingController(text: widget.referralCode);
 
   @override
   void dispose() {
