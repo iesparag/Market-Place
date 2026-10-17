@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/theme.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../data/providers.dart';
+import '../../data/payment_repository.dart' show FeatureFlags;
 import '../../shared/widgets/safe_pop_scope.dart';
 import '../shell/app_shell.dart';
 
@@ -12,6 +13,9 @@ class AccountScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
+    final features =
+        ref.watch(pricingSettingsProvider).valueOrNull?.features ??
+            const FeatureFlags();
     return SafePopScope(
       child: Scaffold(
         appBar: AppBar(
@@ -74,11 +78,11 @@ class AccountScreen extends ConsumerWidget {
               ]),
             ),
             const SizedBox(height: 10),
-            if (user != null) const _LoyaltyPointsTile(),
+            if (user != null && features.loyaltyEnabled) const _LoyaltyPointsTile(),
             // Orders has no bottom-nav tab — this IS the way to it, a plain pushed route.
             _tile(context, Icons.receipt_long_rounded, 'Your orders',
                 () => context.push('/orders')),
-            if (user != null)
+            if (user != null && features.referralEnabled)
               _tile(context, Icons.card_giftcard_rounded, 'Invite a friend',
                   () => context.push('/refer')),
             _tile(context, Icons.location_on_outlined, 'Addresses',

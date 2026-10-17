@@ -7,6 +7,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { LocationPickerComponent, type PickedLocation } from '../../shared/location-picker.component';
 import { PaymentService, type PaymentMethodOption } from '../../core/services/payment.service';
+import { FeatureFlagsService } from '../../core/services/feature-flags.service';
 import { selectCartLines } from '../../store/cart/cart.selectors';
 import { Store } from '@ngrx/store';
 
@@ -25,7 +26,7 @@ interface Address { _id: string; label: string; line1: string; city: string; pin
         <a class="btn btn-primary" routerLink="/login">Sign in</a>
       </div>
     } @else {
-      @if (ad()) {
+      @if (flags().checkoutAdBannerEnabled && ad()) {
         <div class="adbanner">
           <span class="adicon">📣</span>
           <div>
@@ -94,13 +95,15 @@ interface Address { _id: string; label: string; line1: string; city: string; pin
 
         <aside class="card summary">
           <h3>Order summary</h3>
-          <div class="coupon">
-            <input class="input" [(ngModel)]="couponCode" [ngModelOptions]="{standalone:true}" placeholder="Coupon code" />
-            <button type="button" class="btn btn-sm" (click)="applyCoupon()">Apply</button>
-          </div>
-          @if (couponMsg()) { <div class="cmsg" [class.ok]="couponDiscount() > 0">{{ couponMsg() }}</div> }
+          @if (flags().couponsEnabled) {
+            <div class="coupon">
+              <input class="input" [(ngModel)]="couponCode" [ngModelOptions]="{standalone:true}" placeholder="Coupon code" />
+              <button type="button" class="btn btn-sm" (click)="applyCoupon()">Apply</button>
+            </div>
+            @if (couponMsg()) { <div class="cmsg" [class.ok]="couponDiscount() > 0">{{ couponMsg() }}</div> }
+          }
 
-          @if (pointsBalance() > 0) {
+          @if (flags().loyaltyEnabled && pointsBalance() > 0) {
             <label class="points">
               <input type="checkbox" [checked]="usePoints()" (change)="togglePoints($any($event.target).checked)" />
               <span>
@@ -170,6 +173,8 @@ export class CheckoutComponent implements OnInit {
   readonly cart = inject(CartFacade);
   readonly auth = inject(AuthService);
   private readonly payments = inject(PaymentService);
+  private readonly featureFlags = inject(FeatureFlagsService);
+  flags = this.featureFlags.flags;
 
   placing = signal(false);
   error = signal<string | null>(null);

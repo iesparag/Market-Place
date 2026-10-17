@@ -17,6 +17,18 @@ const UpdateSchema = z.object({
   loyaltyPointValuePaise: z.number().int().min(1).optional(),
   loyaltyMaxRedeemShare: z.number().min(0).max(1).optional(),
   referralRewardPoints: z.number().int().min(0).optional(),
+  features: z
+    .object({
+      couponsEnabled: z.boolean(),
+      loyaltyEnabled: z.boolean(),
+      referralEnabled: z.boolean(),
+      frequentlyBoughtTogetherEnabled: z.boolean(),
+      wishlistPriceDropAlertsEnabled: z.boolean(),
+      recentlyViewedEnabled: z.boolean(),
+      checkoutAdBannerEnabled: z.boolean(),
+    })
+    .partial()
+    .optional(),
 });
 
 export const settingsController = {

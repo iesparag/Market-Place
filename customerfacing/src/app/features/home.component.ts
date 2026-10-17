@@ -1,6 +1,8 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CatalogService, type CatalogProduct, type Banner, type CatNode, type HomeSectionView, type Vendor } from '../core/services/catalog.service';
+import { ApiService } from '../core/services/api.service';
+import { AuthService } from '../core/services/auth.service';
 import { ProductCardComponent } from '../shared/product-card.component';
 import { BannerCarouselComponent } from '../shared/banner-carousel.component';
 
@@ -34,6 +36,15 @@ import { BannerCarouselComponent } from '../shared/banner-carousel.component';
         } @empty { <p class="muted">No categories yet.</p> }
       </div>
     </section>
+
+    <!-- Recently viewed — Amazon/Flipkart-style browsing-history nudge: products the
+         customer opened but hasn't bought, shown back to encourage a purchase. -->
+    @if (recentlyViewed().length) {
+      <section class="prow">
+        <div class="rhead"><div><h2>Recently Viewed</h2><p class="rsub muted">Pick up where you left off</p></div></div>
+        <div class="grid">@for (p of recentlyViewed(); track p._id) { <app-product-card [p]="p" /> }</div>
+      </section>
+    }
 
     <!-- Admin-composed sections (Home / Landing) -->
     @for (s of sections(); track s._id) {
@@ -130,15 +141,24 @@ import { BannerCarouselComponent } from '../shared/banner-carousel.component';
 })
 export class HomeComponent implements OnInit {
   private readonly catalog = inject(CatalogService);
+  private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService);
   banners = signal<Banner[]>([]);
   departments = signal<CatNode[]>([]);
   sections = signal<HomeSectionView[]>([]);
+  recentlyViewed = signal<CatalogProduct[]>([]);
   tints = ['#fff1e6', '#e9f7ef', '#fdeef0', '#eef2ff', '#f3f0ff', '#fff7e6'];
 
   ngOnInit(): void {
     this.catalog.getBanners().subscribe({ next: (b) => this.banners.set(b) });
     this.catalog.getCategoryTree().subscribe({ next: (t) => this.departments.set(t) });
     this.catalog.getHome().subscribe({ next: (s) => this.sections.set(s) });
+    if (this.auth.isLoggedIn()) {
+      this.api.get<CatalogProduct[]>('/recently-viewed').subscribe({
+        next: (r) => this.recentlyViewed.set(r),
+        error: () => {},
+      });
+    }
   }
 
   productsOf(s: HomeSectionView): CatalogProduct[] { return s.items as CatalogProduct[]; }

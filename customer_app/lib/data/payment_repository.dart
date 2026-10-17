@@ -220,20 +220,57 @@ class CheckoutQuote {
   });
 }
 
+/// Admin on/off switches (settings.page.ts "Features" section) — same flags the
+/// backend already enforces server-side; this is just so the UI doesn't show a
+/// control for something that will be rejected/no-op when tapped.
+class FeatureFlags {
+  final bool couponsEnabled;
+  final bool loyaltyEnabled;
+  final bool referralEnabled;
+  final bool frequentlyBoughtTogetherEnabled;
+  final bool wishlistPriceDropAlertsEnabled;
+  final bool recentlyViewedEnabled;
+  final bool checkoutAdBannerEnabled;
+  const FeatureFlags({
+    this.couponsEnabled = true,
+    this.loyaltyEnabled = true,
+    this.referralEnabled = true,
+    this.frequentlyBoughtTogetherEnabled = true,
+    this.wishlistPriceDropAlertsEnabled = true,
+    this.recentlyViewedEnabled = true,
+    this.checkoutAdBannerEnabled = true,
+  });
+
+  factory FeatureFlags.fromJson(Map<String, dynamic>? j) => FeatureFlags(
+        couponsEnabled: j?['couponsEnabled'] != false,
+        loyaltyEnabled: j?['loyaltyEnabled'] != false,
+        referralEnabled: j?['referralEnabled'] != false,
+        frequentlyBoughtTogetherEnabled:
+            j?['frequentlyBoughtTogetherEnabled'] != false,
+        wishlistPriceDropAlertsEnabled:
+            j?['wishlistPriceDropAlertsEnabled'] != false,
+        recentlyViewedEnabled: j?['recentlyViewedEnabled'] != false,
+        checkoutAdBannerEnabled: j?['checkoutAdBannerEnabled'] != false,
+      );
+}
+
 class PricingSettings {
   final num taxPercent;
   final int deliveryFee;
   final int freeDeliveryAbove;
+  final FeatureFlags features;
   const PricingSettings({
     required this.taxPercent,
     required this.deliveryFee,
     required this.freeDeliveryAbove,
+    this.features = const FeatureFlags(),
   });
 
   factory PricingSettings.fromJson(Map<String, dynamic> j) => PricingSettings(
         taxPercent: (j['taxPercent'] as num?) ?? 5,
         deliveryFee: (j['deliveryFee'] as num?)?.toInt() ?? 4000,
         freeDeliveryAbove: (j['freeDeliveryAbove'] as num?)?.toInt() ?? 50000,
+        features: FeatureFlags.fromJson(j['features'] as Map<String, dynamic>?),
       );
 
   /// Same rounding as the backend (`percentOf` → round to nearest paisa).

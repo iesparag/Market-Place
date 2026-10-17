@@ -7,6 +7,7 @@ import { asyncHandler } from '../../common/asyncHandler.js';
 import { ok, created } from '../../common/apiResponse.js';
 import { AppError } from '../../common/AppError.js';
 import { percentOf } from '../../common/money.js';
+import { getSettings } from '../settings/settings.model.js';
 
 const couponSchema = new Schema(
   {
@@ -27,6 +28,8 @@ export const Coupon = model('Coupon', couponSchema);
 
 /** Validate a code against a cart subtotal → discount (minor units). Throws if invalid. */
 export async function computeDiscount(code: string, itemsTotal: number): Promise<{ code: string; discount: number }> {
+  const settings = await getSettings();
+  if (!settings.features.couponsEnabled) throw AppError.badRequest('COUPONS_DISABLED', 'Coupons are currently unavailable');
   const coupon = await Coupon.findOne({ code: code.toUpperCase() });
   if (!coupon || !coupon.active) throw AppError.badRequest('COUPON_INVALID', 'Invalid coupon');
   if (coupon.expiresAt && coupon.expiresAt < new Date()) throw AppError.badRequest('COUPON_EXPIRED', 'Coupon expired');

@@ -6,6 +6,7 @@ import { asyncHandler } from '../../common/asyncHandler.js';
 import { ok } from '../../common/apiResponse.js';
 import { Product } from '../products/product.model.js';
 import { Store } from '../stores/store.model.js';
+import { getSettings } from '../settings/settings.model.js';
 
 const wishlistSchema = new Schema(
   {
@@ -26,6 +27,8 @@ export const wishlistRoutes = Router();
 wishlistRoutes.use(authenticate);
 
 wishlistRoutes.get('/', asyncHandler(async (req, res) => {
+  const settings = await getSettings();
+  const alertsEnabled = settings.features.wishlistPriceDropAlertsEnabled;
   const items = await Wishlist.find({ userId: req.user!.id }).sort({ createdAt: -1 }).lean();
   const ids = items.map((i) => String(i.productId));
   const lastSeenById = new Map(items.map((i) => [String(i.productId), i.lastSeenPrice]));
@@ -40,8 +43,8 @@ wishlistRoutes.get('/', asyncHandler(async (req, res) => {
     .map((id) => byId.get(id))
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
     .map((p) => {
-      const lastSeenPrice = lastSeenById.get(String(p._id));
-      const priceDropped = lastSeenPrice != null && p.minPrice != null && p.minPrice < lastSeenPrice;
+      const lastSeenPrice = alertsEnabled ? lastSeenById.get(String(p._id)) : undefined;
+      const priceDropped = alertsEnabled && lastSeenPrice != null && p.minPrice != null && p.minPrice < lastSeenPrice;
       return { ...p, store: storeMap.get(String(p.storeId)) ?? null, lastSeenPrice, priceDropped };
     });
   ok(res, ordered);

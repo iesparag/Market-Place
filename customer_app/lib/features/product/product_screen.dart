@@ -28,6 +28,14 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(productProvider(widget.slug));
+    // Record the view once this product's data lands — powers the "Recently viewed"
+    // home rail. Fire on the data transition, not on every rebuild.
+    ref.listen(productProvider(widget.slug), (prev, next) {
+      final p = next.valueOrNull;
+      if (p != null && prev?.valueOrNull?.id != p.id) {
+        recordProductView(ref.read(apiClientProvider), p.id);
+      }
+    });
     return SafePopScope(
       child: Scaffold(
         appBar: AppBar(

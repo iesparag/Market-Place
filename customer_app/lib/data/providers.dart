@@ -225,6 +225,24 @@ final recentProductsProvider =
   return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
 });
 
+/// "Recently viewed" home-screen row — products this customer opened but hasn't
+/// necessarily bought, most-recently-viewed first. A view is recorded by
+/// recordProductView() from the product screen; this just reads them back.
+final recentlyViewedProvider =
+    FutureProvider.autoDispose<List<Product>>((ref) async {
+  final user = ref.watch(authProvider);
+  if (user == null) return [];
+  final data =
+      await ref.read(apiClientProvider).get('/recently-viewed') as List;
+  return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+});
+
+/// Fire-and-forget: tell the backend this product was opened. Never throws —
+/// a failed view-tracking call must not disrupt browsing.
+void recordProductView(ApiClient api, String productId) {
+  api.post('/recently-viewed', body: {'productId': productId}).catchError((_) {});
+}
+
 /// Full store data for favourited stores (ids come from favouriteStoresProvider in
 /// features/favourites/store_favourite_controller.dart) — same two-provider split as
 /// the product wishlist (ids-set controller + a full-data FutureProvider).

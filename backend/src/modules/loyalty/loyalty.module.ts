@@ -45,6 +45,7 @@ export function redeemableDiscount(
 /** Balance-aware preview — how many of the requested points can actually be spent right now. */
 export async function previewRedeem(userId: string, points: number, itemsTotal: number) {
   const [balance, settings] = await Promise.all([balanceFor(userId), getSettings()]);
+  if (!settings.features.loyaltyEnabled) return { points: 0, discount: 0 };
   return redeemableDiscount(points, balance, itemsTotal, settings.loyaltyPointValuePaise, settings.loyaltyMaxRedeemShare);
 }
 
@@ -68,6 +69,7 @@ export async function creditLoyaltyPoints(order: {
   amounts?: { itemsTotal?: number | null } | null;
 }): Promise<void> {
   const settings = await getSettings();
+  if (!settings.features.loyaltyEnabled) return;
   const points = Math.floor((order.amounts?.itemsTotal ?? 0) / settings.loyaltyEarnDivisor);
   if (points <= 0) return;
   await LoyaltyEntry.create({

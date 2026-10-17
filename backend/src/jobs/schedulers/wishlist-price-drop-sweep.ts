@@ -2,6 +2,7 @@ import { logger } from '../../config/logger.js';
 import { Wishlist } from '../../modules/wishlist/wishlist.module.js';
 import { Product } from '../../modules/products/product.model.js';
 import { notify } from '../../modules/notifications/notifications.module.js';
+import { getSettings } from '../../modules/settings/settings.model.js';
 
 const SWEEP_INTERVAL_MS = 60 * 60_000; // hourly — price changes aren't time-sensitive like cart abandonment
 
@@ -12,6 +13,8 @@ const SWEEP_INTERVAL_MS = 60 * 60_000; // hourly — price changes aren't time-s
  * drop never repeats. Same setInterval-sweep pattern as cart-reminder-sweep.ts.
  */
 export async function sweepWishlistPriceDrops(): Promise<number> {
+  const settings = await getSettings();
+  if (!settings.features.wishlistPriceDropAlertsEnabled) return 0;
   const watched = await Wishlist.find({ lastSeenPrice: { $exists: true, $ne: null } })
     .select('userId productId lastSeenPrice')
     .limit(2000)

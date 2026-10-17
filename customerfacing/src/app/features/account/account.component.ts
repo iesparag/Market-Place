@@ -2,6 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { FeatureFlagsService } from '../../core/services/feature-flags.service';
 
 @Component({
   selector: 'app-account',
@@ -14,8 +15,12 @@ import { AuthService } from '../../core/services/auth.service';
       <a class="card q" routerLink="/account/orders"><span>📦</span> Your orders</a>
       <a class="card q" routerLink="/account/addresses"><span>📍</span> Addresses</a>
       <a class="card q" routerLink="/account/wishlist"><span>♥</span> Wishlist</a>
-      <a class="card q" routerLink="/account/loyalty"><span>⭐</span> Loyalty points</a>
-      <a class="card q" routerLink="/account/referral"><span>🎁</span> Invite a friend</a>
+      @if (flags().loyaltyEnabled) {
+        <a class="card q" routerLink="/account/loyalty"><span>⭐</span> Loyalty points</a>
+      }
+      @if (flags().referralEnabled) {
+        <a class="card q" routerLink="/account/referral"><span>🎁</span> Invite a friend</a>
+      }
     </div>
 
     <div class="grid">
@@ -78,6 +83,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class AccountComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly auth = inject(AuthService);
+  flags = inject(FeatureFlagsService).flags;
 
   savingP = signal(false); pMsg = signal('');
   savingPwd = signal(false); pwdMsg = signal(''); pwdOk = signal(false);

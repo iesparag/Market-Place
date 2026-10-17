@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { CartFacade } from '../../../store/cart/cart.facade';
 import type { CartLine } from '../../../store/cart/cart.state';
 import { CatalogService, type CatalogProduct } from '../../../core/services/catalog.service';
+import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { WishlistService } from '../../../core/services/wishlist.service';
 import { ReviewsComponent } from '../components/reviews.component';
@@ -210,6 +211,7 @@ import type { Variant, ModifierGroup } from '@app/shared';
 })
 export class ProductDetailPage {
   private readonly catalog = inject(CatalogService);
+  private readonly api = inject(ApiService);
   private readonly cart = inject(CartFacade);
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
@@ -290,6 +292,9 @@ export class ProductDetailPage {
           next: (r) => this.fbt.set(r),
           error: () => {},
         });
+        if (this.auth.isLoggedIn()) {
+          this.api.post('/recently-viewed', { productId: p._id }).subscribe({ error: () => {} });
+        }
       },
       error: () => this.error.set(true),
     });

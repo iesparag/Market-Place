@@ -63,6 +63,8 @@ referralRoutes.get(
  * purchase, not a signup alone.
  */
 export async function rewardReferrerForFirstOrder(order: { _id: unknown; customerId: unknown }): Promise<void> {
+  const settings = await getSettings();
+  if (!settings.features.referralEnabled) return;
   const customer = await User.findById(order.customerId).select('referredBy referralRewarded').lean();
   if (!customer?.referredBy || customer.referralRewarded) return;
 
@@ -81,7 +83,6 @@ export async function rewardReferrerForFirstOrder(order: { _id: unknown; custome
   );
   if (claimed.modifiedCount === 0) return;
 
-  const settings = await getSettings();
   await creditBonusPoints(
     customer.referredBy,
     settings.referralRewardPoints,

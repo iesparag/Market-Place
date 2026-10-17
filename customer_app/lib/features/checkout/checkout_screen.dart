@@ -467,6 +467,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final pointsDiscount = _usePoints ? _pointsDiscount : 0;
     final discount = (couponDiscount + pointsDiscount).clamp(0, subtotal);
     final pricing = ref.watch(pricingSettingsProvider).valueOrNull;
+    final features = pricing?.features ?? const FeatureFlags();
     final quote = pricing?.quote(subtotal, discount: discount) ??
         CheckoutQuote(
             itemsTotal: subtotal,
@@ -496,8 +497,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const _CheckoutAdBanner(),
-          const SizedBox(height: 16),
+          if (features.checkoutAdBannerEnabled) ...[
+            const _CheckoutAdBanner(),
+            const SizedBox(height: 16),
+          ],
 
           // Address
           Row(children: [
@@ -567,6 +570,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           const Divider(height: 24),
 
           // Coupon
+          if (features.couponsEnabled) ...[
           Text('Have a coupon?',
               style: TextStyle(
                   color: context.colors.ink,
@@ -626,9 +630,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               child: Text(_couponError!,
                   style: TextStyle(color: context.colors.danger, fontSize: 12.5)),
             ),
+          ],
 
           // Loyalty points
-          if (_pointsBalance > 0) ...[
+          if (features.loyaltyEnabled && _pointsBalance > 0) ...[
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

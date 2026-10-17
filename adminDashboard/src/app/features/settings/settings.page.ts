@@ -3,12 +3,22 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 
+interface FeatureFlags {
+  couponsEnabled: boolean;
+  loyaltyEnabled: boolean;
+  referralEnabled: boolean;
+  frequentlyBoughtTogetherEnabled: boolean;
+  wishlistPriceDropAlertsEnabled: boolean;
+  recentlyViewedEnabled: boolean;
+  checkoutAdBannerEnabled: boolean;
+}
 interface Settings {
   commissionPercent: number; taxPercent: number; deliveryFee: number; freeDeliveryAbove: number;
   payoutHoldDays: number; currency: string;
   codEnabled: boolean; codMaxOrderValue: number; onlinePaymentEnabled: boolean; paymentExpiryMinutes: number;
   loyaltyEarnDivisor: number; loyaltyPointValuePaise: number; loyaltyMaxRedeemShare: number;
   referralRewardPoints: number;
+  features?: FeatureFlags;
 }
 
 @Component({
@@ -58,6 +68,16 @@ interface Settings {
       <label class="label">Referral reward (points) — paid when an invite's first order is delivered</label>
       <input class="input" type="number" formControlName="referralRewardPoints" />
 
+      <h3 class="section">Features</h3>
+      <p class="hint">Turn any of these off instantly for both the app and the website — no rebuild needed.</p>
+      <label class="check"><input type="checkbox" formControlName="couponsEnabled" /><span>Coupon codes at checkout</span></label>
+      <label class="check"><input type="checkbox" formControlName="loyaltyEnabled" /><span>Loyalty points (earn + redeem)</span></label>
+      <label class="check"><input type="checkbox" formControlName="referralEnabled" /><span>Referral rewards</span></label>
+      <label class="check"><input type="checkbox" formControlName="frequentlyBoughtTogetherEnabled" /><span>Frequently bought together</span></label>
+      <label class="check"><input type="checkbox" formControlName="wishlistPriceDropAlertsEnabled" /><span>Wishlist price-drop alerts</span></label>
+      <label class="check"><input type="checkbox" formControlName="recentlyViewedEnabled" /><span>Recently viewed</span></label>
+      <label class="check"><input type="checkbox" formControlName="checkoutAdBannerEnabled" /><span>Checkout ad banner</span></label>
+
       <button class="btn btn-primary" [disabled]="form.invalid || saving()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
     </form>
   `,
@@ -93,6 +113,13 @@ export class SettingsPage implements OnInit {
     loyaltyPointValueRupees: [0.1, [Validators.required, Validators.min(0.01)]],
     loyaltyMaxRedeemSharePercent: [50, [Validators.required, Validators.min(0), Validators.max(100)]],
     referralRewardPoints: [1000, [Validators.required, Validators.min(0)]],
+    couponsEnabled: [true],
+    loyaltyEnabled: [true],
+    referralEnabled: [true],
+    frequentlyBoughtTogetherEnabled: [true],
+    wishlistPriceDropAlertsEnabled: [true],
+    recentlyViewedEnabled: [true],
+    checkoutAdBannerEnabled: [true],
   });
 
   ngOnInit(): void {
@@ -112,6 +139,13 @@ export class SettingsPage implements OnInit {
           loyaltyPointValueRupees: (s.loyaltyPointValuePaise ?? 10) / 100,
           loyaltyMaxRedeemSharePercent: (s.loyaltyMaxRedeemShare ?? 0.5) * 100,
           referralRewardPoints: s.referralRewardPoints ?? 1000,
+          couponsEnabled: s.features?.couponsEnabled !== false,
+          loyaltyEnabled: s.features?.loyaltyEnabled !== false,
+          referralEnabled: s.features?.referralEnabled !== false,
+          frequentlyBoughtTogetherEnabled: s.features?.frequentlyBoughtTogetherEnabled !== false,
+          wishlistPriceDropAlertsEnabled: s.features?.wishlistPriceDropAlertsEnabled !== false,
+          recentlyViewedEnabled: s.features?.recentlyViewedEnabled !== false,
+          checkoutAdBannerEnabled: s.features?.checkoutAdBannerEnabled !== false,
         }),
     });
   }
@@ -134,6 +168,15 @@ export class SettingsPage implements OnInit {
       loyaltyPointValuePaise: Math.round(v.loyaltyPointValueRupees * 100),
       loyaltyMaxRedeemShare: v.loyaltyMaxRedeemSharePercent / 100,
       referralRewardPoints: v.referralRewardPoints,
+      features: {
+        couponsEnabled: v.couponsEnabled,
+        loyaltyEnabled: v.loyaltyEnabled,
+        referralEnabled: v.referralEnabled,
+        frequentlyBoughtTogetherEnabled: v.frequentlyBoughtTogetherEnabled,
+        wishlistPriceDropAlertsEnabled: v.wishlistPriceDropAlertsEnabled,
+        recentlyViewedEnabled: v.recentlyViewedEnabled,
+        checkoutAdBannerEnabled: v.checkoutAdBannerEnabled,
+      },
     };
     this.api.patch('/settings', body).subscribe({
       next: () => { this.notify.push('Settings saved', undefined, 'success'); this.saving.set(false); },

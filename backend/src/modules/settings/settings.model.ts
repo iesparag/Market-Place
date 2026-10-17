@@ -29,6 +29,17 @@ const settingsSchema = new Schema(
     loyaltyMaxRedeemShare: { type: Number, default: 0.5 },
     /** Points credited to the referrer when their invite's first order is delivered. */
     referralRewardPoints: { type: Number, default: 1000 },
+    // ── Feature flags — admin on/off switches, enforced server-side (not just UI
+    // hiding) so "off" really means off across app + website, no rebuild needed. ──
+    features: {
+      couponsEnabled: { type: Boolean, default: true },
+      loyaltyEnabled: { type: Boolean, default: true },
+      referralEnabled: { type: Boolean, default: true },
+      frequentlyBoughtTogetherEnabled: { type: Boolean, default: true },
+      wishlistPriceDropAlertsEnabled: { type: Boolean, default: true },
+      recentlyViewedEnabled: { type: Boolean, default: true },
+      checkoutAdBannerEnabled: { type: Boolean, default: true },
+    },
   },
   { timestamps: true },
 );
@@ -51,6 +62,15 @@ const SETTINGS_DEFAULTS = {
   loyaltyPointValuePaise: 10,
   loyaltyMaxRedeemShare: 0.5,
   referralRewardPoints: 1000,
+  features: {
+    couponsEnabled: true,
+    loyaltyEnabled: true,
+    referralEnabled: true,
+    frequentlyBoughtTogetherEnabled: true,
+    wishlistPriceDropAlertsEnabled: true,
+    recentlyViewedEnabled: true,
+    checkoutAdBannerEnabled: true,
+  },
 };
 
 export async function getSettings() {
@@ -59,6 +79,12 @@ export async function getSettings() {
     { $setOnInsert: { key: 'platform' } },
     { new: true, upsert: true },
   ).lean();
-  // Backfill any fields added after this doc was first created.
-  return { ...SETTINGS_DEFAULTS, ...doc };
+  // Backfill any fields added after this doc was first created. `features` is nested,
+  // so it needs its own merge — a plain top-level spread would drop any flag added
+  // here after a doc already has a (now-incomplete) `features` object saved.
+  return {
+    ...SETTINGS_DEFAULTS,
+    ...doc,
+    features: { ...SETTINGS_DEFAULTS.features, ...doc.features },
+  };
 }

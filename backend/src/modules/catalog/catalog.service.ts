@@ -4,6 +4,7 @@ import { Product } from '../products/product.model.js';
 import { Category } from '../categories/category.model.js';
 import { Store, isStoreOpenNow } from '../stores/store.model.js';
 import { Order } from '../orders/order.model.js';
+import { getSettings } from '../settings/settings.model.js';
 import { haversineKm } from '../../common/geo.js';
 
 export interface GeoQuery {
@@ -105,6 +106,8 @@ export const catalogService = {
    * non-empty from day one instead of waiting for order volume).
    */
   async relatedProducts(productId: string, limit = 8) {
+    const settings = await getSettings();
+    if (!settings.features.frequentlyBoughtTogetherEnabled) return [];
     const product = await Product.findById(productId).select('categoryId').lean();
     if (!product) return [];
 

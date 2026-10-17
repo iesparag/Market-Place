@@ -71,6 +71,7 @@ class HomeScreen extends ConsumerWidget {
                         // returning customer can order again in one tap. Hidden entirely when a
                         // guest or when there's nothing to show — no empty placeholder clutter.
                         const _OrderAgainSection(),
+                        const _RecentlyViewedSection(),
                         const _FavouriteStoresSection(),
                         // Every section is rendered dynamically in the EXACT order defined by the portal.
                         // If a section is disabled in the portal, the backend excludes it, so it will not appear here.
@@ -332,6 +333,39 @@ class _OrderAgainSection extends ConsumerWidget {
         const SectionHeader(
             title: 'Order Again',
             subtitle: 'Your previous picks, one tap away'),
+        SizedBox(
+          height: 240,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: products.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) =>
+                SizedBox(width: 150, child: ProductCard(product: products[i])),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── "Recently viewed" — Amazon/Flipkart-style browsing-history nudge: products the
+// customer opened but hasn't bought, shown back to them to encourage a purchase.
+class _RecentlyViewedSection extends ConsumerWidget {
+  const _RecentlyViewedSection();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+    if (user == null) return const SizedBox.shrink();
+    final products = ref.watch(recentlyViewedProvider).valueOrNull ?? [];
+    if (products.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(
+            title: 'Recently Viewed',
+            subtitle: 'Pick up where you left off'),
         SizedBox(
           height: 240,
           child: ListView.separated(
