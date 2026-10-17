@@ -74,9 +74,13 @@ class AccountScreen extends ConsumerWidget {
               ]),
             ),
             const SizedBox(height: 10),
+            if (user != null) const _LoyaltyPointsTile(),
             // Orders has no bottom-nav tab — this IS the way to it, a plain pushed route.
             _tile(context, Icons.receipt_long_rounded, 'Your orders',
                 () => context.push('/orders')),
+            if (user != null)
+              _tile(context, Icons.card_giftcard_rounded, 'Invite a friend',
+                  () => context.push('/refer')),
             _tile(context, Icons.location_on_outlined, 'Addresses',
                 () => context.push('/addresses')),
             _tile(context, Icons.storefront_outlined, 'Become a vendor',
@@ -140,6 +144,25 @@ class AccountScreen extends ConsumerWidget {
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: onTap,
       );
+}
+
+class _LoyaltyPointsTile extends ConsumerWidget {
+  const _LoyaltyPointsTile();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final balance = ref.watch(loyaltyBalanceProvider).valueOrNull;
+    return ListTile(
+      leading: Icon(Icons.stars_rounded, color: context.brand.primary),
+      title: Text('Loyalty points',
+          style: TextStyle(
+              fontWeight: FontWeight.w600, color: context.colors.ink)),
+      subtitle: Text(
+          balance == null
+              ? 'Loading…'
+              : '${balance.points} points · worth ₹${(balance.valuePaise / 100).toStringAsFixed(0)} — redeem at checkout',
+          style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
+    );
+  }
 }
 
 /// Light / Dark / System picker — persisted via ThemeModeController (local cache +

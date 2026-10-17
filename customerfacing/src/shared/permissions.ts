@@ -50,6 +50,7 @@ export const PERMISSIONS = [
   // Settings
   'settings:manage',
   'audit:read',
+  'errors:view',
   // Analytics
   'analytics:read',
 ] as const;

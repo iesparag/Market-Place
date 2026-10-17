@@ -40,6 +40,9 @@ export const catalogController = {
   async getProductSlugById(req: Request, res: Response) {
     ok(res, await catalogService.getProductSlugById(req.params.id!));
   },
+  async relatedProducts(req: Request, res: Response) {
+    ok(res, await catalogService.relatedProducts(req.params.id!));
+  },
   async listCategories(_req: Request, res: Response) {
     ok(res, await catalogService.listCategories());
   },

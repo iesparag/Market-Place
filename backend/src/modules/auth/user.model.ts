@@ -32,6 +32,14 @@ const userSchema = new Schema(
      * explicit light/dark choice here always overrides it and persists across devices
      * (tied to the account, not just local SharedPreferences) until changed again. */
     themePreference: { type: String, enum: ['system', 'light', 'dark'], default: 'system' },
+    // Referral program — see modules/referral/referral.module.ts. Code is generated
+    // lazily (first time it's asked for), not at signup, so the vast majority of users
+    // who never share never get a row written for it.
+    referralCode: { type: String, unique: true, sparse: true, index: true },
+    referredBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    // Set once the referrer's reward has been paid — on this user's first paid order,
+    // not at signup — so a fake-account signup with no real purchase earns nothing.
+    referralRewarded: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

@@ -207,11 +207,13 @@ class PaymentRepository {
 /// Mirrors the maths in `ordersService.create`.
 class CheckoutQuote {
   final int itemsTotal;
+  final int discount;
   final int tax;
   final int delivery;
   final int grandTotal;
   const CheckoutQuote({
     required this.itemsTotal,
+    this.discount = 0,
     required this.tax,
     required this.delivery,
     required this.grandTotal,
@@ -241,6 +243,7 @@ class PricingSettings {
     final delivery = itemsTotal >= freeDeliveryAbove ? 0 : deliveryFee;
     return CheckoutQuote(
       itemsTotal: itemsTotal,
+      discount: discount,
       tax: tax,
       delivery: delivery,
       grandTotal: taxable + tax + delivery,

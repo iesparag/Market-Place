@@ -11,6 +11,7 @@ import { paymentProvider } from '../../providers/payment/index.js';
 import { paymentsService } from '../payments/payments.service.js';
 import { settlementService } from '../payments/settlement.service.js';
 import { computeDiscount, markCouponUsed } from '../coupons/coupons.module.js';
+import { previewRedeem, debitLoyaltyPoints } from '../loyalty/loyalty.module.js';
 import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
 import { sendOrderEmail, type NotifiableOrder } from './order-email.js';
@@ -28,6 +29,7 @@ export interface OrderItemInput {
 export interface CreateOrderInput {
   items: OrderItemInput[];
   couponCode?: string;
+  redeemPoints?: number;
   storeInstructions?: Record<string, string>;
   deliverySlots?: Record<string, { type: string; slot?: string; date?: string }>;
   contact?: { name?: string; phone?: string; email?: string };
@@ -187,7 +189,18 @@ export const ordersService = {
       discount = c.discount;
       couponCode = c.code;
     }
-    const taxable = itemsTotal - discount;
+    // Loyalty points (optional) stack with the coupon — capped against what's left of
+    // itemsTotal after the coupon, and re-validated against the live balance here (the
+    // client only ever saw a preview).
+    let pointsRedeemed = 0;
+    let pointsDiscount = 0;
+    if (input.redeemPoints) {
+      const preview = await previewRedeem(customerId, input.redeemPoints, itemsTotal - discount);
+      pointsRedeemed = preview.points;
+      pointsDiscount = preview.discount;
+    }
+
+    const taxable = itemsTotal - discount - pointsDiscount;
     const tax = percentOf(taxable, settings.taxPercent ?? 5);
     const delivery = itemsTotal >= (settings.freeDeliveryAbove ?? 50000) ? 0 : settings.deliveryFee ?? 4000;
     const grandTotal = taxable + tax + delivery;
@@ -200,12 +213,14 @@ export const ordersService = {
       storeInstructions: input.storeInstructions,
       deliverySlots,
       couponCode,
-      amounts: { itemsTotal, discount, tax, delivery, grandTotal },
+      pointsRedeemed,
+      amounts: { itemsTotal, discount: discount + pointsDiscount, tax, delivery, grandTotal },
       contact: input.contact,
       shippingAddress: input.shippingAddress,
       status: 'pending',
     });
     if (couponCode) await markCouponUsed(couponCode);
+    if (pointsRedeemed > 0) await debitLoyaltyPoints(customerId, pointsRedeemed, order._id);
 
     // Decrement stock per variant + bump salesCount for popularity (best-effort; real atomic reservation comes with inventory module).
     for (const l of lines) {

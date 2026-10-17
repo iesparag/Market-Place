@@ -6,6 +6,7 @@ export const RegisterSchema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   password: z.string().min(8),
+  referralCode: z.string().optional(),
 });
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 

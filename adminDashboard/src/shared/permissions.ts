@@ -57,6 +57,7 @@ export const PERMISSIONS = [
   // Settings
   'settings:manage',
   'audit:read',
+  'errors:view',
   // Analytics
   'analytics:read',
 ] as const;
@@ -134,6 +135,7 @@ export const NAV_META: NavSectionMeta[] = [
     items: [
       { perm: 'settings:manage', label: 'Settings', route: '/settings' },
       { perm: 'audit:read', label: 'Audit Log', route: '/audit' },
+      { perm: 'errors:view', label: 'Error Reports', route: '/error-reports' },
     ],
   },
   {

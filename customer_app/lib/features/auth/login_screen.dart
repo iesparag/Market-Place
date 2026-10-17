@@ -17,12 +17,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _referralCode = TextEditingController();
 
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _referralCode.dispose();
     super.dispose();
   }
 
@@ -34,8 +36,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final auth = ref.read(authProvider.notifier);
       if (_register) {
-        await auth.register(
-            _name.text.trim(), _email.text.trim(), _password.text);
+        await auth.register(_name.text.trim(), _email.text.trim(),
+            _password.text,
+            referralCode: _referralCode.text.trim());
       } else {
         await auth.login(_email.text.trim(), _password.text);
       }
@@ -91,6 +94,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               controller: _password,
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Password')),
+          if (_register) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _referralCode,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                  labelText: 'Referral code (optional)',
+                  helperText: 'Got an invite from a friend? Enter it here.'),
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             Container(

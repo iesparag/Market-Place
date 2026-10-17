@@ -22,6 +22,7 @@ import 'features/favourites/favourite_stores_screen.dart';
 import 'features/notifications/notifications_screen.dart';
 import 'features/vendor/become_vendor_screen.dart';
 import 'features/support/support_screen.dart';
+import 'features/referral/referral_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/splash/force_update_screen.dart';
 import 'features/auth/login_screen.dart';
@@ -107,6 +108,7 @@ final appRouter = GoRouter(
     GoRoute(
         path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
     GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
+    GoRoute(path: '/refer', builder: (_, __) => const ReferralScreen()),
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
     GoRoute(
         path: '/forgot-password',

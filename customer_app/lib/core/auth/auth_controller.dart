@@ -113,12 +113,14 @@ class AuthController extends StateNotifier<AuthUser?> {
   }
 
   Future<void> register(String name, String email, String password,
-      {String? phone}) async {
+      {String? phone, String? referralCode}) async {
     final d = await ref.read(apiClientProvider).post('/auth/register', body: {
       'name': name,
       'email': email,
       'password': password,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
+      if (referralCode != null && referralCode.isNotEmpty)
+        'referralCode': referralCode,
     }) as Map<String, dynamic>;
     await ref
         .read(tokenStoreProvider)

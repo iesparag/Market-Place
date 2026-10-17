@@ -11,6 +11,10 @@ const wishlistSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+    // Price snapshot at the moment it was wishlisted (or last notified) — compared
+    // against the product's live minPrice by the price-drop sweep. Updated after each
+    // notification so a further drop still alerts, but the same drop never repeats.
+    lastSeenPrice: Number,
   },
   { timestamps: true },
 );
@@ -24,6 +28,7 @@ wishlistRoutes.use(authenticate);
 wishlistRoutes.get('/', asyncHandler(async (req, res) => {
   const items = await Wishlist.find({ userId: req.user!.id }).sort({ createdAt: -1 }).lean();
   const ids = items.map((i) => String(i.productId));
+  const lastSeenById = new Map(items.map((i) => [String(i.productId), i.lastSeenPrice]));
   const products = await Product.find({ _id: { $in: ids } })
     .select('title slug variants images ratingAvg ratingCount storeId minPrice foodType attributes')
     .lean();
@@ -34,15 +39,20 @@ wishlistRoutes.get('/', asyncHandler(async (req, res) => {
   const ordered = ids
     .map((id) => byId.get(id))
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
-    .map((p) => ({ ...p, store: storeMap.get(String(p.storeId)) ?? null }));
+    .map((p) => {
+      const lastSeenPrice = lastSeenById.get(String(p._id));
+      const priceDropped = lastSeenPrice != null && p.minPrice != null && p.minPrice < lastSeenPrice;
+      return { ...p, store: storeMap.get(String(p.storeId)) ?? null, lastSeenPrice, priceDropped };
+    });
   ok(res, ordered);
 }));
 
 wishlistRoutes.post('/', asyncHandler(async (req, res) => {
   const productId = z.string().min(1).parse(req.body.productId);
+  const product = await Product.findById(productId).select('minPrice').lean();
   await Wishlist.updateOne(
     { userId: req.user!.id, productId },
-    { $setOnInsert: { userId: req.user!.id, productId } },
+    { $setOnInsert: { userId: req.user!.id, productId, lastSeenPrice: product?.minPrice } },
     { upsert: true },
   );
   ok(res, { added: true });

@@ -192,6 +192,20 @@ final liveLocationLabelProvider =
 
 final productProvider = FutureProvider.autoDispose.family<Product, String>(
     (ref, slug) => ref.read(catalogRepoProvider).product(slug));
+final frequentlyBoughtTogetherProvider = FutureProvider.autoDispose
+    .family<List<Product>, String>((ref, productId) =>
+        ref.read(catalogRepoProvider).frequentlyBoughtTogether(productId));
+
+/// Loyalty points balance — shown on the account screen and used to seed the
+/// checkout redeem toggle.
+final loyaltyBalanceProvider =
+    FutureProvider.autoDispose<({int points, int valuePaise})>(
+        (ref) => ref.read(checkoutRepoProvider).loyaltyBalance());
+
+/// Referral code + invite stats for the "Invite a friend" screen.
+final referralInfoProvider = FutureProvider.autoDispose<
+    ({String code, int rewardPoints, int referredCount, int rewardedCount})>(
+    (ref) => ref.read(checkoutRepoProvider).referralInfo());
 final storeProvider = FutureProvider.autoDispose.family<StorePageData, String>(
     (ref, slug) => ref.read(catalogRepoProvider).store(slug));
 

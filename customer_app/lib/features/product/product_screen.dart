@@ -222,6 +222,10 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                 ),
               ),
 
+              // Frequently bought together (co-purchase history, falls back to
+              // same-category when a product has too few orders to learn from).
+              _FrequentlyBoughtTogether(productId: p.id),
+
               // Related
               if (p.related.isNotEmpty) ...[
                 Padding(
@@ -312,6 +316,44 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                       ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _FrequentlyBoughtTogether extends ConsumerWidget {
+  final String productId;
+  const _FrequentlyBoughtTogether({required this.productId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(frequentlyBoughtTogetherProvider(productId));
+    final items = async.valueOrNull ?? const <Product>[];
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Text('Frequently bought together',
+              style: TextStyle(
+                  color: context.colors.ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16)),
+        ),
+        SizedBox(
+          height: 272,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) =>
+                SizedBox(width: 156, child: ProductCard(product: items[i])),
+          ),
+        ),
+        const SizedBox(height: 12),
       ],
     );
   }

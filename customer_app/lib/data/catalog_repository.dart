@@ -81,6 +81,13 @@ class CatalogRepository {
     return Product.fromJson(data);
   }
 
+  /// "Frequently bought together" — co-purchase history from past orders (falls back
+  /// to same-category products when a listing has too few orders to learn from).
+  Future<List<Product>> frequentlyBoughtTogether(String productId) async {
+    final data = await api.get('/catalog/products/$productId/related') as List;
+    return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   /// Resolves an order item's productId → its current slug + live price — used by the
   /// order-detail screen to let a past order's item link through to that product's
   /// current page (and to know whether the price has moved since). Throws (404, via

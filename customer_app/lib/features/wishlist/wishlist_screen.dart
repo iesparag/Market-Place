@@ -52,7 +52,29 @@ class WishlistScreen extends ConsumerWidget {
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 12),
                         itemCount: list.length,
-                        itemBuilder: (_, i) => ProductCard(product: list[i]),
+                        itemBuilder: (_, i) {
+                          final p = list[i];
+                          if (!p.priceDropped) return ProductCard(product: p);
+                          return Stack(children: [
+                            ProductCard(product: p),
+                            Positioned(
+                              top: 6,
+                              left: 6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                    color: context.colors.success,
+                                    borderRadius: BorderRadius.circular(6)),
+                                child: const Text('📉 Price drop',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                          ]);
+                        },
                       ),
                     );
                   },

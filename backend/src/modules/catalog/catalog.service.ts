@@ -3,6 +3,7 @@ import { env } from '../../config/env.js';
 import { Product } from '../products/product.model.js';
 import { Category } from '../categories/category.model.js';
 import { Store, isStoreOpenNow } from '../stores/store.model.js';
+import { Order } from '../orders/order.model.js';
 import { haversineKm } from '../../common/geo.js';
 
 export interface GeoQuery {
@@ -95,6 +96,42 @@ export const catalogService = {
       .lean();
     const storeMap = new Map(stores.map((s) => [String(s._id), s]));
     return products.map((p) => ({ ...p, store: storeMap.get(String(p.storeId)) ?? null }));
+  },
+
+  /**
+   * "Frequently bought together": other products that co-occurred with this one in past
+   * orders, ranked by how often, topped up with same-category products when co-purchase
+   * history is thin (a new storefront has few orders to learn from — this keeps the rail
+   * non-empty from day one instead of waiting for order volume).
+   */
+  async relatedProducts(productId: string, limit = 8) {
+    const product = await Product.findById(productId).select('categoryId').lean();
+    if (!product) return [];
+
+    const coBought = await Order.aggregate([
+      { $match: { items: { $elemMatch: { productId: product._id } } } },
+      { $unwind: '$items' },
+      { $match: { 'items.productId': { $ne: product._id } } },
+      { $group: { _id: '$items.productId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: limit },
+    ]);
+    const ids = coBought.map((r) => String(r._id));
+
+    if (ids.length < limit && product.categoryId) {
+      const existing = await Product.find({
+        categoryId: product.categoryId,
+        status: 'active',
+        visibility: 'public',
+        _id: { $nin: [product._id, ...coBought.map((r) => r._id)] },
+      })
+        .select('_id')
+        .limit(limit - ids.length)
+        .lean();
+      ids.push(...existing.map((p) => String(p._id)));
+    }
+    if (!ids.length) return [];
+    return this.listProducts({ ids });
   },
 
   /**

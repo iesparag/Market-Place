@@ -174,6 +174,12 @@ export const routes: Routes = [
         canMatch: [permissionGuard('audit:read')],
         loadComponent: () => import('./features/audit/audit.page').then((m) => m.AuditPage),
       },
+      {
+        path: 'error-reports',
+        canMatch: [permissionGuard('errors:view')],
+        loadComponent: () =>
+          import('./features/error-reports/error-reports.page').then((m) => m.ErrorReportsPage),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

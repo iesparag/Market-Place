@@ -6,6 +6,8 @@ import { Order, type OrderDoc } from '../orders/order.model.js';
 import { Store } from '../stores/store.model.js';
 import { getSettings } from '../settings/settings.model.js';
 import { ledgerService, type LedgerEntryInput } from '../ledger/ledger.service.js';
+import { creditLoyaltyPoints } from '../loyalty/loyalty.module.js';
+import { rewardReferrerForFirstOrder } from '../referral/referral.module.js';
 import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
 import { sendOrderEmail } from '../orders/order-email.js';
@@ -110,6 +112,8 @@ export const settlementService = {
     announcePaid(order, snapshots);
     void sendOrderEmail(order, 'paid');
     void deliveryTasksService.createForOrder(order);
+    void creditLoyaltyPoints(order);
+    void rewardReferrerForFirstOrder(order);
     return order;
   },
 
@@ -156,6 +160,8 @@ export const settlementService = {
     await ledgerService.post(entries);
     order.set({ commissions: snapshots });
     await order.save();
+    void creditLoyaltyPoints(order);
+    void rewardReferrerForFirstOrder(order);
     return order;
   },
 

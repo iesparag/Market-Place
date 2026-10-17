@@ -18,6 +18,7 @@ const CreateOrderSchema = z.object({
     )
     .min(1),
   couponCode: z.string().optional(),
+  redeemPoints: z.number().int().min(0).optional(),
   storeInstructions: z.record(z.string(), z.string()).optional(),
   deliverySlots: z
     .record(

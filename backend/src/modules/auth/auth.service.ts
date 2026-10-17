@@ -37,12 +37,18 @@ export const authService = {
     const exists = await User.findOne({ email: input.email }).lean();
     if (exists) throw AppError.conflict('Email already registered');
     const passwordHash = await bcrypt.hash(input.password, 10);
+    // A bad/unknown code is silently ignored rather than failing signup — a mistyped
+    // referral code is not a reason to block someone from creating an account.
+    const referrer = input.referralCode
+      ? await User.findOne({ referralCode: input.referralCode.toUpperCase() }).select('_id').lean()
+      : null;
     const user = await User.create({
       name: input.name,
       email: input.email,
       phone: input.phone,
       passwordHash,
       role: Role.CUSTOMER,
+      referredBy: referrer?._id,
     });
     const auth = toAuthUser(user);
     return { token: signAccess(auth), refreshToken: signRefresh(auth.id), user: { ...auth, name: user.name, email: user.email } };

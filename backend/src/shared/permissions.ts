@@ -57,6 +57,7 @@ export const PERMISSIONS = [
   // Settings
   'settings:manage',
   'audit:read',
+  'errors:view', // daily error/failure report dashboard
   // Analytics
   'analytics:read',
   // Support (AI customer support — see docs/10-SUPPORT-AI.md)
@@ -161,6 +162,7 @@ export const NAV_META: NavSectionMeta[] = [
       { perm: 'settings:manage', label: 'Settings', route: '/settings' },
       { perm: 'settings:manage', label: 'App appearance', route: '/appearance' },
       { perm: 'audit:read', label: 'Audit Log', route: '/audit' },
+      { perm: 'errors:view', label: 'Error Reports', route: '/error-reports' },
     ],
   },
   {

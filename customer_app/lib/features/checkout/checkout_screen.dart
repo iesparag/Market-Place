@@ -25,15 +25,92 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _method = 'razorpay';
   String _stage = 'idle'; // idle | placing | paying
 
+  final _couponCtrl = TextEditingController();
+  String? _appliedCoupon;
+  int _couponDiscount = 0;
+  bool _applyingCoupon = false;
+  String? _couponError;
+
+  bool _usePoints = false;
+  int _pointsBalance = 0;
+  int _pointsToRedeem = 0;
+  int _pointsDiscount = 0;
+
   /// Owned by this screen: it holds a native Razorpay listener that must outlive the
   /// async gap while the sheet is open, and must be torn down exactly once.
   late final PaymentController _payment =
       PaymentController(ref.read(paymentRepoProvider));
 
   @override
+  void initState() {
+    super.initState();
+    ref.read(checkoutRepoProvider).loyaltyBalance().then((b) {
+      if (mounted) setState(() => _pointsBalance = b.points);
+    }).catchError((_) {});
+  }
+
+  @override
   void dispose() {
     _payment.dispose();
+    _couponCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _togglePoints(bool use, int itemsTotal) async {
+    if (!use || _pointsBalance <= 0) {
+      setState(() {
+        _usePoints = false;
+        _pointsToRedeem = 0;
+        _pointsDiscount = 0;
+      });
+      return;
+    }
+    final preview = await ref
+        .read(checkoutRepoProvider)
+        .previewRedeemPoints(_pointsBalance, itemsTotal);
+    if (!mounted) return;
+    setState(() {
+      _usePoints = true;
+      _pointsToRedeem = preview.points;
+      _pointsDiscount = preview.discount;
+    });
+  }
+
+  Future<void> _applyCoupon(int itemsTotal) async {
+    final code = _couponCtrl.text.trim();
+    if (code.isEmpty) return;
+    setState(() {
+      _applyingCoupon = true;
+      _couponError = null;
+    });
+    try {
+      final discount =
+          await ref.read(checkoutRepoProvider).validateCoupon(code, itemsTotal);
+      if (!mounted) return;
+      setState(() {
+        _appliedCoupon = code.toUpperCase();
+        _couponDiscount = discount;
+        _applyingCoupon = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _couponDiscount = 0;
+        _appliedCoupon = null;
+        _applyingCoupon = false;
+        _couponError =
+            friendlyError(e, fallback: 'This coupon could not be applied.');
+      });
+    }
+  }
+
+  void _removeCoupon() {
+    setState(() {
+      _appliedCoupon = null;
+      _couponDiscount = 0;
+      _couponError = null;
+      _couponCtrl.clear();
+    });
   }
 
   void _syncSlotsForAddress(Address addr, List<CartLine> lines) {
@@ -146,6 +223,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             address: addr,
             storeInstructions: ref.read(cartInstructionsProvider),
             deliverySlots: ref.read(cartDeliverySlotsProvider),
+            couponCode: _appliedCoupon,
+            redeemPoints: _usePoints ? _pointsToRedeem : null,
           );
       orderId = order.id;
       orderNumber = order.number;
@@ -374,10 +453,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final addressesAsync = ref.watch(addressesProvider);
 
     // Show exactly what the server will charge — tax and delivery included.
+    // The coupon discount is only a preview (computeDiscount re-runs authoritatively
+    // server-side at order creation), so it's capped at the current subtotal in case
+    // items changed after it was applied.
+    final couponDiscount =
+        _appliedCoupon != null ? _couponDiscount.clamp(0, subtotal) : 0;
+    final pointsDiscount = _usePoints ? _pointsDiscount : 0;
+    final discount = (couponDiscount + pointsDiscount).clamp(0, subtotal);
     final pricing = ref.watch(pricingSettingsProvider).valueOrNull;
-    final quote = pricing?.quote(subtotal) ??
+    final quote = pricing?.quote(subtotal, discount: discount) ??
         CheckoutQuote(
-            itemsTotal: subtotal, tax: 0, delivery: 0, grandTotal: subtotal);
+            itemsTotal: subtotal,
+            discount: discount,
+            tax: 0,
+            delivery: 0,
+            grandTotal: subtotal - discount);
 
     final methods = (ref.watch(paymentConfigProvider).valueOrNull?.methods ??
             const <PaymentMethodOption>[])
@@ -400,6 +490,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const _CheckoutAdBanner(),
+          const SizedBox(height: 16),
+
           // Address
           Row(children: [
             Text('Delivery address',
@@ -466,7 +559,103 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ]),
               )),
           const Divider(height: 24),
+
+          // Coupon
+          Text('Have a coupon?',
+              style: TextStyle(
+                  color: context.colors.ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16)),
+          const SizedBox(height: 8),
+          if (_appliedCoupon != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                  color: context.colors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: context.colors.success)),
+              child: Row(children: [
+                Icon(Icons.local_offer_rounded,
+                    size: 18, color: context.colors.success),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(
+                        '$_appliedCoupon applied · −${rupees(couponDiscount)}',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: context.colors.success))),
+                TextButton(onPressed: _removeCoupon, child: const Text('Remove')),
+              ]),
+            )
+          else
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _couponCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration:
+                      const InputDecoration(labelText: 'Coupon code'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _applyingCoupon
+                      ? null
+                      : () => _applyCoupon(quote.itemsTotal),
+                  child: _applyingCoupon
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Apply'),
+                ),
+              ),
+            ]),
+          if (_couponError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(_couponError!,
+                  style: TextStyle(color: context.colors.danger, fontSize: 12.5)),
+            ),
+
+          // Loyalty points
+          if (_pointsBalance > 0) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                  color: context.colors.bg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: context.colors.border)),
+              child: Row(children: [
+                Icon(Icons.stars_rounded,
+                    size: 20, color: context.brand.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                      _usePoints
+                          ? 'Using $_pointsToRedeem points · −${rupees(_pointsDiscount)}'
+                          : 'You have $_pointsBalance points (worth ₹${(_pointsBalance * 0.1).toStringAsFixed(0)})',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13)),
+                ),
+                Switch(
+                  value: _usePoints,
+                  onChanged: (v) => _togglePoints(v, quote.itemsTotal),
+                ),
+              ]),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+
           _row('Subtotal', rupees(quote.itemsTotal)),
+          if (quote.discount > 0)
+            _row('Discount', '−${rupees(quote.discount)}',
+                valueColor: context.colors.success),
           _row('Tax', rupees(quote.tax)),
           _row(
               'Delivery', quote.delivery == 0 ? 'FREE' : rupees(quote.delivery),
@@ -677,6 +866,55 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Admin-configured launch ad (same `AppConfig.ad` the splash screen shows),
+/// resurfaced here so merchandising reaches the one screen every order passes
+/// through — no separate ad-slot backend needed, the admin edits one field
+/// (Appearance → Ad title/subtitle) and it shows in both places.
+class _CheckoutAdBanner extends ConsumerWidget {
+  const _CheckoutAdBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(appConfigProvider).valueOrNull;
+    final ad = config?['ad'];
+    final title = ad is Map ? ad['title']?.toString() : null;
+    final subtitle = ad is Map ? ad['subtitle']?.toString() : null;
+    if (title == null || title.isEmpty) return const SizedBox.shrink();
+
+    final b = context.brand;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: b.gradient,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        const Icon(Icons.campaign_rounded, color: Colors.white, size: 26),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14)),
+              if (subtitle != null && subtitle.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(subtitle,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 12, height: 1.3)),
+                ),
+            ],
+          ),
+        ),
+      ]),
     );
   }
 }

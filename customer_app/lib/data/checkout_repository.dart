@@ -91,11 +91,58 @@ class CheckoutRepository {
     return Address.fromJson(data);
   }
 
+  /// Preview a coupon's discount against the current subtotal without applying it —
+  /// same `computeDiscount` the backend runs again (authoritatively) at order creation.
+  Future<int> validateCoupon(String code, int itemsTotal) async {
+    final data = await api.post('/coupons/validate', body: {
+      'code': code,
+      'itemsTotal': itemsTotal,
+    }) as Map<String, dynamic>;
+    return (data['discount'] as num).toInt();
+  }
+
+  /// Current loyalty points balance + what it's worth right now.
+  Future<({int points, int valuePaise})> loyaltyBalance() async {
+    final data = await api.get('/loyalty/balance') as Map<String, dynamic>;
+    return (
+      points: (data['points'] as num).toInt(),
+      valuePaise: (data['valuePaise'] as num).toInt(),
+    );
+  }
+
+  /// This user's referral code + how many invites have paid off.
+  Future<({String code, int rewardPoints, int referredCount, int rewardedCount})>
+      referralInfo() async {
+    final data = await api.get('/referral/me') as Map<String, dynamic>;
+    return (
+      code: data['code'] as String,
+      rewardPoints: (data['rewardPoints'] as num).toInt(),
+      referredCount: (data['referredCount'] as num).toInt(),
+      rewardedCount: (data['rewardedCount'] as num).toInt(),
+    );
+  }
+
+  /// Preview how many of the requested points can actually be redeemed (capped at 50%
+  /// of the subtotal server-side) before placing the order.
+  Future<({int points, int discount})> previewRedeemPoints(
+      int points, int itemsTotal) async {
+    final data = await api.post('/loyalty/redeem-preview', body: {
+      'points': points,
+      'itemsTotal': itemsTotal,
+    }) as Map<String, dynamic>;
+    return (
+      points: (data['points'] as num).toInt(),
+      discount: (data['discount'] as num).toInt(),
+    );
+  }
+
   Future<OrderModel> placeOrder({
     required List<CartLine> lines,
     Address? address,
     Map<String, String>? storeInstructions,
     Map<String, VendorDeliverySlot>? deliverySlots,
+    String? couponCode,
+    int? redeemPoints,
   }) async {
     final items = lines
         .map((l) => {
@@ -106,6 +153,9 @@ class CheckoutRepository {
         .toList();
     final data = await api.post('/orders', body: {
       'items': items,
+      if (couponCode != null && couponCode.isNotEmpty)
+        'couponCode': couponCode,
+      if (redeemPoints != null && redeemPoints > 0) 'redeemPoints': redeemPoints,
       if (storeInstructions != null && storeInstructions.isNotEmpty)
         'storeInstructions': storeInstructions,
       if (deliverySlots != null && deliverySlots.isNotEmpty)

@@ -29,6 +29,7 @@ const orderSchema = new Schema(
     storeInstructions: { type: Map, of: String, default: undefined },
     deliverySlots: { type: Map, of: Object, default: undefined },
     couponCode: String,
+    pointsRedeemed: { type: Number, default: 0 },
     amounts: {
       itemsTotal: Number,
       discount: { type: Number, default: 0 },

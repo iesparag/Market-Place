@@ -10,6 +10,7 @@ import '../../models/store.dart';
 import '../../models/address.dart';
 import 'cart_controller.dart';
 import '../../shared/widgets/safe_pop_scope.dart';
+import '../../shared/widgets/product_card.dart';
 import '../shell/app_shell.dart';
 
 class CartScreen extends ConsumerWidget {
@@ -53,6 +54,7 @@ class CartScreen extends ConsumerWidget {
                         storeId: entry.key, lines: entry.value, cart: cart),
                     const SizedBox(height: 14),
                   ],
+                  _CartRecommendations(productId: lines.first.productId),
                 ],
               ),
         bottomNavigationBar: lines.isEmpty
@@ -1112,4 +1114,42 @@ void _showAddressPicker(BuildContext context, WidgetRef ref) {
       );
     },
   );
+}
+
+/// "You might also like" — frequently-bought-together recommendations keyed off the
+/// first item in the cart (the same co-purchase rail shown on the product page).
+class _CartRecommendations extends ConsumerWidget {
+  final String productId;
+  const _CartRecommendations({required this.productId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(frequentlyBoughtTogetherProvider(productId));
+    final items = async.valueOrNull ?? const [];
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text('You might also like',
+              style: TextStyle(
+                  color: context.colors.ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16)),
+        ),
+        SizedBox(
+          height: 272,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) =>
+                SizedBox(width: 156, child: ProductCard(product: items[i])),
+          ),
+        ),
+      ],
+    );
+  }
 }

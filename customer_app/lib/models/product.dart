@@ -64,6 +64,10 @@ class Product {
   final String? categoryName;
   final List<AttributeDef> attributeDefs;
   final List<Product> related;
+  // Wishlist-only: price snapshot from when this was wishlisted, and whether the
+  // live minPrice has dropped below it (set only by GET /wishlist).
+  final int? lastSeenPrice;
+  final bool priceDropped;
 
   Product({
     required this.id,
@@ -87,6 +91,8 @@ class Product {
     this.categoryName,
     required this.attributeDefs,
     required this.related,
+    this.lastSeenPrice,
+    this.priceDropped = false,
   });
 
   String? get firstImage => images.isNotEmpty ? images.first : null;
@@ -134,6 +140,9 @@ class Product {
               ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      lastSeenPrice:
+          j['lastSeenPrice'] != null ? _int(j['lastSeenPrice']) : null,
+      priceDropped: j['priceDropped'] == true,
     );
   }
 }

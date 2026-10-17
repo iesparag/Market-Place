@@ -6,6 +6,7 @@ import { createHttpServer } from './server.js';
 import { startPaymentExpirySweeper } from './jobs/schedulers/payment-expiry.js';
 import { startAutoAssignSweeper } from './jobs/schedulers/auto-assign-sweep.js';
 import { startCartReminderSweeper } from './jobs/schedulers/cart-reminder-sweep.js';
+import { startWishlistPriceDropSweeper } from './jobs/schedulers/wishlist-price-drop-sweep.js';
 
 async function bootstrap(): Promise<void> {
   // Connect DB but don't hard-crash in dev if Mongo isn't up yet — /health will report it.
@@ -28,6 +29,8 @@ async function bootstrap(): Promise<void> {
   startAutoAssignSweeper();
   // Evening nudge for customers who left items sitting in their cart.
   startCartReminderSweeper();
+  // Alert customers when a wishlisted product's price drops.
+  startWishlistPriceDropSweeper();
 
   const shutdown = (signal: string) => {
     logger.info(`${signal} received, shutting down`);
