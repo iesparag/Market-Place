@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 
@@ -36,7 +36,7 @@ interface SummaryResponse {
 @Component({
   selector: 'app-error-reports',
   standalone: true,
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, JsonPipe, FormsModule],
   template: `
     <header class="head">
       <div>

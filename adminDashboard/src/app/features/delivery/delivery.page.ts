@@ -1,10 +1,12 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { SocketService } from '../../core/services/socket.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+import { OrderTrackingMapComponent } from '../../shared/order-tracking-map.component';
 
 interface DeliveryTask {
   _id: string;
@@ -18,7 +20,7 @@ interface DeliveryTask {
   assignmentMode?: 'manual' | 'auto';
   offer?: { riderId?: string; sentAt?: string; expiresAt?: string; attempt?: number };
   excludedRiderIds?: string[];
-  dropAddress?: { line1?: string; city?: string; pincode?: string };
+  dropAddress?: { line1?: string; city?: string; pincode?: string; lat?: number; lng?: number };
   thirdParty?: { provider?: string; trackingUrl?: string };
   createdAt: string;
 }
@@ -33,6 +35,7 @@ interface Rider {
   activeTaskCount: number;
   totalDeliveries: number;
   isActive: boolean;
+  currentLocation?: { lat?: number; lng?: number; at?: string };
 }
 
 interface DeliverySettings {
@@ -48,7 +51,7 @@ interface DeliverySettings {
 @Component({
   selector: 'app-delivery',
   standalone: true,
-  imports: [DecimalPipe, FormsModule, ReactiveFormsModule, HasPermissionDirective],
+  imports: [DecimalPipe, FormsModule, ReactiveFormsModule, HasPermissionDirective, OrderTrackingMapComponent],
   template: `
     <header class="head">
       <div><h1>Delivery</h1><p class="muted">Riders, assignment, and who covers where — manual or automatic</p></div>
@@ -126,6 +129,9 @@ interface DeliverySettings {
                     @if (t.riderId) {
                       <button class="btn btn-ghost btn-sm" [disabled]="busy() === t._id" (click)="unassign(t)">Unassign</button>
                     }
+                  }
+                  @if (isInTransit(t.status) && t.riderId) {
+                    <button class="btn btn-ghost btn-sm" (click)="openTracking(t)">📍 Track</button>
                   }
                 </td>
               </tr>
@@ -236,6 +242,24 @@ interface DeliverySettings {
         </div>
       </div>
     }
+
+    <!-- ───────────────────────── LIVE TRACKING ───────────────────────── -->
+    @if (tracking(); as t) {
+      <div class="backdrop" (click)="closeTracking()"></div>
+      <div class="modal card trackmodal">
+        <div class="thead">
+          <h3>Tracking {{ t.orderNumber }}</h3>
+          <button class="btn btn-ghost btn-sm" (click)="closeTracking()">✕</button>
+        </div>
+        <div class="tstatus badge badge-info">{{ statusLabel(t.status) }}</div>
+        <p class="muted small">🏍️ {{ riderName(t.riderId) }}</p>
+        <app-order-tracking-map
+          [riderLat]="liveRiderPos()?.lat ?? riderLastKnown(t.riderId)?.lat ?? null"
+          [riderLng]="liveRiderPos()?.lng ?? riderLastKnown(t.riderId)?.lng ?? null"
+          [dropLat]="t.dropAddress?.lat ?? null"
+          [dropLng]="t.dropAddress?.lng ?? null" />
+      </div>
+    }
   `,
   styles: [
     `
@@ -265,13 +289,17 @@ interface DeliverySettings {
       .modal { position: fixed; z-index: 41; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, 92vw); }
       .mactions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
       .err { color: var(--danger); font-size: 0.85rem; margin-top: 10px; }
+      .trackmodal { width: min(480px, 92vw); }
+      .thead { display: flex; justify-content: space-between; align-items: center; }
+      .tstatus { margin: 8px 0 4px; }
     `,
   ],
 })
-export class DeliveryPage implements OnInit {
+export class DeliveryPage implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotificationService);
   private readonly fb = inject(FormBuilder);
+  private readonly socket = inject(SocketService);
 
   tab = signal<'tasks' | 'riders' | 'settings'>('tasks');
 
@@ -308,6 +336,47 @@ export class DeliveryPage implements OnInit {
         delivered: 'Delivered',
       }[s] ?? s
     );
+  }
+
+  // ── Live tracking ────────────────────────────────────────────────────────
+  tracking = signal<DeliveryTask | null>(null);
+  liveRiderPos = signal<{ lat: number; lng: number } | null>(null);
+
+  constructor() {
+    // Delivery-task status push for whichever order is currently being tracked.
+    effect(() => {
+      const upd = this.socket.lastStatus();
+      const t = this.tracking();
+      if (upd && t && upd.orderId === t.orderId && upd.subOrderId === t._id) {
+        this.tracking.set({ ...t, status: upd.status });
+        this.tasks.update((rows) => rows.map((r) => (r._id === t._id ? { ...r, status: upd.status } : r)));
+      }
+    });
+    effect(() => {
+      const loc = this.socket.lastLocation();
+      const t = this.tracking();
+      if (loc && t && loc.orderId === t.orderId) this.liveRiderPos.set({ lat: loc.lat, lng: loc.lng });
+    });
+  }
+
+  riderLastKnown(riderId?: string): { lat?: number; lng?: number } | undefined {
+    if (!riderId) return undefined;
+    return this.riders().find((r) => r.id === riderId)?.currentLocation;
+  }
+
+  openTracking(t: DeliveryTask): void {
+    this.liveRiderPos.set(null);
+    this.tracking.set(t);
+    this.socket.joinOrder(t.orderId);
+  }
+  closeTracking(): void {
+    this.socket.leaveOrder();
+    this.tracking.set(null);
+    this.liveRiderPos.set(null);
+  }
+
+  ngOnDestroy(): void {
+    this.socket.leaveOrder();
   }
 
   // Riders — create modal

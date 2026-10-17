@@ -4,19 +4,46 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { SocketService } from '../../core/services/socket.service';
 import { PaymentService, type PaymentMethodOption, type PaymentStatus } from '../../core/services/payment.service';
+import { OrderTrackingMapComponent } from '../../shared/order-tracking-map.component';
 
 interface OrderItem { title: string; variantLabel?: string; qty: number; lineTotal: number; modifiers?: { name: string }[]; }
 interface Amounts { itemsTotal?: number; discount?: number; tax?: number; delivery?: number; grandTotal: number; }
 interface OrderPayment { method?: string; status?: string; paidAt?: string; refundedAmount?: number; }
-interface Order { _id: string; orderNumber: string; status: string; couponCode?: string; amounts: Amounts; items: OrderItem[]; payment?: OrderPayment; }
+interface DeliveryTaskView {
+  _id: string;
+  storeId: string;
+  status: string;
+  dropLat?: number;
+  dropLng?: number;
+  rider?: { name: string; vehicleType?: string; lastKnownLocation?: { lat: number; lng: number } };
+}
+interface Order {
+  _id: string; orderNumber: string; status: string; couponCode?: string;
+  amounts: Amounts; items: OrderItem[]; payment?: OrderPayment;
+  deliveryTasks?: DeliveryTaskView[];
+}
 
 const STEPS = ['pending', 'paid', 'fulfilled'];
 const TERMINAL = ['fulfilled', 'cancelled', 'refunded'];
+/** Same labels as customer_app's order_detail_screen.dart — kept in sync by hand,
+ * same as the socket event names (no shared i18n layer between Flutter and Angular). */
+const TASK_STEP_LABELS: Record<string, string> = {
+  accepted: 'Order confirmed by the store',
+  preparing: 'Preparing your order',
+  ready: 'Ready for pickup',
+  pickup_started: 'Rider heading to pickup',
+  pickup_arrived: 'Rider at the store',
+  picked_up: 'Picked up',
+  delivery_started: 'Out for delivery',
+  delivery_arrived: 'Rider has arrived',
+  delivered: 'Delivered',
+  cancelled: 'Delivery cancelled',
+};
 
 @Component({
   selector: 'app-order-confirmation',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, OrderTrackingMapComponent],
   template: `
     @if (order(); as o) {
       <div class="card done">
@@ -59,6 +86,25 @@ const TERMINAL = ['fulfilled', 'cancelled', 'refunded'];
         }
       </div>
 
+      <!-- Live delivery tracking — one card per store's delivery task, mirrors
+           customer_app's order-tracking map + status timeline. -->
+      @for (task of o.deliveryTasks ?? []; track task._id) {
+        <div class="card deliverycard">
+          <h3>Delivery status</h3>
+          <div class="dstatus">{{ taskLabel(task.status) }}</div>
+          @if (task.rider) {
+            <p class="muted small">🏍️ {{ task.rider.name }}@if (task.rider.vehicleType) { · {{ task.rider.vehicleType }} }</p>
+          }
+          @if (showMap(task)) {
+            <app-order-tracking-map
+              [riderLat]="riderPos(task)?.lat ?? null"
+              [riderLng]="riderPos(task)?.lng ?? null"
+              [dropLat]="task.dropLat ?? null"
+              [dropLng]="task.dropLng ?? null" />
+          }
+        </div>
+      }
+
       <div class="card">
         <h3>Items</h3>
         @for (it of o.items; track it.title + it.variantLabel) {
@@ -96,6 +142,8 @@ const TERMINAL = ['fulfilled', 'cancelled', 'refunded'];
       .row.sub { color: var(--text-muted); font-size: 0.9rem; border-top: none; padding: 3px 0; }
       .row.disc { color: var(--success); font-size: 0.9rem; border-top: none; padding: 3px 0; }
       .total { font-weight: 700; } .btn-ghost { margin-top: 14px; }
+      .deliverycard { margin-bottom: 16px; }
+      .dstatus { font-weight: 700; font-size: 1.05rem; color: var(--brand-700); }
     `,
   ],
 })
@@ -114,21 +162,38 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
   banner = signal<{ text: string; tone: 'info' | 'warn' } | null>(null);
   steps = STEPS;
 
+  /** Live rider GPS for this order — same single-position simplification
+   * order_detail_screen.dart uses (one `_riderLatLng`, not keyed per delivery task). */
+  liveRiderPos = signal<{ lat: number; lng: number } | null>(null);
+
   constructor() {
     // Live status: when a socket push arrives for THIS order, update it instantly.
+    // `subOrderId` present → a delivery-task-level update (pickup_started, picked_up,
+    // …); absent → the order's own top-level status (pending/paid/fulfilled/…).
     effect(() => {
       const upd = this.socket.lastStatus();
       const o = this.order();
-      if (upd && o && upd.orderId === o._id) {
+      if (!upd || !o || upd.orderId !== o._id) return;
+      if (upd.subOrderId) {
+        const tasks = (o.deliveryTasks ?? []).map((t) =>
+          t._id === upd.subOrderId ? { ...t, status: upd.status } : t,
+        );
+        this.order.set({ ...o, deliveryTasks: tasks });
+      } else {
         this.order.set({ ...o, status: upd.status });
         if (TERMINAL.includes(upd.status)) this.stopPoll();
       }
+    });
+    effect(() => {
+      const loc = this.socket.lastLocation();
+      if (loc && loc.orderId === this.order()?._id) this.liveRiderPos.set({ lat: loc.lat, lng: loc.lng });
     });
   }
 
   ngOnInit(): void {
     this.api.get<Order>(`/orders/${this.id}`).subscribe({ next: (o) => { this.order.set(o); this.maybePoll(); } });
     this.socket.connect();
+    this.socket.joinOrder(this.id);
     void this.payments.loadMethods().then((r) => this.methods.set(r.methods));
 
     // Checkout hands us the outcome so the customer immediately knows where they stand.
@@ -154,7 +219,24 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
     return this.order()?.payment?.method === 'cod' && this.order()?.payment?.status !== 'paid';
   }
 
-  ngOnDestroy(): void { this.stopPoll(); }
+  ngOnDestroy(): void {
+    this.stopPoll();
+    this.socket.leaveOrder();
+  }
+
+  taskLabel(status: string): string {
+    return TASK_STEP_LABELS[status] ?? status;
+  }
+  /** Map shows once a task has actually left the store and isn't done yet —
+   * matches the backend's ACTIVELY_MOVING_STATUSES (every status except 'delivered'),
+   * further narrowed to "out for delivery" since pickup-leg GPS isn't very useful to
+   * the customer. */
+  showMap(task: DeliveryTaskView): boolean {
+    return ['delivery_started', 'delivery_arrived'].includes(task.status);
+  }
+  riderPos(task: DeliveryTaskView): { lat: number; lng: number } | null {
+    return this.liveRiderPos() ?? task.rider?.lastKnownLocation ?? null;
+  }
 
   /** Fallback to socket: while the order isn't terminal, poll so status updates without a refresh. */
   private maybePoll(): void {
