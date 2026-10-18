@@ -71,6 +71,12 @@ class CartScreen extends ConsumerWidget {
                         storeId: entry.key, lines: entry.value, cart: cart),
                     const SizedBox(height: 14),
                   ],
+                  _CartBillSummaryCard(
+                    subtotal: subtotal,
+                    quote: deliveryQuote,
+                    pricing: pricing,
+                  ),
+                  const SizedBox(height: 14),
                   _CartRecommendations(productId: lines.first.productId),
                 ],
               ),
@@ -90,7 +96,9 @@ class CartScreen extends ConsumerWidget {
                       children: [
                         Text(
                           deliveryQuote != null
-                              ? 'Delivery: ${deliveryQuote.delivery == 0 ? "FREE" : rupees(deliveryQuote.delivery)}'
+                              ? (deliveryQuote.delivery == 0
+                                  ? 'FREE Delivery${deliveryQuote.tax > 0 ? " · Tax incl." : ""}'
+                                  : 'Delivery: ${rupees(deliveryQuote.delivery)}${deliveryQuote.tax > 0 ? " · Tax incl." : ""}')
                               : 'Subtotal',
                           style: TextStyle(
                               color: deliveryQuote?.delivery == 0
@@ -1286,3 +1294,117 @@ class _CartDeliveryEstimateCard extends StatelessWidget {
     );
   }
 }
+
+class _CartBillSummaryCard extends StatelessWidget {
+  final int subtotal;
+  final CheckoutQuote? quote;
+  final PricingSettings? pricing;
+
+  const _CartBillSummaryCard({
+    required this.subtotal,
+    required this.quote,
+    required this.pricing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final delivery = quote?.delivery;
+    final tax = quote?.tax ?? 0;
+    final grandTotal = quote?.grandTotal ?? (subtotal + tax + (delivery ?? 0));
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.receipt_long_rounded,
+                  size: 18, color: context.brand.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Bill details',
+                style: TextStyle(
+                  color: context.colors.ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _priceRow(context, 'Items subtotal', rupees(subtotal)),
+          const SizedBox(height: 6),
+          _priceRow(
+            context,
+            'Delivery fee',
+            delivery == null
+                ? 'Select address'
+                : delivery == 0
+                    ? 'FREE'
+                    : rupees(delivery),
+            valueColor: delivery == 0 ? context.colors.success : null,
+          ),
+          if (tax > 0) ...[
+            const SizedBox(height: 6),
+            _priceRow(
+              context,
+              pricing?.taxPercent != null && pricing!.taxPercent > 0
+                  ? 'Taxes & GST (${pricing!.taxPercent}%)'
+                  : 'Taxes & GST',
+              rupees(tax),
+            ),
+          ],
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(height: 1),
+          ),
+          _priceRow(
+            context,
+            'To Pay',
+            rupees(grandTotal),
+            bold: true,
+            fontSize: 15,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _priceRow(
+    BuildContext context,
+    String label,
+    String value, {
+    bool bold = false,
+    Color? valueColor,
+    double fontSize = 13.5,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: bold ? context.colors.ink : context.colors.textMuted,
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+            fontSize: fontSize,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor ?? context.colors.ink,
+            fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
+            fontSize: fontSize,
+          ),
+        ),
+      ],
+    );
+  }
+}
+

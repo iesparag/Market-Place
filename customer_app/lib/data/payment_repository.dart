@@ -394,10 +394,20 @@ class PricingSettings {
     List<CartLine> lines = const [],
     List<Vendor> stores = const [],
   }) {
-    final taxable = itemsTotal - discount;
+    if (lines.isEmpty || itemsTotal <= 0) {
+      return const CheckoutQuote(
+        itemsTotal: 0,
+        discount: 0,
+        tax: 0,
+        delivery: 0,
+        grandTotal: 0,
+      );
+    }
+
+    final taxable = (itemsTotal - discount).clamp(0, itemsTotal);
     final tax = ((taxable * taxPercent) / 100).round();
 
-    if (address == null || lines.isEmpty) {
+    if (address == null) {
       final delivery = itemsTotal >= freeDeliveryAbove ? 0 : deliveryFee;
       return CheckoutQuote(
         itemsTotal: itemsTotal,

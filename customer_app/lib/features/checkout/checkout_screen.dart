@@ -279,6 +279,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// Genuinely unpaid (cancelled or failed) — safe to retry, so "Pay now" is the primary action.
   void _showUnpaid(String orderId, String orderNumber, String message) {
     _outcomeDialog(
+      orderId: orderId,
       orderNumber: orderNumber,
       icon: Icons.receipt_long_rounded,
       iconColor: const Color(0xFFF59E0B),
@@ -320,6 +321,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// here would risk the customer paying twice for the same order.
   void _showPending(String orderId, String orderNumber, String message) {
     _outcomeDialog(
+      orderId: orderId,
       orderNumber: orderNumber,
       icon: Icons.hourglass_top_rounded,
       iconColor: const Color(0xFF2563EB),
@@ -361,6 +363,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// [OrderSuccessScreen] (icon circle + stacked full-width buttons) so every checkout
   /// outcome, paid or not, feels like the same app.
   void _outcomeDialog({
+    required String orderId,
     required String orderNumber,
     required IconData icon,
     required Color iconColor,
@@ -372,12 +375,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }) {
     showDialog<void>(
       context: context,
-      builder: (dialogCtx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-          child: Column(
+      barrierDismissible: false,
+      builder: (dialogCtx) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          Navigator.pop(dialogCtx);
+          context.go('/order/$orderId');
+        },
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
@@ -423,8 +434,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _payLabel(int total) {
     if (_stage == 'placing') return 'Placing your order…';
@@ -458,6 +470,72 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     final lines = ref.watch(cartProvider);
+    if (lines.isEmpty && !_placing) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                context.pop();
+              } else {
+                context.go('/cart');
+              }
+            },
+          ),
+          title: const Text('Checkout'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: context.brand.soft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.shopping_bag_outlined,
+                      size: 40, color: context.brand.primary),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Your cart is empty',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: context.colors.ink,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Add items to your cart before proceeding to checkout.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => context.go('/'),
+                    child: const Text('Browse products'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final subtotal = lines.fold<int>(0, (n, l) => n + l.lineTotal);
     final addressesAsync = ref.watch(addressesProvider);
 
@@ -679,7 +757,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             _row('Discount', '−${rupees(quote.discount)}',
                 valueColor: context.colors.success),
           _deliveryRow(context, quote, selectedAddress, pricing),
-          const SizedBox(height: 6),
+          if (quote.tax > 0)
+            _row(
+              pricing != null && pricing.taxPercent > 0
+                  ? 'Taxes & GST (${pricing.taxPercent}%)'
+                  : 'Taxes & GST',
+              rupees(quote.tax),
+            ),
+          const Divider(height: 18),
           _row('Total', rupees(quote.grandTotal), bold: true),
           if (quote.deliveryBreakdown != null) ...[
             const SizedBox(height: 12),
