@@ -172,7 +172,15 @@ class PaymentController {
   }
 
   Future<void> _onError(PaymentFailureResponse response) async {
-    // Before treating as error/cancelled: check if the server already marked the order as paid!
+    // Razorpay reports a user-dismissed sheet as an error code; treat it as immediate cancel.
+    if (response.code == Razorpay.PAYMENT_CANCELLED ||
+        (response.message != null &&
+            response.message!.toLowerCase().contains('cancel'))) {
+      _finish(const PayCancelled());
+      return;
+    }
+
+    // For non-cancelled failures: check if the server already marked the order as paid!
     // (Common scenario: Customer paid in PhonePe/GPay, Razorpay webhook settled it on backend,
     // but Razorpay mobile SDK's client polling timed out with "Something went wrong" dialog).
     final orderId = _session?.orderId;
@@ -183,8 +191,8 @@ class PaymentController {
         return;
       }
 
-      // If webhook is in-flight, give it up to 6 seconds to register settlement
-      for (int i = 0; i < 3; i++) {
+      // If webhook is in-flight, give it up to 4 seconds to register settlement
+      for (int i = 0; i < 2; i++) {
         await Future<void>.delayed(const Duration(seconds: 2));
         status = await _safeStatus(orderId);
         if (status != null && status.isPaid) {
@@ -194,11 +202,6 @@ class PaymentController {
       }
     }
 
-    // Razorpay reports a user-dismissed sheet as an error code; treat it as a cancel.
-    if (response.code == Razorpay.PAYMENT_CANCELLED) {
-      _finish(const PayCancelled());
-      return;
-    }
     _finish(PayFailed(_readableError(response)));
   }
 

@@ -405,7 +405,9 @@ class PricingSettings {
     }
 
     final taxable = (itemsTotal - discount).clamp(0, itemsTotal);
-    final tax = ((taxable * taxPercent) / 100).round();
+    final rawTax = (taxable * taxPercent) / 100;
+    // Round GST to nearest whole rupee (100 paise) matching backend
+    final tax = (rawTax / 100).round() * 100;
 
     if (address == null) {
       final delivery = itemsTotal >= freeDeliveryAbove ? 0 : deliveryFee;

@@ -174,7 +174,11 @@ class ProductCard extends ConsumerWidget {
                                   duration: const Duration(seconds: 2),
                                   action: SnackBarAction(
                                     label: 'VIEW CART',
-                                    onPressed: () => context.push('/cart'),
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context)
+                                          .hideCurrentSnackBar();
+                                      context.push('/cart');
+                                    },
                                   ),
                                 ),
                               );

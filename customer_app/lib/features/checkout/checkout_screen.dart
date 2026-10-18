@@ -42,9 +42,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   late final PaymentController _payment =
       PaymentController(ref.read(paymentRepoProvider));
 
+  /// Snapshot of lines during placement/payment so screen does not zero out behind the payment sheet
+  List<CartLine>? _activeLines;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
     _selectedId = ref.read(activeAddressIdProvider);
     if (ref.read(authProvider) == null) return;
     ref.read(checkoutRepoProvider).loyaltyBalance().then((b) {
@@ -218,6 +224,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ));
       return;
     }
+    _activeLines = List<CartLine>.from(lines);
     _syncSlotsForAddress(addr, lines);
     setState(() {
       _placing = true;
@@ -261,9 +268,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     switch (result) {
       case PayPaid():
+        _activeLines = null;
         context.go(
             '/order-success?number=${Uri.encodeComponent(orderNumber)}&id=${Uri.encodeComponent(orderId)}&paid=1');
       case PayCod():
+        _activeLines = null;
         context.go(
             '/order-success?number=${Uri.encodeComponent(orderNumber)}&id=${Uri.encodeComponent(orderId)}&cod=1');
       case PayCancelled():
@@ -294,6 +303,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           height: 50,
           child: ElevatedButton(
             onPressed: () {
+              _activeLines = null;
               Navigator.pop(dialogCtx);
               context.go('/order/$orderId');
             },
@@ -306,6 +316,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           height: 50,
           child: OutlinedButton(
             onPressed: () {
+              _activeLines = null;
               Navigator.pop(dialogCtx);
               context.go('/');
             },
@@ -336,6 +347,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           height: 50,
           child: ElevatedButton(
             onPressed: () {
+              _activeLines = null;
               Navigator.pop(dialogCtx);
               context.go('/order/$orderId');
             },
@@ -348,6 +360,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           height: 50,
           child: OutlinedButton(
             onPressed: () {
+              _activeLines = null;
               Navigator.pop(dialogCtx);
               context.go('/');
             },
@@ -380,6 +393,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) return;
+          _activeLines = null;
           Navigator.pop(dialogCtx);
           context.go('/order/$orderId');
         },
@@ -401,8 +415,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               const SizedBox(height: 18),
               Text(title,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 19, fontWeight: FontWeight.w900)),
+                  style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                      color: context.colors.ink)),
               const SizedBox(height: 8),
               Text(message,
                   textAlign: TextAlign.center,
@@ -416,8 +432,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     color: context.colors.bg,
                     borderRadius: BorderRadius.circular(10)),
                 child: Text('Order $orderNumber',
-                    style: const TextStyle(
-                        fontFamily: 'monospace', fontWeight: FontWeight.w700)),
+                    style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w700,
+                        color: context.colors.ink)),
               ),
               if (caption != null) ...[
                 const SizedBox(height: 12),
@@ -469,8 +487,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
     }
 
-    final lines = ref.watch(cartProvider);
-    if (lines.isEmpty && !_placing) {
+    final cartLines = ref.watch(cartProvider);
+    final lines = (_activeLines != null && _activeLines!.isNotEmpty)
+        ? _activeLines!
+        : cartLines;
+    if (lines.isEmpty && !_placing && _stage == 'idle') {
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
@@ -582,7 +603,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Checkout')),
+      appBar: AppBar(
+        title: const Text('Checkout'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              context.pop();
+            } else {
+              context.go('/cart');
+            }
+          },
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -1453,9 +1486,9 @@ class _DeliveryTransparencyCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1463,7 +1496,7 @@ class _DeliveryTransparencyCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.local_shipping_outlined,
-                  size: 16, color: b.primaryDark),
+                  size: 16, color: b.primary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -1484,23 +1517,23 @@ class _DeliveryTransparencyCard extends StatelessWidget {
                 ),
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: context.colors.bg,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                    border: Border.all(color: context.colors.border),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.tune_rounded, size: 12, color: b.primaryDark),
+                      Icon(Icons.tune_rounded, size: 12, color: b.primary),
                       const SizedBox(width: 3),
                       Text(
                         'Rules & Math',
                         style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
-                            color: b.primaryDark),
+                            color: b.primary),
                       ),
                     ],
                   ),
@@ -1514,9 +1547,9 @@ class _DeliveryTransparencyCard extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.bg,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: context.colors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1545,8 +1578,12 @@ class _DeliveryTransparencyCard extends StatelessWidget {
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: leg.isLocal
-                              ? const Color(0xFFFEF3C7)
-                              : const Color(0xFFE0F2FE),
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF78350F).withValues(alpha: 0.4)
+                                  : const Color(0xFFFEF3C7))
+                              : (Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF0C4A6E).withValues(alpha: 0.4)
+                                  : const Color(0xFFE0F2FE)),
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
@@ -1555,8 +1592,12 @@ class _DeliveryTransparencyCard extends StatelessWidget {
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             color: leg.isLocal
-                                ? const Color(0xFF92400E)
-                                : const Color(0xFF0369A1),
+                                ? (Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFFFCD34D)
+                                    : const Color(0xFF92400E))
+                                : (Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF7DD3FC)
+                                    : const Color(0xFF0369A1)),
                           ),
                         ),
                       ),
@@ -1588,9 +1629,9 @@ class _DeliveryTransparencyCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     leg.calculationText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10.5,
-                      color: Color(0xFF475569),
+                      color: context.colors.textMuted,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -1603,22 +1644,33 @@ class _DeliveryTransparencyCard extends StatelessWidget {
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF064E3B).withValues(alpha: 0.35)
+                    : const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFA7F3D0)),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF059669).withValues(alpha: 0.5)
+                      : const Color(0xFFA7F3D0),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded,
-                      size: 14, color: Color(0xFF059669)),
+                  Icon(Icons.check_circle_rounded,
+                      size: 14,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF6EE7B7)
+                          : const Color(0xFF059669)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       '🎉 Free Delivery Applied! Your order total (${rupees(itemsTotal)}) meets the ${rupees(breakdown.freeDeliveryAbove)} free delivery threshold.',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF065F46)),
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF6EE7B7)
+                              : const Color(0xFF065F46)),
                     ),
                   ),
                 ],
@@ -1629,22 +1681,33 @@ class _DeliveryTransparencyCard extends StatelessWidget {
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF78350F).withValues(alpha: 0.35)
+                    : const Color(0xFFFFFBEB),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFDE68A)),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFD97706).withValues(alpha: 0.5)
+                      : const Color(0xFFFDE68A),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.local_shipping_rounded,
-                      size: 14, color: Color(0xFFD97706)),
+                  Icon(Icons.local_shipping_rounded,
+                      size: 14,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFFCD34D)
+                          : const Color(0xFFD97706)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Add ${rupees(breakdown.freeDeliveryRemaining)} more items to get FREE delivery across all vendors!',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF92400E)),
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFFCD34D)
+                              : const Color(0xFF92400E)),
                     ),
                   ),
                 ],

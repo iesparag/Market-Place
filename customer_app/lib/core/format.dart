@@ -1,5 +1,14 @@
 /// Money is stored in paise (integer minor units) — same as the backend.
-String rupees(num paise) => '₹${_indianGroup((paise / 100).round())}';
+String rupees(num paise) {
+  final p = paise.round();
+  if (p % 100 == 0) {
+    return '₹${_indianGroup((p / 100).round())}';
+  } else {
+    final rs = (p / 100).truncate();
+    final rem = (p % 100).abs().toString().padLeft(2, '0');
+    return '₹${_indianGroup(rs)}.$rem';
+  }
+}
 
 /// Indian digit grouping: 1,899 · 12,34,567 (no external package → never crashes).
 String _indianGroup(int n) {

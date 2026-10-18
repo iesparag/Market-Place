@@ -12,12 +12,16 @@ import '../../data/payment_repository.dart';
 import 'cart_controller.dart';
 import '../../shared/widgets/safe_pop_scope.dart';
 import '../../shared/widgets/product_card.dart';
+import '../checkout/checkout_screen.dart';
 import '../shell/app_shell.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
     final lines = ref.watch(cartProvider);
     final cart = ref.read(cartProvider.notifier);
     final subtotal = lines.fold<int>(0, (n, l) => n + l.lineTotal);
@@ -63,6 +67,7 @@ class CartScreen extends ConsumerWidget {
                       breakdown: deliveryQuote!.deliveryBreakdown!,
                       address: activeAddress,
                       subtotal: subtotal,
+                      pricing: pricing,
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -1193,11 +1198,13 @@ class _CartDeliveryEstimateCard extends StatelessWidget {
   final MultiVendorDeliveryQuoteBreakdown breakdown;
   final Address? address;
   final int subtotal;
+  final PricingSettings? pricing;
 
   const _CartDeliveryEstimateCard({
     required this.breakdown,
     required this.address,
     required this.subtotal,
+    this.pricing,
   });
 
   @override
@@ -1205,37 +1212,75 @@ class _CartDeliveryEstimateCard extends StatelessWidget {
     final b = context.brand;
     final isFree = breakdown.isFreeDelivery;
     final count = breakdown.vendors.length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.local_shipping_outlined,
-                  size: 16, color: Color(0xFF0284C7)),
+              Icon(Icons.local_shipping_outlined,
+                  size: 16, color: b.primary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   count > 1
                       ? 'Multi-Vendor Delivery ($count Stores)'
                       : 'Delivery to ${address?.city ?? "your address"}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 12.5,
-                      color: Color(0xFF0F172A)),
+                      color: context.colors.ink),
                 ),
               ),
+              GestureDetector(
+                onTap: () => showDeliveryBreakdownModal(
+                  context,
+                  breakdown: breakdown,
+                  address: address,
+                  pricing: pricing,
+                  itemsTotal: subtotal,
+                ),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: context.colors.bg,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: context.colors.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.tune_rounded, size: 12, color: b.primary),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Rules & Math',
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: b.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isFree ? const Color(0xFFDCFCE7) : b.soft,
+                  color: isFree
+                      ? (isDark
+                          ? const Color(0xFF064E3B).withValues(alpha: 0.35)
+                          : const Color(0xFFDCFCE7))
+                      : b.soft,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -1243,50 +1288,103 @@ class _CartDeliveryEstimateCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: isFree ? const Color(0xFF15803D) : b.primaryDark,
+                    color: isFree
+                        ? (isDark
+                            ? const Color(0xFF6EE7B7)
+                            : const Color(0xFF15803D))
+                        : b.primaryDark,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           for (final leg in breakdown.vendors) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
+            Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: context.colors.bg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: context.colors.border),
+              ),
               child: Row(
                 children: [
                   Text(leg.isLocal ? '⚡' : '📦',
-                      style: const TextStyle(fontSize: 12)),
-                  const SizedBox(width: 5),
+                      style: const TextStyle(fontSize: 13)),
+                  const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      '${leg.storeName} (${leg.distanceKm != null ? "${leg.distanceKm!.toStringAsFixed(1)} km" : (leg.isLocal ? "Local" : "Courier")}) · ${leg.calculationText}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF475569)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          leg.storeName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: context.colors.ink,
+                          ),
+                        ),
+                        Text(
+                          '${leg.distanceKm != null ? "${leg.distanceKm!.toStringAsFixed(1)} km" : (leg.isLocal ? "Local" : "Courier")} · ${leg.calculationText}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11, color: context.colors.textMuted),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     rupees(leg.vendorDeliveryFee),
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF334155)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: context.colors.ink),
                   ),
                 ],
               ),
             ),
           ],
           if (!isFree && breakdown.freeDeliveryRemaining > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                '💡 Add ${rupees(breakdown.freeDeliveryRemaining)} more for Free Delivery!',
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFB45309)),
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF78350F).withValues(alpha: 0.35)
+                    : const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFFD97706).withValues(alpha: 0.5)
+                      : const Color(0xFFFDE68A),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.local_shipping_rounded,
+                      size: 14,
+                      color: isDark
+                          ? const Color(0xFFFCD34D)
+                          : const Color(0xFFD97706)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Add ${rupees(breakdown.freeDeliveryRemaining)} more for Free Delivery!',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? const Color(0xFFFCD34D)
+                            : const Color(0xFF92400E),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

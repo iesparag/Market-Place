@@ -202,7 +202,9 @@ export const ordersService = {
     }
 
     const taxable = itemsTotal - discount - pointsDiscount;
-    const tax = percentOf(taxable, settings.taxPercent ?? 5);
+    // Round GST to nearest whole rupee (100 paise) as per Indian CGST Act Sec 170
+    const rawTax = percentOf(taxable, settings.taxPercent ?? 5);
+    const tax = Math.round(rawTax / 100) * 100;
 
     // Multi-vendor delivery pricing (distance-based, local vs third-party courier)
     const deliveryBreakdown = deliveryPricingService.calculate({
@@ -332,7 +334,9 @@ export const ordersService = {
     }
 
     const taxable = itemsTotal - discount - pointsDiscount;
-    const tax = percentOf(taxable, settings.taxPercent ?? 5);
+    // Round GST to nearest whole rupee (100 paise) as per Indian CGST Act Sec 170
+    const rawTax = percentOf(taxable, settings.taxPercent ?? 5);
+    const tax = Math.round(rawTax / 100) * 100;
 
     const deliveryBreakdown = deliveryPricingService.calculate({
       stores: stores as never,
