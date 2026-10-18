@@ -7,6 +7,8 @@ import { playAlertBeep } from '../../shared/alert-sound';
 
 type OrderStatusUpdated = SocketEventPayloads[typeof SOCKET_EVENTS.ORDER_STATUS_UPDATED];
 type DeliveryLocation = SocketEventPayloads[typeof SOCKET_EVENTS.DELIVERY_LOCATION];
+type SupportTicketNew = SocketEventPayloads[typeof SOCKET_EVENTS.SUPPORT_TICKET_NEW];
+type SupportTicketUpdated = SocketEventPayloads[typeof SOCKET_EVENTS.SUPPORT_TICKET_UPDATED];
 
 /**
  * Connects with the auth token and turns inbound realtime events into UI toasts.
@@ -26,6 +28,9 @@ export class SocketService {
   readonly lastStatus = signal<OrderStatusUpdated | null>(null);
   /** Live rider GPS for the joined order. */
   readonly lastLocation = signal<DeliveryLocation | null>(null);
+  /** New/updated support ticket — Support Inbox watches this to refresh live instead
+   * of requiring a manual click, for both customer and rider tickets. */
+  readonly lastTicketEvent = signal<{ kind: 'new' | 'updated'; ticketId: string } | null>(null);
 
   connect(token: string): void {
     if (this.socket) return;
@@ -64,6 +69,16 @@ export class SocketService {
         this.notify.push(label, p.orderNumber, p.kind === 'unassigned' ? 'warning' : 'info');
       },
     );
+    // New escalated ticket (customer OR rider) — rings so Support Inbox is noticed
+    // even when the admin isn't on that tab.
+    this.socket.on(SOCKET_EVENTS.SUPPORT_TICKET_NEW, (p: SupportTicketNew) => {
+      playAlertBeep();
+      this.notify.push('New support ticket 🎫', p.summary, p.urgency >= 3 ? 'warning' : 'info');
+      this.lastTicketEvent.set({ kind: 'new', ticketId: p.ticketId });
+    });
+    this.socket.on(SOCKET_EVENTS.SUPPORT_TICKET_UPDATED, (p: SupportTicketUpdated) => {
+      this.lastTicketEvent.set({ kind: 'updated', ticketId: p.ticketId });
+    });
   }
 
   /** Watch one order's room for live delivery-task status + rider GPS — opened when

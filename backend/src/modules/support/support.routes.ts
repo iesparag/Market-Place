@@ -37,4 +37,5 @@ supportRoutes.post('/tickets/:id/assign', authenticate, authorize('support:assig
 
 // ── Config (admin owns every feature toggle) ─────────────────────────────────
 supportRoutes.get('/config', authenticate, authorize('support:config'), asyncHandler(c.getConfig));
+supportRoutes.get('/macros', authenticate, authorize('support:reply'), asyncHandler(c.getMacros));
 supportRoutes.put('/config', authenticate, authorize('support:config'), asyncHandler(c.updateConfig));

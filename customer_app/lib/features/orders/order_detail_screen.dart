@@ -166,6 +166,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               },
             ),
             title: const Text('Order details'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.help_outline_rounded),
+                tooltip: 'Need help with this order?',
+                onPressed: () => context.push(
+                    '/support?orderId=${widget.orderId}&issue=${Uri.encodeComponent('I need help with this order')}'),
+              ),
+            ],
           ),
           body: async.when(
             loading: () => const Center(child: CircularProgressIndicator()),

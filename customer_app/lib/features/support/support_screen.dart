@@ -59,7 +59,22 @@ class _SupportScreenState extends ConsumerState<SupportScreen>
     _tabController = TabController(length: 2, vsync: this);
     if (widget.initialIssue != null || widget.initialOrderId != null) {
       _tabController.index = 1;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Attach the order as context BEFORE sending, so the bot/agent sees it
+        // (matches _helpWithRecentOrder's order-then-send sequencing below).
+        if (widget.initialOrderId != null) {
+          try {
+            final order = await ref
+                .read(apiClientProvider)
+                .get('/orders/${widget.initialOrderId}');
+            if (mounted) {
+              setState(() => _order =
+                  OrderModel.fromJson(order as Map<String, dynamic>));
+            }
+          } catch (_) {
+            // Order fetch failed — still send the issue text, just without context.
+          }
+        }
         if (widget.initialIssue != null) {
           _send(widget.initialIssue);
         }

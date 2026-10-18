@@ -5,6 +5,7 @@ import 'features/shell/rider_shell.dart';
 import 'features/offers/offers_screen.dart';
 import 'features/tasks/tasks_screen.dart';
 import 'features/tasks/task_detail_screen.dart';
+import 'features/support/support_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -15,5 +16,6 @@ final appRouter = GoRouter(
     GoRoute(path: '/offers', builder: (context, state) => const OffersScreen()),
     GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
     GoRoute(path: '/tasks/:id', builder: (context, state) => TaskDetailScreen(taskId: state.pathParameters['id']!)),
+    GoRoute(path: '/support', builder: (context, state) => const SupportScreen()),
   ],
 );

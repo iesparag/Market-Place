@@ -150,8 +150,6 @@ final bannersProvider = FutureProvider.autoDispose(
     (ref) => ref.read(catalogRepoProvider).banners());
 final categoryTreeProvider =
     FutureProvider((ref) => ref.read(catalogRepoProvider).categoryTree());
-final categoriesProvider =
-    FutureProvider((ref) => ref.read(catalogRepoProvider).categories());
 final vendorsProvider = FutureProvider.autoDispose((ref) async {
   final loc = await ref.watch(effectiveLocationProvider.future);
   return ref.read(catalogRepoProvider).stores(lat: loc?.lat, lng: loc?.lng);

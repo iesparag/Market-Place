@@ -1,14 +1,16 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { HeaderComponent } from './layout/header.component';
+import { SupportChatComponent } from './shared/support-chat.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, HeaderComponent],
+  imports: [RouterOutlet, RouterLink, HeaderComponent, SupportChatComponent],
   template: `
     <app-header />
     <main class="container"><router-outlet /></main>
+    <app-support-chat />
 
     <footer class="foot">
       <div class="container fcols">

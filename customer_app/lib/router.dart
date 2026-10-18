@@ -107,7 +107,12 @@ final appRouter = GoRouter(
         builder: (_, __) => const NotificationsScreen()),
     GoRoute(
         path: '/become-vendor', builder: (_, __) => const BecomeVendorScreen()),
-    GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
+    GoRoute(
+        path: '/support',
+        builder: (_, state) => SupportScreen(
+              initialOrderId: state.uri.queryParameters['orderId'],
+              initialIssue: state.uri.queryParameters['issue'],
+            )),
     GoRoute(path: '/refer', builder: (_, __) => const ReferralScreen()),
     GoRoute(
         path: '/login',

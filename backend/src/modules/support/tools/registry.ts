@@ -5,6 +5,7 @@ import type { ToolSpec } from '../../../providers/ai/types.js';
 import { Order } from '../../orders/order.model.js';
 import { ordersService } from '../../orders/orders.service.js';
 import { searchProducts } from '../rag.service.js';
+import { KbDoc } from '../kb-doc.model.js';
 import type { SupportConfigDoc } from '../support.model.js';
 
 /**
@@ -235,6 +236,35 @@ const searchProductsTool: SupportTool = {
   },
 };
 
+const KbQueryArg = z.object({ query: z.string().min(1).max(200), storeId: z.string().optional() });
+const searchKb: SupportTool = {
+  spec: {
+    name: 'search_kb',
+    description:
+      'Search the knowledge base for policy / FAQ / how-to content (returns, shipping, cancellation windows, ' +
+      'payment methods, etc.) to ground an answer. Prefer this over guessing at policy.',
+    parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  },
+  schema: KbQueryArg,
+  async run(_ctx, args) {
+    const { query } = KbQueryArg.parse(args);
+    // Platform-wide docs only for now (ToolContext carries no storeId) — a vendor's own
+    // store-scoped docs aren't surfaced to the bot yet, same boundary as searchProducts.
+    const words = query.trim().split(/\s+/).slice(0, 8).map((w) => w.replace(/[^\w]/g, '')).filter(Boolean);
+    if (!words.length) return { ok: true, data: [] };
+    const rx = words.map((w) => new RegExp(w, 'i'));
+    const hits = await KbDoc.find({
+      active: true,
+      storeId: { $exists: false },
+      $or: [{ title: { $in: rx } }, { body: { $in: rx } }, { tags: { $in: rx } }],
+    })
+      .limit(3)
+      .select('title body category')
+      .lean();
+    return { ok: true, data: hits.map((h) => ({ title: h.title, body: h.body, category: h.category })) };
+  },
+};
+
 const escalate: SupportTool = {
   spec: {
     name: 'escalate_to_support',
@@ -254,7 +284,17 @@ const escalate: SupportTool = {
   },
 };
 
-const ALL_TOOLS: SupportTool[] = [getMyOrders, getOrder, trackOrder, getInvoice, reorder, cancelOrder, searchProductsTool, escalate];
+const ALL_TOOLS: SupportTool[] = [
+  getMyOrders,
+  getOrder,
+  trackOrder,
+  getInvoice,
+  reorder,
+  cancelOrder,
+  searchProductsTool,
+  searchKb,
+  escalate,
+];
 
 /** Tools currently enabled by the admin's feature flags — this is what the model is even shown. */
 export function toolSpecs(config: SupportConfigDoc): ToolSpec[] {

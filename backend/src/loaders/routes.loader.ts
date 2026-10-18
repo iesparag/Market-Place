@@ -35,6 +35,7 @@ import { homeRoutes } from '../modules/home/home.module.js';
 import { searchRoutes } from '../modules/search/search.module.js';
 import { appConfigRoutes } from '../modules/appconfig/appconfig.module.js';
 import { supportRoutes } from '../modules/support/support.routes.js';
+import { riderSupportRoutes } from '../modules/support/rider-support.routes.js';
 import { errorLogRoutes } from '../modules/errorlog/errorlog.module.js';
 import { loyaltyRoutes } from '../modules/loyalty/loyalty.module.js';
 import { referralRoutes } from '../modules/referral/referral.module.js';
@@ -84,6 +85,7 @@ export function buildApiRouter(): Router {
   api.use('/search', searchRoutes);
   api.use('/app', appConfigRoutes);
   api.use('/support', supportRoutes);
+  api.use('/rider-support', riderSupportRoutes);
   api.use('/errors', errorLogRoutes);
   api.use('/loyalty', loyaltyRoutes);
   api.use('/referral', referralRoutes);

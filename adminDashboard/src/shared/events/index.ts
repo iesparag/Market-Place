@@ -15,6 +15,9 @@ export const SOCKET_EVENTS = {
   NOTIFICATION_NEW: 'notification:new',
   CHAT_MESSAGE: 'chat:message',
   PRESENCE: 'presence:update',
+  SUPPORT_MESSAGE: 'support:message',
+  SUPPORT_TICKET_NEW: 'support:ticket_new',
+  SUPPORT_TICKET_UPDATED: 'support:ticket_updated',
 } as const;
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
 
@@ -53,6 +56,33 @@ export const DeliveryTaskEventSchema = z.object({
 });
 export type DeliveryTaskEvent = z.infer<typeof DeliveryTaskEventSchema>;
 
+export const SupportMessageSchema = z.object({
+  threadId: z.string(),
+  role: z.enum(['bot', 'agent']),
+  text: z.string(),
+  at: z.string(),
+});
+export type SupportMessage = z.infer<typeof SupportMessageSchema>;
+
+export const SupportTicketNewSchema = z.object({
+  ticketId: z.string(),
+  threadId: z.string(),
+  intent: z.string(),
+  sentiment: z.string(),
+  urgency: z.number().int().min(1).max(3),
+  summary: z.string(),
+  storeId: z.string().optional(),
+  at: z.string(),
+});
+export type SupportTicketNew = z.infer<typeof SupportTicketNewSchema>;
+
+export const SupportTicketUpdatedSchema = z.object({
+  ticketId: z.string(),
+  status: z.string(),
+  at: z.string(),
+});
+export type SupportTicketUpdated = z.infer<typeof SupportTicketUpdatedSchema>;
+
 export const InventoryChangedSchema = z.object({
   productId: z.string(),
   variantSku: z.string(),
@@ -88,4 +118,7 @@ export interface SocketEventPayloads {
   [SOCKET_EVENTS.NOTIFICATION_NEW]: NotificationNew;
   [SOCKET_EVENTS.CHAT_MESSAGE]: ChatMessage;
   [SOCKET_EVENTS.PRESENCE]: { userId: string; online: boolean };
+  [SOCKET_EVENTS.SUPPORT_MESSAGE]: SupportMessage;
+  [SOCKET_EVENTS.SUPPORT_TICKET_NEW]: SupportTicketNew;
+  [SOCKET_EVENTS.SUPPORT_TICKET_UPDATED]: SupportTicketUpdated;
 }

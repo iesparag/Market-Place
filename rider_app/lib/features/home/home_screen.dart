@@ -57,6 +57,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       await ref.read(ridersRepoProvider).setStatus('available');
       await _refreshRider();
+    } catch (e) {
+      // Location started but the server never actually marked us available —
+      // don't leave GPS running for a status the rider doesn't know failed.
+      ref.read(locationServiceProvider).stop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not go online: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _togglingOnline = false);
     }
@@ -101,6 +110,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('MP Delivery'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            tooltip: 'Help & support',
+            onPressed: () => context.push('/support'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

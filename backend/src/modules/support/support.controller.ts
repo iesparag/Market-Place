@@ -108,11 +108,19 @@ const ConfigSchema = z
       .optional(),
     slaMinutes: z.number().int().min(1).max(10080).optional(),
     ratePerMin: z.number().int().min(1).max(600).optional(),
+    macros: z.array(z.object({ label: z.string().min(1).max(60), text: z.string().min(1).max(2000) })).max(50).optional(),
   })
   .strict();
 
 async function getConfig(_req: Request, res: Response) {
   ok(res, await getSupportConfig());
+}
+
+/** Canned responses only — for any agent who can reply (support:reply), not just
+ * whoever holds the full support:config edit permission. */
+async function getMacros(_req: Request, res: Response) {
+  const c = await getSupportConfig();
+  ok(res, c.macros ?? []);
 }
 
 async function publicConfig(_req: Request, res: Response) {
@@ -150,6 +158,7 @@ export const supportController = {
   regenerate,
   assignTicket,
   getConfig,
+  getMacros,
   publicConfig,
   updateConfig,
 };

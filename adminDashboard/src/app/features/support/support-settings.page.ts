@@ -1,8 +1,9 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 
+interface Macro { label: string; text: string; }
 interface SupportConfig {
   botEnabled: boolean;
   channels: { app: boolean; web: boolean };
@@ -12,6 +13,7 @@ interface SupportConfig {
   autoReply: { enabled: boolean; minConfidence: number; businessHoursOnly: boolean };
   slaMinutes: number;
   ratePerMin: number;
+  macros: Macro[];
 }
 
 /** Master on/off for the whole AI support system — every feature toggles here,
@@ -19,7 +21,7 @@ interface SupportConfig {
 @Component({
   selector: 'app-support-settings',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, FormsModule],
   template: `
     <header class="head"><h1>Support settings</h1><p class="muted">Turn the bot and each self-service feature on or off</p></header>
     <form class="card" [formGroup]="form" (ngSubmit)="save()" style="max-width:520px">
@@ -56,6 +58,17 @@ interface SupportConfig {
       <label class="label">Rate limit — bot messages per customer per minute</label>
       <input class="input" type="number" formControlName="ratePerMin" />
 
+      <h3 class="section">Canned responses</h3>
+      <p class="hint">Quick-insert templates agents can drop into a reply from the Support Inbox.</p>
+      @for (m of macros(); track $index; let i = $index) {
+        <div class="macro">
+          <input class="input mlabel" [(ngModel)]="m.label" [ngModelOptions]="{standalone:true}" placeholder="Label (e.g. Shipping ETA)" />
+          <textarea class="input" rows="2" [(ngModel)]="m.text" [ngModelOptions]="{standalone:true}" placeholder="Reply text…"></textarea>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="removeMacro(i)">Remove</button>
+        </div>
+      }
+      <button type="button" class="btn btn-ghost btn-sm" (click)="addMacro()">+ Add canned response</button>
+
       <button class="btn btn-primary" [disabled]="form.invalid || saving()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
     </form>
   `,
@@ -67,6 +80,8 @@ interface SupportConfig {
       .check { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; cursor: pointer; }
       .check input { width: auto; margin-top: 3px; }
       .btn-primary { margin-top: 20px; }
+      .macro { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; margin-top: 10px; display: grid; gap: 6px; }
+      .mlabel { font-weight: 600; }
     `,
   ],
 })
@@ -75,6 +90,14 @@ export class SupportSettingsPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotificationService);
   saving = signal(false);
+  macros = signal<Macro[]>([]);
+
+  addMacro(): void {
+    this.macros.update((m) => [...m, { label: '', text: '' }]);
+  }
+  removeMacro(i: number): void {
+    this.macros.update((m) => m.filter((_, idx) => idx !== i));
+  }
 
   form = this.fb.nonNullable.group({
     botEnabled: [true],
@@ -95,7 +118,7 @@ export class SupportSettingsPage implements OnInit {
 
   ngOnInit(): void {
     this.api.get<SupportConfig>('/support/config').subscribe({
-      next: (c) =>
+      next: (c) => {
         this.form.patchValue({
           botEnabled: c.botEnabled,
           appEnabled: c.channels?.app !== false,
@@ -111,7 +134,9 @@ export class SupportSettingsPage implements OnInit {
           businessHoursOnly: c.autoReply?.businessHoursOnly === true,
           slaMinutes: c.slaMinutes ?? 120,
           ratePerMin: c.ratePerMin ?? 20,
-        }),
+        });
+        this.macros.set(c.macros ?? []);
+      },
       error: (e) => this.notify.push('Could not load support settings', e?.message, 'warning'),
     });
   }
@@ -138,6 +163,7 @@ export class SupportSettingsPage implements OnInit {
       },
       slaMinutes: v.slaMinutes,
       ratePerMin: v.ratePerMin,
+      macros: this.macros().filter((m) => m.label.trim() && m.text.trim()),
     };
     this.api.put('/support/config', body).subscribe({
       next: () => { this.saving.set(false); this.notify.push('Support settings saved', undefined, 'success'); },

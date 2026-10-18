@@ -82,6 +82,14 @@ class AccountScreen extends ConsumerWidget {
             // Orders has no bottom-nav tab — this IS the way to it, a plain pushed route.
             _tile(context, Icons.receipt_long_rounded, 'Your orders',
                 () => context.push('/orders')),
+            // Wishlist/Notifications are also reachable via the bottom-nav tab and the
+            // bell icon respectively — tiled here too so Account is a complete menu,
+            // not a "some things live elsewhere" surprise.
+            _tile(context, Icons.favorite_border_rounded, 'Wishlist',
+                () => context.push('/wishlist')),
+            if (user != null)
+              _tile(context, Icons.notifications_outlined, 'Notifications',
+                  () => context.push('/notifications')),
             if (user != null && features.referralEnabled)
               _tile(context, Icons.card_giftcard_rounded, 'Invite a friend',
                   () => context.push('/refer')),

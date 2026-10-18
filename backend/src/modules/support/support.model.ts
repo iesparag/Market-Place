@@ -21,10 +21,15 @@ const messageSchema = new Schema(
 
 const threadSchema = new Schema(
   {
-    customerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    // Exactly one of customerId/riderId is set — two different identity systems
+    // (riders are not Users, see rider.model.ts) sharing one inbox. No bot/tool
+    // orchestration runs for rider threads (riders have no "orders" to self-serve on)
+    // — see rider-support.routes.ts, which goes straight to a human ticket.
+    customerId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    riderId: { type: Schema.Types.ObjectId, ref: 'Rider', index: true },
     storeId: { type: Schema.Types.ObjectId, ref: 'Store', index: true }, // context if store-specific
     orderId: { type: Schema.Types.ObjectId, ref: 'Order' }, // context if order-specific
-    channel: { type: String, enum: ['app', 'web', 'admin'], default: 'web' },
+    channel: { type: String, enum: ['app', 'web', 'admin', 'rider_app'], default: 'web' },
     status: {
       type: String,
       enum: ['bot', 'open', 'pending_admin', 'resolved', 'closed'],
@@ -45,7 +50,8 @@ export const SupportThread = model('SupportThread', threadSchema);
 const ticketSchema = new Schema(
   {
     threadId: { type: Schema.Types.ObjectId, ref: 'SupportThread', required: true, index: true },
-    customerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    customerId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    riderId: { type: Schema.Types.ObjectId, ref: 'Rider', index: true },
     storeId: { type: Schema.Types.ObjectId, ref: 'Store', index: true }, // scopes vendor visibility
     orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
     intent: { type: String, default: 'other', index: true },
@@ -102,6 +108,12 @@ const supportConfigSchema = new Schema(
     },
     slaMinutes: { type: Number, default: 120 },
     ratePerMin: { type: Number, default: 20 }, // per-user message rate limit
+    // Canned responses — agents insert these into the reply box instead of retyping
+    // the same answer (shipping ETA, return window, etc.) on every similar ticket.
+    macros: {
+      type: [{ label: { type: String, required: true }, text: { type: String, required: true } }],
+      default: [],
+    },
   },
   { timestamps: true },
 );

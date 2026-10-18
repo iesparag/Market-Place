@@ -1,7 +1,7 @@
 import { Role, SOCKET_EVENTS, type SupportIntent } from '@app/shared';
 import { AppError } from '../../common/AppError.js';
 import type { AuthUser } from '../../common/types.js';
-import { emitToUser, emitToAdmin, emitToStore, safeEmit } from '../../realtime/emitters.js';
+import { emitToUser, emitToAdmin, emitToStore, emitToRider, safeEmit } from '../../realtime/emitters.js';
 import { aiProvider, type ChatTurn } from '../../providers/ai/index.js';
 import { writeAudit } from '../audit/audit.module.js';
 import { runTool, toolSpecs, type ToolContext } from './tools/registry.js';
@@ -20,10 +20,13 @@ import {
  */
 export const SUPPORT_SYSTEM_PROMPT =
   'You are a customer-support assistant for an online marketplace. Answer ONLY from the ' +
-  'provided order data and knowledge-base context. Never invent order facts, prices or policy. ' +
-  'You may perform safe self-service actions the customer already owns (track, invoice, ' +
-  'cancel-if-unshipped, reorder). For refunds, post-shipment cancellations, discounts or ' +
-  'anything you are unsure about, call escalate_to_support instead of guessing.';
+  'provided order data and knowledge-base context — call search_kb for policy questions ' +
+  '(returns, shipping, cancellation windows) instead of guessing. Never invent order facts, ' +
+  'prices or policy. You may perform safe self-service actions the customer already owns ' +
+  '(track, invoice, cancel-if-unshipped, reorder). For refunds, post-shipment cancellations, ' +
+  'discounts, or anything you are unsure about, call escalate_to_support — never tell the ' +
+  'customer a refund/discount/exception is approved, processed, or on its way: only a human ' +
+  'reviewing the ticket can approve that, so say it has been passed to the team for review.';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 type LeanThread = { _id: unknown; customerId: unknown; storeId?: unknown };
@@ -48,11 +51,11 @@ const DRAFTS: Record<SupportIntent, string> = {
   where_is_order:
     "Hi, thanks for reaching out! I've checked your order — it's on the way and expected shortly. I'll keep an eye on it and update you if anything changes.",
   return_or_refund:
-    "Hi, I'm sorry for the trouble. I can help with your return — could you confirm the item and the reason? Once confirmed I'll process the right resolution for you.",
+    "Hi, I'm sorry for the trouble. I've noted your return request with the item and reason — our team is reviewing it and will confirm the refund/replacement shortly.",
   cancel_order:
-    "Hi, I can look into cancelling this for you. Could you confirm the order? I'll check its status and get back to you right away.",
+    "Hi, I've passed this cancellation request to our team since the order's already past the point I can cancel it myself — they'll confirm shortly.",
   order_issue:
-    "Hi, I'm really sorry your order arrived with an issue. Could you share a photo and a quick description? I'll make this right for you.",
+    "Hi, I'm really sorry your order arrived with an issue. I've shared the details with our team and they'll follow up with next steps shortly.",
   payment_issue:
     "Hi, thanks for flagging this. I'm checking the payment on your order now and will confirm the status and next steps shortly.",
   product_question:
@@ -196,14 +199,14 @@ export async function postCustomerMessage(
     thread.status = 'pending_admin';
     thread.ticketId = ticket._id as never;
     await thread.save();
-    emitMessage(user.id, String(thread._id), 'bot', botText);
+    emitMessage({ _id: thread._id, customerId: user.id }, 'bot', botText);
     return { thread, reply: botText, escalated: true, ticketId: String(ticket._id) };
   }
 
   const reply = outcome.text || config.handoffMessage;
   thread.messages.push({ role: 'bot', text: reply } as never);
   await thread.save();
-  emitMessage(user.id, String(thread._id), 'bot', reply);
+  emitMessage({ _id: thread._id, customerId: user.id }, 'bot', reply);
   return { thread, reply, escalated: false };
 }
 
@@ -306,7 +309,7 @@ export async function replyToTicket(user: AuthUser, ticketId: string, text: stri
   await ticket.save();
   writeAudit(user.id, 'support:reply', { targetType: 'ticket', targetId: String(ticket._id), meta: { sentBy: 'manual' } });
 
-  emitMessage(String(thread.customerId), String(thread._id), 'agent', text);
+  emitMessage(thread, 'agent', text);
   emitTicketUpdated(user, ticket);
   return { ticket, thread };
 }
@@ -347,15 +350,10 @@ export async function updateTicket(
 }
 
 // ── socket emits ─────────────────────────────────────────────────────────────
-function emitMessage(customerId: string, threadId: string, role: 'bot' | 'agent', text: string) {
-  safeEmit(() =>
-    emitToUser(customerId, SOCKET_EVENTS.SUPPORT_MESSAGE, {
-      threadId,
-      role,
-      text,
-      at: new Date().toISOString(),
-    }),
-  );
+function emitMessage(thread: { _id: unknown; customerId?: unknown; riderId?: unknown }, role: 'bot' | 'agent', text: string) {
+  const payload = { threadId: String(thread._id), role, text, at: new Date().toISOString() };
+  if (thread.riderId) safeEmit(() => emitToRider(String(thread.riderId), SOCKET_EVENTS.SUPPORT_MESSAGE, payload));
+  else if (thread.customerId) safeEmit(() => emitToUser(String(thread.customerId), SOCKET_EVENTS.SUPPORT_MESSAGE, payload));
 }
 function emitTicketUpdated(user: AuthUser, ticket: { _id: unknown; status: string; storeId?: unknown }) {
   const payload = { ticketId: String(ticket._id), status: ticket.status as never, at: new Date().toISOString() };

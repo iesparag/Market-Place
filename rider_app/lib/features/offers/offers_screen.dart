@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
@@ -39,7 +40,15 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
     try {
       if (accept) {
         await ref.read(ridersRepoProvider).acceptOffer(task.id);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Accepted ${task.orderNumber}')));
+        ref.invalidate(offersProvider);
+        ref.invalidate(myTasksProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Accepted ${task.orderNumber}')));
+          // Straight to the task — a rider who just accepted wants to start moving,
+          // not hunt for it under "My tasks".
+          context.push('/tasks/${task.id}');
+        }
+        return;
       } else {
         await ref.read(ridersRepoProvider).declineOffer(task.id);
       }
