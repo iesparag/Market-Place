@@ -302,16 +302,24 @@ class _HeaderIcon extends StatelessWidget {
   const _HeaderIcon({required this.icon, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+    // Theme-aware, matching the other header pills (NotificationBell/WishlistButton
+    // `filled: true`) — hardcoded white here was invisible-on-white in light mode's
+    // intent but left a stark white circle in dark mode.
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: SizedBox(
-            width: 38,
-            height: 38,
-            child: Icon(icon, color: context.colors.ink, size: 21)),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Icon(icon, color: context.colors.ink, size: 21),
+        ),
       ),
     );
   }
