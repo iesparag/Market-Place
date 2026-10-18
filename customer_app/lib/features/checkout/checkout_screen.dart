@@ -45,6 +45,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedId = ref.read(activeAddressIdProvider);
     if (ref.read(authProvider) == null) return;
     ref.read(checkoutRepoProvider).loyaltyBalance().then((b) {
       if (mounted) {
@@ -186,8 +187,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Address? _pick(List<Address> list) {
     if (list.isEmpty) return null;
-    if (_selectedId != null) {
-      final m = list.where((a) => a.id == _selectedId);
+    final targetId = _selectedId ?? ref.read(activeAddressIdProvider);
+    if (targetId != null) {
+      final m = list.where((a) => a.id == targetId);
       if (m.isNotEmpty) return m.first;
     }
     final def = list.where((a) => a.isDefault);
@@ -469,7 +471,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final discount = (couponDiscount + pointsDiscount).clamp(0, subtotal);
     final pricing = ref.watch(pricingSettingsProvider).valueOrNull;
     final features = pricing?.features ?? const FeatureFlags();
-    final quote = pricing?.quote(subtotal, discount: discount) ??
+    final selectedAddress = _pick(addressesAsync.valueOrNull ?? []);
+    final stores = ref.watch(vendorsProvider).valueOrNull ?? const [];
+    final quote = pricing?.quote(
+          subtotal,
+          discount: discount,
+          address: selectedAddress,
+          lines: lines,
+          stores: stores,
+        ) ??
         CheckoutQuote(
             itemsTotal: subtotal,
             discount: discount,
@@ -668,12 +678,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           if (quote.discount > 0)
             _row('Discount', '−${rupees(quote.discount)}',
                 valueColor: context.colors.success),
-          _row('Tax', rupees(quote.tax)),
-          _row(
-              'Delivery', quote.delivery == 0 ? 'FREE' : rupees(quote.delivery),
-              valueColor: quote.delivery == 0 ? context.colors.success : null),
+          _deliveryRow(context, quote, selectedAddress, pricing),
           const SizedBox(height: 6),
           _row('Total', rupees(quote.grandTotal), bold: true),
+          if (quote.deliveryBreakdown != null) ...[
+            const SizedBox(height: 12),
+            _DeliveryTransparencyCard(
+              breakdown: quote.deliveryBreakdown!,
+              address: selectedAddress,
+              pricing: pricing,
+              itemsTotal: quote.itemsTotal,
+            ),
+          ],
 
           const SizedBox(height: 22),
           Text('Payment method',
@@ -747,6 +763,69 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ]),
       );
 
+  Widget _deliveryRow(
+    BuildContext context,
+    CheckoutQuote quote,
+    Address? address,
+    PricingSettings? pricing,
+  ) {
+    final breakdown = quote.deliveryBreakdown;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(children: [
+        Text('Delivery',
+            style: TextStyle(
+                color: context.colors.ink,
+                fontWeight: FontWeight.w500,
+                fontSize: 14)),
+        if (breakdown != null) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => showDeliveryBreakdownModal(
+              context,
+              breakdown: breakdown,
+              address: address,
+              pricing: pricing,
+              itemsTotal: quote.itemsTotal,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: context.brand.soft,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                    color: context.brand.primary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 13, color: context.brand.primaryDark),
+                  const SizedBox(width: 3),
+                  Text(
+                    'Breakdown',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: context.brand.primaryDark),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const Spacer(),
+        Text(
+          quote.delivery == 0 ? 'FREE' : rupees(quote.delivery),
+          style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: quote.delivery == 0 ? context.colors.success : null),
+        ),
+      ]),
+    );
+  }
+
   Widget _dashedBox(String msg) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -788,8 +867,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               PlacesSearchField(onPicked: (r) {
                 line1.text = r.line1;
                 city.text = r.city;
-                if (r.pincode != null && r.pincode!.isNotEmpty)
+                if (r.pincode != null && r.pincode!.isNotEmpty) {
                   pincode.text = r.pincode!;
+                }
                 lat = r.lat;
                 lng = r.lng;
               }),
@@ -853,6 +933,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       lng: lng,
                                     );
                             ref.invalidate(addressesProvider);
+                            ref.read(activeAddressIdProvider.notifier).state =
+                                a.id;
                             if (mounted) setState(() => _selectedId = a.id);
                             if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                           } catch (e) {
@@ -1087,7 +1169,7 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
             children: [
               Icon(Icons.local_shipping_outlined,
                   size: 16, color: context.colors.ink),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Text(
                 'Delivery Schedule & SLA',
                 style: TextStyle(
@@ -1263,4 +1345,460 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _DeliveryTransparencyCard extends StatelessWidget {
+  final MultiVendorDeliveryQuoteBreakdown breakdown;
+  final Address? address;
+  final PricingSettings? pricing;
+  final int itemsTotal;
+
+  const _DeliveryTransparencyCard({
+    required this.breakdown,
+    required this.address,
+    required this.pricing,
+    required this.itemsTotal,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final b = context.brand;
+    final isFree = breakdown.isFreeDelivery;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_shipping_outlined,
+                  size: 16, color: b.primaryDark),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Multi-Vendor Delivery Fee Breakdown',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: context.colors.ink),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => showDeliveryBreakdownModal(
+                  context,
+                  breakdown: breakdown,
+                  address: address,
+                  pricing: pricing,
+                  itemsTotal: itemsTotal,
+                ),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.tune_rounded, size: 12, color: b.primaryDark),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Rules & Math',
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: b.primaryDark),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final leg in breakdown.vendors) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        leg.isLocal ? '⚡' : '📦',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          leg.storeName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12.5,
+                            color: context.colors.ink,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: leg.isLocal
+                              ? const Color(0xFFFEF3C7)
+                              : const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          leg.isLocal ? 'Local Now' : 'Courier Intercity',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: leg.isLocal
+                                ? const Color(0xFF92400E)
+                                : const Color(0xFF0369A1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_outlined,
+                          size: 13, color: context.colors.textMuted),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${leg.storeCity != null && leg.storeCity!.isNotEmpty ? leg.storeCity : 'Vendor'} → ${address?.city ?? 'Customer'} · ${leg.distanceKm != null ? '${leg.distanceKm!.toStringAsFixed(1)} km' : 'Location confirmed'}',
+                          style: TextStyle(
+                              fontSize: 11, color: context.colors.textMuted),
+                        ),
+                      ),
+                      Text(
+                        rupees(leg.vendorDeliveryFee),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: context.colors.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    leg.calculationText,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF475569),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (isFree)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFA7F3D0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded,
+                      size: 14, color: Color(0xFF059669)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '🎉 Free Delivery Applied! Your order total (${rupees(itemsTotal)}) meets the ${rupees(breakdown.freeDeliveryAbove)} free delivery threshold.',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF065F46)),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (breakdown.freeDeliveryRemaining > 0)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_shipping_rounded,
+                      size: 14, color: Color(0xFFD97706)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Add ${rupees(breakdown.freeDeliveryRemaining)} more items to get FREE delivery across all vendors!',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF92400E)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+void showDeliveryBreakdownModal(
+  BuildContext context, {
+  required MultiVendorDeliveryQuoteBreakdown breakdown,
+  required Address? address,
+  required PricingSettings? pricing,
+  required int itemsTotal,
+}) {
+  final baseFee = pricing?.localDeliveryBaseFee ?? 3000;
+  final baseKm = pricing?.localDeliveryBaseKm ?? 3;
+  final perKm = pricing?.localDeliveryPerKmFee ?? 1000;
+  final thirdPartyFee = pricing?.thirdPartyDeliveryFee ?? 7000;
+  final freeAbove = pricing?.freeDeliveryAbove ?? 50000;
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: context.colors.surface,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 18, 20, 24 + MediaQuery.of(ctx).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.receipt_long_rounded,
+                    color: Color(0xFF2563EB), size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Delivery Charge Transparency',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          color: context.colors.ink),
+                    ),
+                    Text(
+                      'Distance & formula applied per vendor',
+                      style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close_rounded, color: context.colors.ink),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Config rules banner
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.colors.bg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.colors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '⚙️ Platform Delivery Pricing Rules (Set in Admin)',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      color: context.colors.ink),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '• ⚡ Local Express: Base ₹${(baseFee / 100).toStringAsFixed(0)} for first $baseKm km + ₹${(perKm / 100).toStringAsFixed(0)}/km extra distance\n'
+                  '• 📦 Third-Party Courier: Flat ₹${(thirdPartyFee / 100).toStringAsFixed(0)} per intercity vendor store\n'
+                  '• 🎁 Free Delivery: Applies when items subtotal exceeds ₹${(freeAbove / 100).toStringAsFixed(0)}',
+                  style: TextStyle(
+                      fontSize: 11, color: context.colors.textMuted, height: 1.45),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          Text(
+            'Vendor Leg Details',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: context.colors.ink),
+          ),
+          const SizedBox(height: 8),
+
+          for (final leg in breakdown.vendors) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.colors.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: context.colors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(leg.isLocal ? '⚡' : '📦',
+                          style: const TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          leg.storeName,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: context.colors.ink),
+                        ),
+                      ),
+                      Text(
+                        rupees(leg.vendorDeliveryFee),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13.5,
+                            color: context.colors.ink),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Pickup: ${leg.storeCity != null && leg.storeCity!.isNotEmpty ? leg.storeCity : "Store"} → Delivery: ${address?.city ?? "Customer location"}',
+                    style: TextStyle(
+                        fontSize: 11.5, color: context.colors.textMuted),
+                  ),
+                  Text(
+                    leg.distanceKm != null
+                        ? 'Measured distance: ${leg.distanceKm!.toStringAsFixed(1)} km'
+                        : 'City-level courier dispatch',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.ink),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: context.colors.bg,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: context.colors.border),
+                    ),
+                    child: Text(
+                      'Math: ${leg.calculationText}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: context.colors.ink,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const Divider(height: 20),
+          Row(
+            children: [
+              Text('Total Delivery Fee',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.ink)),
+              const Spacer(),
+              Text(
+                rupees(breakdown.totalDeliveryFee),
+                style: TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 14, color: context.colors.ink),
+              ),
+            ],
+          ),
+          if (breakdown.isFreeDelivery) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Text('Free Delivery Discount',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: Color(0xFF059669))),
+                const Spacer(),
+                Text(
+                  '−${rupees(breakdown.totalDeliveryFee)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF059669)),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Text('Final Delivery Payable',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+              const Spacer(),
+              Text(
+                breakdown.finalDeliveryFee == 0
+                    ? 'FREE'
+                    : rupees(breakdown.finalDeliveryFee),
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  color: breakdown.finalDeliveryFee == 0
+                      ? const Color(0xFF059669)
+                      : const Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }

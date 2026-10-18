@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/alert/alert_service.dart';
 import '../core/api/api_client.dart';
 import '../core/auth/token_store.dart';
@@ -21,7 +22,18 @@ final riderSocketProvider = Provider<RiderSocketService>((ref) => RiderSocketSer
 final locationServiceProvider = Provider<LocationService>((ref) => LocationService(ref.read(ridersRepoProvider), ref.read(riderSocketProvider)));
 
 /// One instance for the app's lifetime — a loud, spoken job-offer/assignment alert.
-final alertServiceProvider = Provider<AlertService>((ref) => AlertService());
+final alertServiceProvider = ChangeNotifierProvider<AlertService>((ref) => AlertService());
+
+final riderPositionProvider = FutureProvider.autoDispose<Position?>((ref) async {
+  try {
+    return await Geolocator.getLastKnownPosition() ??
+        await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+        );
+  } catch (_) {
+    return null;
+  }
+});
 
 final offersProvider = FutureProvider.autoDispose<List<TaskModel>>((ref) => ref.read(ridersRepoProvider).myOffers());
 

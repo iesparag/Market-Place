@@ -15,31 +15,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _togglingOnline = false;
-  StreamSubscription<Map<String, dynamic>>? _taskEventSub;
 
   @override
   void initState() {
     super.initState();
-    _taskEventSub = ref.read(riderSocketProvider).taskEvents.listen((event) {
-      if (!mounted) return;
-      ref.invalidate(offersProvider);
-      ref.invalidate(myTasksProvider);
-      final msg = switch (event['kind']) {
-        'offered' => 'New delivery offer — ${event['orderNumber']}',
-        'assigned' => 'Delivery assigned — ${event['orderNumber']}',
-        'reassigned' => 'Delivery reassigned — ${event['orderNumber']}',
-        'unassigned' => 'Delivery removed — ${event['orderNumber']}',
-        _ => null,
-      };
-      if (msg != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      }
-      // Loud spoken alert — a toast is easy to miss while riding. Max volume,
-      // regardless of the device's current media/ringer level (see AlertService).
-      if (event['kind'] == 'offered' || event['kind'] == 'assigned') {
-        ref.read(alertServiceProvider).speak('New delivery task assigned');
-      }
-    });
   }
 
   Future<void> _goOnline() async {
@@ -96,7 +75,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Deliberately NOT stopping location/socket here — both are app-lifetime (see
     // locationServiceProvider/riderSocketProvider) and should keep running while the
     // rider is mid-delivery even if they navigate away from this screen.
-    _taskEventSub?.cancel();
     super.dispose();
   }
 

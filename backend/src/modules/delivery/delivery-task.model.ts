@@ -34,6 +34,9 @@ const deliveryTaskSchema = new Schema(
     // drop city's RiderPayoutRate. Absent if no rate is configured for that city yet.
     payoutDistanceMeters: Number,
     payoutAmount: Number, // paise
+    pickupDropDistanceKm: Number, // km
+    ratePerKm: Number, // paise per km
+    estimatedPayout: Number, // paise
     status: {
       type: String,
       enum: [

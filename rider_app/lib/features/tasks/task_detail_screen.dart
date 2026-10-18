@@ -34,6 +34,14 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   bool _advancing = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(alertServiceProvider).stopAlert();
+    });
+  }
+
   Future<void> _advance(TaskModel task) async {
     final next = task.nextStep;
     if (next == null) return;
@@ -119,6 +127,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           const SizedBox(height: 10),
           if (!isHistory) ...[_StepDots(currentIndex: stepIndex), const SizedBox(height: 16)],
 
+          _RiderTripAndEarningsDetailCard(task: task, isHistory: isHistory),
+
           if (task.isCod)
             Container(
               width: double.infinity,
@@ -169,6 +179,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           const SizedBox(height: 14),
 
           _card(
+            context: context,
             title: 'Items (${task.items.length})',
             child: Column(children: task.items.map((i) => _ItemTile(item: i)).toList()),
           ),
@@ -190,16 +201,160 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     );
   }
 
-  Widget _card({required String title, required Widget child}) => Container(
+  Widget _card({required BuildContext context, required String title, required Widget child}) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: RiderColors.border)),
+        decoration: BoxDecoration(
+          color: context.surfaceColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.borderColor),
+        ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+          Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: context.textColor)),
           const SizedBox(height: 8),
           child,
         ]),
       );
+}
+
+class _RiderTripAndEarningsDetailCard extends ConsumerWidget {
+  final TaskModel task;
+  final bool isHistory;
+  const _RiderTripAndEarningsDetailCard({required this.task, required this.isHistory});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pos = ref.watch(riderPositionProvider).valueOrNull;
+    final riderToPickup = task.riderToPickupKm(pos?.latitude, pos?.longitude);
+    final deliveryLeg = task.deliveryLegKm;
+    final totalTrip = task.totalTripKm(pos?.latitude, pos?.longitude);
+    final payout = task.finalOrEstimatedPayout;
+    final isDark = context.isDark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F2E1E) : const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? const Color(0xFF166534) : const Color(0xFFBBF7D0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_rounded,
+                      size: 20, color: Color(0xFF22C55E)),
+                  const SizedBox(width: 8),
+                  Text(
+                    rupees(payout),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                      color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14532D) : const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  isHistory || task.isDelivered ? 'Earned & Settled' : 'Estimated Payout',
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF166534),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0A2216) : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isDark ? const Color(0xFF1E3A2B) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.my_location_rounded, size: 14, color: Color(0xFF0284C7)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'You ➔ Store Pickup:',
+                      style: TextStyle(fontSize: 12, color: context.mutedTextColor),
+                    ),
+                    const Spacer(),
+                    Text(
+                      riderToPickup != null ? '${riderToPickup.toStringAsFixed(1)} km' : '— km',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.textColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.local_shipping_outlined, size: 14, color: Color(0xFF16A34A)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Store ➔ Customer Delivery:',
+                      style: TextStyle(fontSize: 12, color: context.mutedTextColor),
+                    ),
+                    const Spacer(),
+                    Text(
+                      deliveryLeg != null ? '${deliveryLeg.toStringAsFixed(1)} km' : '— km',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.textColor),
+                    ),
+                  ],
+                ),
+                if (totalTrip != null) ...[
+                  Divider(height: 14, color: isDark ? const Color(0xFF1E3A2B) : const Color(0xFFE2E8F0)),
+                  Row(
+                    children: [
+                      const Icon(Icons.route_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Total Trip Distance:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.textColor),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${totalTrip.toStringAsFixed(1)} km',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Formula: ${deliveryLeg != null ? "${deliveryLeg.toStringAsFixed(1)} km" : "distance"} × ₹${task.rateRupeesPerKm.toStringAsFixed(0)}/km rate in ${task.drop.city ?? "city"} = ${rupees(payout)}',
+            style: TextStyle(
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+              color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF166534),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ContactCard extends StatelessWidget {
@@ -216,29 +371,48 @@ class _ContactCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: RiderColors.border)),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.borderColor),
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(icon, size: 18, color: RiderColors.primary),
+          Icon(icon, size: 18, color: context.isDark ? const Color(0xFF60A5FA) : RiderColors.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
-              Text(subtitle, style: const TextStyle(color: RiderColors.textMuted, fontSize: 11.5)),
+              Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: context.textColor)),
+              Text(subtitle, style: TextStyle(color: context.mutedTextColor, fontSize: 11.5)),
             ]),
           ),
         ]),
         const SizedBox(height: 8),
-        Text(address.oneLine.isEmpty ? 'Address not available' : address.oneLine, style: const TextStyle(fontSize: 13)),
+        Text(
+          address.oneLine.isEmpty ? 'Address not available' : address.oneLine,
+          style: TextStyle(fontSize: 13, color: context.textColor),
+        ),
         if (note != null) ...[
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: RiderColors.bg, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: context.isDark ? const Color(0xFF0F172A) : RiderColors.bg,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.sticky_note_2_outlined, size: 14, color: RiderColors.textMuted),
+              Icon(Icons.sticky_note_2_outlined, size: 14, color: context.mutedTextColor),
               const SizedBox(width: 6),
-              Expanded(child: Text(note!, style: const TextStyle(fontSize: 12.5, fontStyle: FontStyle.italic))),
+              Expanded(
+                child: Text(
+                  note!,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontStyle: FontStyle.italic,
+                    color: context.textColor,
+                  ),
+                ),
+              ),
             ]),
           ),
         ],
@@ -275,8 +449,8 @@ class _ItemTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
-        Expanded(child: Text(item.title, style: const TextStyle(fontSize: 13))),
-        Text('× ${item.qty}', style: const TextStyle(color: RiderColors.textMuted, fontWeight: FontWeight.w700, fontSize: 12.5)),
+        Expanded(child: Text(item.title, style: TextStyle(fontSize: 13, color: context.textColor))),
+        Text('× ${item.qty}', style: TextStyle(color: context.mutedTextColor, fontWeight: FontWeight.w700, fontSize: 12.5)),
       ]),
     );
   }
@@ -296,7 +470,10 @@ class _StepDots extends StatelessWidget {
           child: Container(
             height: 4,
             margin: EdgeInsets.only(right: i == kTaskSteps.length - 1 ? 0 : 4),
-            decoration: BoxDecoration(color: done ? RiderColors.primary : RiderColors.border, borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(
+              color: done ? (context.isDark ? const Color(0xFF3B82F6) : RiderColors.primary) : context.borderColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
         );
       }),

@@ -14,6 +14,7 @@ interface FeatureFlags {
 }
 interface Settings {
   commissionPercent: number; taxPercent: number; deliveryFee: number; freeDeliveryAbove: number;
+  localDeliveryBaseFee?: number; localDeliveryBaseKm?: number; localDeliveryPerKmFee?: number; thirdPartyDeliveryFee?: number;
   payoutHoldDays: number; currency: string;
   codEnabled: boolean; codMaxOrderValue: number; onlinePaymentEnabled: boolean; paymentExpiryMinutes: number;
   loyaltyEarnDivisor: number; loyaltyPointValuePaise: number; loyaltyMaxRedeemShare: number;
@@ -36,6 +37,16 @@ interface Settings {
       <input class="input" type="number" formControlName="deliveryFee" />
       <label class="label">Free delivery above (₹)</label>
       <input class="input" type="number" formControlName="freeDeliveryAbove" />
+      <h3 class="section">Delivery Pricing (Local Now vs Third-Party Courier)</h3>
+      <label class="label">Local base delivery fee (₹)</label>
+      <input class="input" type="number" formControlName="localDeliveryBaseFee" />
+      <label class="label">Local base distance covered (km)</label>
+      <input class="input" type="number" formControlName="localDeliveryBaseKm" />
+      <label class="label">Local extra fee per km (₹/km)</label>
+      <input class="input" type="number" formControlName="localDeliveryPerKmFee" />
+      <label class="label">Third-party courier flat fee per vendor (₹)</label>
+      <input class="input" type="number" formControlName="thirdPartyDeliveryFee" />
+      <p class="hint">Applied to intercity / non-local vendors fulfilling via standard courier.</p>
       <label class="label">Payout hold (days)</label>
       <input class="input" type="number" formControlName="payoutHoldDays" />
       <p class="hint">Vendor earnings stay on hold this long after payment before they can be settled.</p>
@@ -104,6 +115,10 @@ export class SettingsPage implements OnInit {
     taxPercent: [5, [Validators.required, Validators.min(0), Validators.max(50)]],
     deliveryFee: [40, [Validators.required, Validators.min(0)]],
     freeDeliveryAbove: [500, [Validators.required, Validators.min(0)]],
+    localDeliveryBaseFee: [30, [Validators.required, Validators.min(0)]],
+    localDeliveryBaseKm: [3, [Validators.required, Validators.min(0)]],
+    localDeliveryPerKmFee: [10, [Validators.required, Validators.min(0)]],
+    thirdPartyDeliveryFee: [70, [Validators.required, Validators.min(0)]],
     payoutHoldDays: [2, [Validators.required, Validators.min(0)]],
     onlinePaymentEnabled: [true],
     codEnabled: [true],
@@ -130,6 +145,10 @@ export class SettingsPage implements OnInit {
           taxPercent: s.taxPercent,
           deliveryFee: s.deliveryFee / 100,
           freeDeliveryAbove: s.freeDeliveryAbove / 100,
+          localDeliveryBaseFee: (s.localDeliveryBaseFee ?? 3000) / 100,
+          localDeliveryBaseKm: s.localDeliveryBaseKm ?? 3,
+          localDeliveryPerKmFee: (s.localDeliveryPerKmFee ?? 1000) / 100,
+          thirdPartyDeliveryFee: (s.thirdPartyDeliveryFee ?? 7000) / 100,
           payoutHoldDays: s.payoutHoldDays,
           onlinePaymentEnabled: s.onlinePaymentEnabled !== false,
           codEnabled: s.codEnabled !== false,
@@ -159,6 +178,10 @@ export class SettingsPage implements OnInit {
       taxPercent: v.taxPercent,
       deliveryFee: Math.round(v.deliveryFee * 100),
       freeDeliveryAbove: Math.round(v.freeDeliveryAbove * 100),
+      localDeliveryBaseFee: Math.round(v.localDeliveryBaseFee * 100),
+      localDeliveryBaseKm: v.localDeliveryBaseKm,
+      localDeliveryPerKmFee: Math.round(v.localDeliveryPerKmFee * 100),
+      thirdPartyDeliveryFee: Math.round(v.thirdPartyDeliveryFee * 100),
       payoutHoldDays: v.payoutHoldDays,
       onlinePaymentEnabled: v.onlinePaymentEnabled,
       codEnabled: v.codEnabled,

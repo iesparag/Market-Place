@@ -6,6 +6,7 @@ import '../../core/theme/theme.dart';
 import '../../data/providers.dart';
 import '../../models/task.dart';
 import '../../shared/widgets/error_view.dart';
+import '../../core/format.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
@@ -76,7 +77,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 }
 
-class _TaskCard extends StatelessWidget {
+class _TaskCard extends ConsumerWidget {
   final TaskModel task;
   final bool busy;
   final VoidCallback onAdvance;
@@ -87,7 +88,7 @@ class _TaskCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final itemsSummary = task.items.isEmpty
         ? ''
         : task.items.length > 1
@@ -98,8 +99,15 @@ class _TaskCard extends StatelessWidget {
       (s) => s.status == task.status,
     ); // -1 while still 'ready'
 
+    final pos = ref.watch(riderPositionProvider).valueOrNull;
+    final riderToPickup = task.riderToPickupKm(pos?.latitude, pos?.longitude);
+    final deliveryLeg = task.deliveryLegKm;
+    final totalTrip = task.totalTripKm(pos?.latitude, pos?.longitude);
+    final estimatedPayout = task.finalOrEstimatedPayout;
+    final isDark = context.isDark;
+
     return Material(
-      color: Colors.white,
+      color: context.surfaceColor,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -108,7 +116,7 @@ class _TaskCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: RiderColors.border),
+            border: Border.all(color: context.borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,9 +126,10 @@ class _TaskCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       task.orderNumber,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontFamily: 'monospace',
+                        color: context.textColor,
                       ),
                     ),
                   ),
@@ -130,13 +139,13 @@ class _TaskCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: RiderColors.primary.withValues(alpha: 0.12),
+                      color: (isDark ? const Color(0xFF60A5FA) : RiderColors.primary).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       task.stageLabel,
-                      style: const TextStyle(
-                        color: RiderColors.primary,
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFF93C5FD) : RiderColors.primary,
                         fontWeight: FontWeight.w700,
                         fontSize: 11.5,
                       ),
@@ -148,8 +157,8 @@ class _TaskCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   itemsSummary,
-                  style: const TextStyle(
-                    color: RiderColors.textMuted,
+                  style: TextStyle(
+                    color: context.mutedTextColor,
                     fontSize: 12.5,
                   ),
                 ),
@@ -158,16 +167,16 @@ class _TaskCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.storefront_outlined,
                     size: 16,
-                    color: RiderColors.textMuted,
+                    color: context.mutedTextColor,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       task.pickup.oneLine,
-                      style: const TextStyle(fontSize: 12.5),
+                      style: TextStyle(fontSize: 12.5, color: context.textColor),
                     ),
                   ),
                 ],
@@ -176,20 +185,64 @@ class _TaskCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.flag_outlined,
                     size: 16,
-                    color: RiderColors.textMuted,
+                    color: context.mutedTextColor,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       task.drop.oneLine,
-                      style: const TextStyle(fontSize: 12.5),
+                      style: TextStyle(fontSize: 12.5, color: context.textColor),
                     ),
                   ),
                 ],
               ),
+
+              // 🛵 Rider Earnings & Distance Tag
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F2E1E) : const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? const Color(0xFF166534) : const Color(0xFFBBF7D0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_rounded,
+                        size: 14, color: Color(0xFF22C55E)),
+                    const SizedBox(width: 5),
+                    Text(
+                      rupees(estimatedPayout),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '• ₹${task.rateRupeesPerKm.toStringAsFixed(0)}/km',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF166534),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '📍 ${riderToPickup != null ? "${riderToPickup.toStringAsFixed(1)}km" : "-"} ➔ 🏁 ${deliveryLeg != null ? "${deliveryLeg.toStringAsFixed(1)}km" : "-"} (${totalTrip != null ? "${totalTrip.toStringAsFixed(1)}km trip" : ""})',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 10),
               _StepDots(currentIndex: stepIndex),
               const SizedBox(height: 10),

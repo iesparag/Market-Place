@@ -7,8 +7,13 @@ const settingsSchema = new Schema(
     key: { type: String, default: 'platform', unique: true },
     commissionPercent: { type: Number, default: DEFAULTS.COMMISSION_PERCENT },
     taxPercent: { type: Number, default: 5 }, // GST-style, applied to (items − discount)
-    deliveryFee: { type: Number, default: 4000 }, // minor units (₹40); free above threshold
+    deliveryFee: { type: Number, default: 4000 }, // minor units (₹40); fallback base fee
     freeDeliveryAbove: { type: Number, default: 50000 }, // ₹500
+    // ── Delivery pricing rules (Local Now vs Third-Party Intercity) ────────────
+    localDeliveryBaseFee: { type: Number, default: 3000 }, // ₹30 base charge for local delivery
+    localDeliveryBaseKm: { type: Number, default: 3 }, // first 3 km included in base fee
+    localDeliveryPerKmFee: { type: Number, default: 1000 }, // ₹10 per km beyond base distance
+    thirdPartyDeliveryFee: { type: Number, default: 7000 }, // ₹70 flat per third-party/intercity vendor
     currency: { type: String, default: DEFAULTS.CURRENCY },
     payoutHoldDays: { type: Number, default: DEFAULTS.PAYOUT_HOLD_DAYS },
     // ── Payments (docs/05-PAYMENTS.md) ───────────────────────────────────────
@@ -52,6 +57,10 @@ const SETTINGS_DEFAULTS = {
   taxPercent: 5,
   deliveryFee: 4000,
   freeDeliveryAbove: 50000,
+  localDeliveryBaseFee: 3000,
+  localDeliveryBaseKm: 3,
+  localDeliveryPerKmFee: 1000,
+  thirdPartyDeliveryFee: 7000,
   currency: DEFAULTS.CURRENCY,
   payoutHoldDays: DEFAULTS.PAYOUT_HOLD_DAYS,
   codEnabled: true,

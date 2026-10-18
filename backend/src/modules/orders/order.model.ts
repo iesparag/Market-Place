@@ -37,6 +37,7 @@ const orderSchema = new Schema(
       delivery: { type: Number, default: 0 },
       grandTotal: Number,
     },
+    deliveryBreakdown: { type: Schema.Types.Mixed, default: undefined },
     currency: { type: String, default: 'INR' },
     status: {
       type: String,

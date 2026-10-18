@@ -12,13 +12,18 @@ interface Order {
   orderNumber: string;
   status: string;
   createdAt: string;
-  amounts: { grandTotal: number };
+  amounts: { grandTotal: number; delivery?: number };
   items: { title: string; qty: number; storeId: string }[];
   contact?: { name?: string };
-  // Keyed by storeId — the customer's note to a specific vendor on this order (cart
-  // screen → "Instructions for <store>"). A vendor only ever sees orders that include
-  // their own store, so in practice this is "their" note; an admin viewing a
-  // multi-vendor order sees every vendor's note, each still scoped to its own store.
+  deliveryBreakdown?: {
+    totalFee: number;
+    vendors: {
+      storeName: string;
+      distanceKm?: number;
+      mode: string;
+      fee: number;
+    }[];
+  };
   storeInstructions?: Record<string, string>;
 }
 
@@ -56,7 +61,14 @@ interface Order {
                   <span class="note-flag" [title]="instructionsText(o)">📝</span>
                 }
               </td>
-              <td>₹{{ o.amounts.grandTotal / 100 }}</td>
+              <td>
+                <div><b>₹{{ o.amounts.grandTotal / 100 }}</b></div>
+                @if (o.deliveryBreakdown) {
+                  <div class="tiny muted" [title]="deliveryBreakdownTooltip(o)" style="cursor: help;">
+                    🚚 ₹{{ o.deliveryBreakdown.totalFee / 100 }} ({{ o.deliveryBreakdown.vendors.length }} leg{{ o.deliveryBreakdown.vendors.length > 1 ? 's' : '' }})
+                  </div>
+                }
+              </td>
               <td>
                 <span class="badge" [class.badge-success]="o.status === 'fulfilled' || o.status === 'paid'"
                       [class.badge-warning]="o.status === 'pending'"
@@ -144,6 +156,13 @@ export class OrdersPage implements OnInit {
       next: () => { this.notify.push('Refunded', o.orderNumber, 'success'); this.load(); },
       error: (e) => this.notify.push('Refund failed', e?.message, 'warning'),
     });
+  }
+
+  deliveryBreakdownTooltip(o: Order): string {
+    if (!o.deliveryBreakdown?.vendors?.length) return 'Delivery: ₹' + ((o.amounts.delivery ?? 0) / 100);
+    return o.deliveryBreakdown.vendors
+      .map(v => `${v.storeName}: ₹${v.fee / 100} (${v.distanceKm ?? '—'}km, ${v.mode})`)
+      .join('\n');
   }
 
   exportCsv(): void {

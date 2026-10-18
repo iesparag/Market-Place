@@ -48,6 +48,11 @@ const CreateOrderSchema = z.object({
 });
 
 export const ordersController = {
+  async quote(req: Request, res: Response) {
+    const input = CreateOrderSchema.parse(req.body);
+    ok(res, await ordersService.quote(req.user?.id, input));
+  },
+
   async create(req: Request, res: Response) {
     if (!req.user) throw AppError.unauthenticated();
     const input = CreateOrderSchema.parse(req.body);

@@ -273,6 +273,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                               color: order.amounts!.delivery == 0
                                   ? context.colors.success
                                   : null),
+                          if (order.deliveryBreakdown != null) ...[
+                            const SizedBox(height: 10),
+                            _OrderDeliveryBreakdownView(
+                                breakdown: order.deliveryBreakdown!),
+                          ],
                           const Divider(height: 20),
                           _priceRow('Total', rupees(order.amounts!.grandTotal),
                               bold: true),
@@ -713,4 +718,74 @@ class _ItemRowState extends ConsumerState<_ItemRow> {
         child: Icon(Icons.image_not_supported_outlined,
             size: 20, color: context.colors.textMuted),
       );
+}
+
+class _OrderDeliveryBreakdownView extends StatelessWidget {
+  final Map<String, dynamic> breakdown;
+  const _OrderDeliveryBreakdownView({required this.breakdown});
+
+  @override
+  Widget build(BuildContext context) {
+    final vendors = (breakdown['vendors'] as List?)
+            ?.whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList() ??
+        const [];
+    if (vendors.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.local_shipping_outlined,
+                  size: 14, color: Color(0xFF0284C7)),
+              SizedBox(width: 5),
+              Text(
+                'Delivery Fee Calculation Breakdown',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                    color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final v in vendors) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2.5),
+              child: Row(
+                children: [
+                  Text(v['isLocal'] == true ? '⚡' : '📦',
+                      style: const TextStyle(fontSize: 12)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${v['storeName'] ?? 'Vendor'} (${v['distanceKm'] != null ? "${(v['distanceKm'] as num).toStringAsFixed(1)} km" : (v['isLocal'] == true ? "Local" : "Courier")}) · ${v['calculationText'] ?? ''}',
+                      style: const TextStyle(
+                          fontSize: 10.5, color: Color(0xFF475569)),
+                    ),
+                  ),
+                  Text(
+                    rupees((v['vendorDeliveryFee'] as num?)?.toInt() ?? 0),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E293B)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }

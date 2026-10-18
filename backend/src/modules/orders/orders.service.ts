@@ -16,6 +16,7 @@ import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/e
 import { notify } from '../notifications/notifications.module.js';
 import { sendOrderEmail, type NotifiableOrder } from './order-email.js';
 import { deliveryTasksService } from '../delivery/delivery-tasks.service.js';
+import { deliveryPricingService } from '../delivery/delivery-pricing.service.js';
 
 const NEXT_STATUS = ['pending', 'paid', 'fulfilled', 'cancelled'] as const;
 export type OrderStatus = (typeof NEXT_STATUS)[number];
@@ -202,7 +203,15 @@ export const ordersService = {
 
     const taxable = itemsTotal - discount - pointsDiscount;
     const tax = percentOf(taxable, settings.taxPercent ?? 5);
-    const delivery = itemsTotal >= (settings.freeDeliveryAbove ?? 50000) ? 0 : settings.deliveryFee ?? 4000;
+
+    // Multi-vendor delivery pricing (distance-based, local vs third-party courier)
+    const deliveryBreakdown = deliveryPricingService.calculate({
+      stores: stores as never,
+      shippingAddress: input.shippingAddress,
+      itemsTotal,
+      settings,
+    });
+    const delivery = deliveryBreakdown.finalDeliveryFee;
     const grandTotal = taxable + tax + delivery;
 
     const order = await Order.create({
@@ -215,6 +224,7 @@ export const ordersService = {
       couponCode,
       pointsRedeemed,
       amounts: { itemsTotal, discount: discount + pointsDiscount, tax, delivery, grandTotal },
+      deliveryBreakdown,
       contact: input.contact,
       shippingAddress: input.shippingAddress,
       status: 'pending',
@@ -267,6 +277,80 @@ export const ordersService = {
     // email for carts they never finished paying for.
 
     return order;
+  },
+
+  /**
+   * Preview price, tax, discount, and multi-vendor delivery charges before placing the order.
+   * Runs the exact same transparent logic as create() without mutating database records.
+   */
+  async quote(customerId: string | undefined, input: CreateOrderInput) {
+    if (!input.items?.length) throw AppError.badRequest('EMPTY_CART', 'Cart is empty');
+
+    const lines = [];
+    for (const item of input.items) {
+      const product = await Product.findById(item.productId).lean();
+      if (!product) continue;
+      const variant = product.variants.find((v) => v.sku === item.variantSku);
+      if (!variant) continue;
+
+      const chosen: { name: string; priceDelta: number }[] = [];
+      for (const name of item.modifierNames ?? []) {
+        for (const group of product.modifierGroups) {
+          const opt = group.options.find((o) => o.name === name);
+          if (opt) chosen.push({ name: opt.name, priceDelta: opt.priceDelta });
+        }
+      }
+      const unitPrice = variant.price + sum(chosen.map((m) => m.priceDelta));
+      lines.push({
+        productId: product._id,
+        storeId: product.storeId,
+        qty: item.qty,
+        lineTotal: unitPrice * item.qty,
+      });
+    }
+
+    const itemsTotal = sum(lines.map((l) => l.lineTotal));
+    const storeIds = [...new Set(lines.map((l) => String(l.storeId)))];
+    const stores = await Store.find({ _id: { $in: storeIds } })
+      .select('name location address city')
+      .lean();
+
+    const settings = await getSettings();
+    let discount = 0;
+    if (input.couponCode) {
+      try {
+        const c = await computeDiscount(input.couponCode, itemsTotal);
+        discount = c.discount;
+      } catch (_) {}
+    }
+    let pointsDiscount = 0;
+    if (input.redeemPoints && customerId) {
+      try {
+        const preview = await previewRedeem(customerId, input.redeemPoints, itemsTotal - discount);
+        pointsDiscount = preview.discount;
+      } catch (_) {}
+    }
+
+    const taxable = itemsTotal - discount - pointsDiscount;
+    const tax = percentOf(taxable, settings.taxPercent ?? 5);
+
+    const deliveryBreakdown = deliveryPricingService.calculate({
+      stores: stores as never,
+      shippingAddress: input.shippingAddress,
+      itemsTotal,
+      settings,
+    });
+    const delivery = deliveryBreakdown.finalDeliveryFee;
+    const grandTotal = taxable + tax + delivery;
+
+    return {
+      itemsTotal,
+      discount: discount + pointsDiscount,
+      tax,
+      delivery,
+      grandTotal,
+      deliveryBreakdown,
+    };
   },
 
   /** Update order status. Vendors may only touch orders that include their store. */

@@ -17,6 +17,7 @@ import { whatsappProvider } from '../../providers/whatsapp/index.js';
 import { routingService } from '../routing/routing.service.js';
 import { RiderPayoutRate } from '../riders/rider-payout-rate.model.js';
 import { WhatsAppTemplate } from '../whatsapp/whatsapp.module.js';
+import { haversineKm } from '../../common/geo.js';
 
 export interface OrderForDeliveryTasks {
   _id: unknown;
@@ -82,29 +83,73 @@ const VALID_FROM: Partial<Record<TaskStatus, TaskStatus[]>> = {
  * (never N+1 per task) and merged onto each task as flat fields, so the rider app's
  * TaskModel can parse them directly without a second round-trip per task.
  */
-async function enrichTasksForRider<T extends { storeId: unknown; customerId: unknown; orderId: unknown }>(
+async function enrichTasksForRider<T extends {
+  storeId: unknown;
+  customerId: unknown;
+  orderId: unknown;
+  pickupAddress?: { lat?: number | null; lng?: number | null; city?: string | null } | null;
+  dropAddress?: { lat?: number | null; lng?: number | null; city?: string | null } | null;
+  payoutAmount?: number | null;
+  payoutDistanceMeters?: number | null;
+}>(
   tasks: T[],
 ): Promise<(T & {
   storeName?: string | null; storePhone?: string | null;
   customerName?: string | null; customerPhone?: string | null;
   codAmount?: number | null;
+  pickupDropDistanceKm?: number | null;
+  ratePerKm?: number | null;
+  estimatedPayout?: number | null;
 })[]> {
   if (!tasks.length) return [];
   const storeIds = [...new Set(tasks.map((t) => String(t.storeId)))];
   const customerIds = [...new Set(tasks.map((t) => String(t.customerId)))];
   const orderIds = [...new Set(tasks.map((t) => String(t.orderId)))];
-  const [stores, customers, orders] = await Promise.all([
-    Store.find({ _id: { $in: storeIds } }).select('name contactPhone').lean(),
+  const [stores, customers, orders, rates] = await Promise.all([
+    Store.find({ _id: { $in: storeIds } }).select('name contactPhone address').lean(),
     User.find({ _id: { $in: customerIds } }).select('name phone').lean(),
     Order.find({ _id: { $in: orderIds } }).select('payment.method amounts.grandTotal').lean(),
+    RiderPayoutRate.find({ active: true }).lean(),
   ]);
   const storeById = new Map(stores.map((s) => [String(s._id), s]));
   const customerById = new Map(customers.map((c) => [String(c._id), c]));
   const orderById = new Map(orders.map((o) => [String(o._id), o]));
+  const rateByCity = new Map(rates.map((r) => [r.city.toLowerCase().trim(), r.ratePerKm]));
+
   return tasks.map((t) => {
     const store = storeById.get(String(t.storeId));
     const customer = customerById.get(String(t.customerId));
     const order = orderById.get(String(t.orderId));
+
+    const pLat = t.pickupAddress?.lat ?? (store as any)?.address?.lat;
+    const pLng = t.pickupAddress?.lng ?? (store as any)?.address?.lng;
+    const dLat = t.dropAddress?.lat;
+    const dLng = t.dropAddress?.lng;
+
+    let pickupDropDistanceKm: number | undefined;
+    if (pLat != null && pLng != null && dLat != null && dLng != null) {
+      const d = haversineKm({ lat: pLat, lng: pLng }, { lat: dLat, lng: dLng });
+      pickupDropDistanceKm = Math.round(d * 10) / 10;
+    } else if (t.payoutDistanceMeters != null) {
+      pickupDropDistanceKm = Math.round(((t.payoutDistanceMeters / 1000)) * 10) / 10;
+    }
+
+    const dropCity = (t.dropAddress?.city || t.pickupAddress?.city || (store as any)?.address?.city || '').toLowerCase().trim();
+    // Default rate: 800 paise (₹8/km) if city not explicitly added yet
+    const ratePerKm = rateByCity.get(dropCity) ?? 800;
+    const estimatedPayout = t.payoutAmount ?? (pickupDropDistanceKm != null ? Math.round(pickupDropDistanceKm * ratePerKm) : undefined);
+
+    logger.info(
+      {
+        taskId: (t as any)._id,
+        orderNumber: (t as any).orderNumber,
+        pickupDropDistanceKm,
+        ratePerKm,
+        estimatedPayout,
+      },
+      `[RIDER TASK ENRICH] pickup-to-drop: ${pickupDropDistanceKm ?? 'N/A'}km @ ₹${(ratePerKm / 100).toFixed(2)}/km => payout ₹${estimatedPayout != null ? (estimatedPayout / 100).toFixed(2) : 'N/A'}`
+    );
+
     return {
       ...t,
       storeName: store?.name,
@@ -112,6 +157,9 @@ async function enrichTasksForRider<T extends { storeId: unknown; customerId: unk
       customerName: customer?.name,
       customerPhone: customer?.phone,
       codAmount: order?.payment?.method === 'cod' ? order.amounts?.grandTotal : undefined,
+      pickupDropDistanceKm,
+      ratePerKm,
+      estimatedPayout,
     };
   });
 }
@@ -242,6 +290,20 @@ export const deliveryTasksService = {
           }
         : undefined;
 
+      let pickupDropDistanceKm: number | undefined;
+      const pLat = pickupAddress?.lat;
+      const pLng = pickupAddress?.lng;
+      const dLat = dropAddress?.lat;
+      const dLng = dropAddress?.lng;
+      if (pLat != null && pLng != null && dLat != null && dLng != null) {
+        const d = haversineKm({ lat: pLat, lng: pLng }, { lat: dLat, lng: dLng });
+        pickupDropDistanceKm = Math.round(d * 10) / 10;
+      }
+      const city = (dropAddress?.city || pickupAddress?.city || '').toLowerCase().trim();
+      const rateDoc = await RiderPayoutRate.findOne({ city, active: true }).lean();
+      const ratePerKm = rateDoc?.ratePerKm ?? 800; // 800 paise = ₹8/km
+      const estimatedPayout = pickupDropDistanceKm != null ? Math.round(pickupDropDistanceKm * ratePerKm) : undefined;
+
       const task = await DeliveryTask.findOneAndUpdate(
         { orderId: order._id, storeId },
         {
@@ -256,6 +318,9 @@ export const deliveryTasksService = {
             statusHistory: [{ status: 'pending', at: new Date() }],
             pickupAddress,
             dropAddress,
+            pickupDropDistanceKm,
+            ratePerKm,
+            estimatedPayout,
             fulfillmentSource,
             instructions,
           },
@@ -448,6 +513,7 @@ export const deliveryTasksService = {
     announceTaskEvent(task, previousRiderId && String(previousRiderId) !== riderId ? 'reassigned' : 'assigned', riderId, rider.name);
     if (previousRiderId && String(previousRiderId) !== riderId) {
       void notifyRider(String(previousRiderId), { title: 'Delivery reassigned', body: `${task.orderNumber} was moved to another rider` });
+      announceTaskEvent(task, 'reassigned', String(previousRiderId));
     }
     return task;
   },

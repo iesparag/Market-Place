@@ -1,7 +1,7 @@
 name: rider_app
 description: Marketplace delivery rider app — accept jobs, navigate, deliver.
 publish_to: 'none'
-version: 1.0.2+16
+version: 1.0.2+18
 
 environment:
   sdk: ^3.10.7
@@ -24,6 +24,8 @@ dependencies:
   flutter_background_service: ^5.1.0  # keeps location pings flowing while the app is backgrounded
   url_launcher: ^6.3.0            # call customer/vendor, open turn-by-turn navigation
   collection: ^1.19.0              # firstOrNull
+  flutter_ringtone_player: ^4.0.0+4
+  volume_controller: ^3.5.0
 
 dev_dependencies:
   flutter_test:
@@ -46,3 +48,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/
+    - assets/sounds/

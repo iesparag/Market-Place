@@ -19,6 +19,8 @@ class RiderApp extends StatelessWidget {
       title: 'MP Delivery',
       debugShowCheckedModeBanner: false,
       theme: RiderTheme.light(),
+      darkTheme: RiderTheme.dark(),
+      themeMode: ThemeMode.system,
       routerConfig: appRouter,
     );
   }

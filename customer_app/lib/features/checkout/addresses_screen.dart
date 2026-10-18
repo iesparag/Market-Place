@@ -61,14 +61,36 @@ class AddressesScreen extends ConsumerWidget {
                               const SizedBox(height: 10),
                           itemBuilder: (_, i) {
                             final a = list[i];
-                            return Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                  color: context.colors.surface,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border:
-                                      Border.all(color: context.colors.border)),
-                              child: Row(
+                            final activeId = ref.watch(activeAddressIdProvider);
+                            final isCurrentActive =
+                                activeId != null ? a.id == activeId : a.isDefault;
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () {
+                                ref.read(activeAddressIdProvider.notifier).state =
+                                    a.id;
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Delivering to ${a.label} (${a.city})'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                    color: isCurrentActive
+                                        ? context.brand.soft
+                                        : context.colors.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                        color: isCurrentActive
+                                            ? context.brand.primary
+                                            : context.colors.border,
+                                        width: isCurrentActive ? 1.6 : 1)),
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Icon(
@@ -216,7 +238,9 @@ class AddressesScreen extends ConsumerWidget {
                                         },
                                       ),
                                     ]),
-                                  ]),
+                                  ],
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -557,8 +581,9 @@ class AddressesScreen extends ConsumerWidget {
                               }
                               saving.value = true;
                               try {
+                                Address saved;
                                 if (existing != null) {
-                                  await ref
+                                  saved = await ref
                                       .read(checkoutRepoProvider)
                                       .updateAddress(
                                         id: existing.id,
@@ -577,7 +602,7 @@ class AddressesScreen extends ConsumerWidget {
                                         lng: lng,
                                       );
                                 } else {
-                                  await ref
+                                  saved = await ref
                                       .read(checkoutRepoProvider)
                                       .addAddress(
                                         label: addressType.value,
@@ -596,6 +621,8 @@ class AddressesScreen extends ConsumerWidget {
                                       );
                                 }
                                 ref.invalidate(addressesProvider);
+                                ref.read(activeAddressIdProvider.notifier).state =
+                                    saved.id;
                                 if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                               } finally {
                                 saving.value = false;

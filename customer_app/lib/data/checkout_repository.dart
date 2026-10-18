@@ -143,6 +143,44 @@ class CheckoutRepository {
     );
   }
 
+  /// Fetches an authoritative multi-vendor delivery calculation and quote from the backend.
+  Future<Map<String, dynamic>> quoteOrder({
+    required List<CartLine> lines,
+    Address? address,
+    String? couponCode,
+    int? redeemPoints,
+  }) async {
+    final items = lines
+        .map((l) => {
+              'productId': l.productId,
+              'variantSku': l.variantSku,
+              'qty': l.qty
+            })
+        .toList();
+    final data = await api.post('/orders/quote', body: {
+      'items': items,
+      if (couponCode != null && couponCode.isNotEmpty)
+        'couponCode': couponCode,
+      if (redeemPoints != null && redeemPoints > 0)
+        'redeemPoints': redeemPoints,
+      if (address != null)
+        'shippingAddress': {
+          'line1': address.line1,
+          'city': address.city,
+          if (address.line2 != null && address.line2!.isNotEmpty)
+            'line2': address.line2,
+          if (address.landmark != null && address.landmark!.isNotEmpty)
+            'landmark': address.landmark,
+          if (address.state != null && address.state!.isNotEmpty)
+            'state': address.state,
+          if (address.pincode != null) 'pincode': address.pincode,
+          if (address.lat != null) 'lat': address.lat,
+          if (address.lng != null) 'lng': address.lng,
+        },
+    }) as Map<String, dynamic>;
+    return data;
+  }
+
   Future<OrderModel> placeOrder({
     required List<CartLine> lines,
     Address? address,

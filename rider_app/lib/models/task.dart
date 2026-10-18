@@ -1,3 +1,5 @@
+import 'package:geolocator/geolocator.dart';
+
 class TaskItem {
   final String title;
   final int qty;
@@ -99,6 +101,9 @@ class TaskModel {
   /// task is delivered, AND if no rate is configured yet for that city.
   final int? payoutAmount;
   final int? payoutDistanceMeters;
+  final double? pickupDropDistanceKm;
+  final int? ratePerKm;
+  final int? estimatedPayout;
 
   TaskModel({
     required this.id,
@@ -117,12 +122,63 @@ class TaskModel {
     this.updatedAt,
     this.payoutAmount,
     this.payoutDistanceMeters,
+    this.pickupDropDistanceKm,
+    this.ratePerKm,
+    this.estimatedPayout,
   });
 
   bool get isCod => codAmount != null;
 
   bool get isReadyForPickup => status == 'ready';
   bool get isDelivered => status == 'delivered';
+
+  /// Best available payout amount in paise.
+  int get finalOrEstimatedPayout => payoutAmount ?? estimatedPayout ?? 0;
+
+  /// Effective rate in ₹/km.
+  double get rateRupeesPerKm => (ratePerKm ?? 800) / 100.0;
+
+  /// Pickup-to-drop distance in km.
+  double? get deliveryLegKm {
+    if (pickupDropDistanceKm != null && pickupDropDistanceKm! > 0) {
+      return pickupDropDistanceKm;
+    }
+    if (payoutDistanceMeters != null && payoutDistanceMeters! > 0) {
+      return (payoutDistanceMeters! / 1000.0 * 10).round() / 10.0;
+    }
+    if (pickup.hasLocation && drop.hasLocation) {
+      final meters = Geolocator.distanceBetween(
+        pickup.lat!,
+        pickup.lng!,
+        drop.lat!,
+        drop.lng!,
+      );
+      return (meters / 1000.0 * 10).round() / 10.0;
+    }
+    return null;
+  }
+
+  /// Rider-to-pickup distance in km.
+  double? riderToPickupKm(double? riderLat, double? riderLng) {
+    if (riderLat == null || riderLng == null || !pickup.hasLocation) return null;
+    final meters = Geolocator.distanceBetween(
+      riderLat,
+      riderLng,
+      pickup.lat!,
+      pickup.lng!,
+    );
+    return (meters / 1000.0 * 10).round() / 10.0;
+  }
+
+  /// Total trip distance: (Rider -> Pickup) + (Pickup -> Drop).
+  double? totalTripKm(double? riderLat, double? riderLng) {
+    final leg1 = riderToPickupKm(riderLat, riderLng);
+    final leg2 = deliveryLegKm;
+    if (leg1 != null && leg2 != null) {
+      return ((leg1 + leg2) * 10).round() / 10.0;
+    }
+    return leg2 ?? leg1;
+  }
 
   /// The step the rider should take next, or null once delivered (nothing left to do)
   /// or if the task is still 'ready' (use [isReadyForPickup] — the first step, index 0,
@@ -163,6 +219,9 @@ class TaskModel {
       updatedAt: DateTime.tryParse(j['updatedAt']?.toString() ?? ''),
       payoutAmount: (j['payoutAmount'] as num?)?.toInt(),
       payoutDistanceMeters: (j['payoutDistanceMeters'] as num?)?.toInt(),
+      pickupDropDistanceKm: (j['pickupDropDistanceKm'] as num?)?.toDouble(),
+      ratePerKm: (j['ratePerKm'] as num?)?.toInt(),
+      estimatedPayout: (j['estimatedPayout'] as num?)?.toInt(),
     );
   }
 }

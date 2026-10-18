@@ -206,6 +206,7 @@ class OrderModel {
   final OrderContact? contact;
   final OrderShippingAddress? shippingAddress;
   final List<DeliveryTaskInfo> deliveryTasks;
+  final Map<String, dynamic>? deliveryBreakdown;
 
   OrderModel({
     required this.id,
@@ -224,6 +225,7 @@ class OrderModel {
     this.contact,
     this.shippingAddress,
     this.deliveryTasks = const [],
+    this.deliveryBreakdown,
   });
 
   bool get isPaid => paymentStatus == 'paid';
@@ -275,8 +277,9 @@ class OrderModel {
       itemCount = items.fold(0, (n, it) => n + it.qty);
     } else if (j['subOrders'] is List) {
       for (final so in (j['subOrders'] as List)) {
-        if (so is Map && so['items'] is List)
+        if (so is Map && so['items'] is List) {
           itemCount += (so['items'] as List).length;
+        }
       }
     }
 
@@ -307,6 +310,7 @@ class OrderModel {
               .map((e) => DeliveryTaskInfo.fromJson(e.cast<String, dynamic>()))
               .toList()
           : const [],
+      deliveryBreakdown: (j['deliveryBreakdown'] as Map?)?.cast<String, dynamic>(),
     );
   }
 }

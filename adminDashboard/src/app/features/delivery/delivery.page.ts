@@ -22,6 +22,11 @@ interface DeliveryTask {
   excludedRiderIds?: string[];
   dropAddress?: { line1?: string; city?: string; pincode?: string; lat?: number; lng?: number };
   thirdParty?: { provider?: string; trackingUrl?: string };
+  payoutDistanceMeters?: number;
+  payoutAmount?: number;
+  pickupDropDistanceKm?: number;
+  ratePerKm?: number;
+  estimatedPayout?: number;
   createdAt: string;
 }
 
@@ -86,7 +91,7 @@ interface DeliverySettings {
       <div class="card card--flush">
         <table class="table">
           <thead>
-            <tr><th>Order</th><th>Drop</th><th>Source</th><th>Status</th><th>Rider</th><th class="rcol" *hasPermission="'delivery:assign'"></th></tr>
+            <tr><th>Order</th><th>Drop</th><th>Source</th><th>Status</th><th>Distance & Payout</th><th>Rider</th><th class="rcol" *hasPermission="'delivery:assign'"></th></tr>
           </thead>
           <tbody>
             @for (t of tasks(); track t._id) {
@@ -103,6 +108,19 @@ interface DeliverySettings {
                 </td>
                 <td>
                   <span class="badge" [class.badge-success]="t.status === 'delivered'" [class.badge-info]="isInTransit(t.status)" [class.badge-warning]="t.status === 'ready'">{{ statusLabel(t.status) }}</span>
+                </td>
+                <td>
+                  <div class="tiny" style="font-weight: 700;">
+                    {{ t.pickupDropDistanceKm != null ? t.pickupDropDistanceKm + ' km' : (t.payoutDistanceMeters ? (t.payoutDistanceMeters / 1000 | number:'1.1-1') + ' km' : '—') }}
+                  </div>
+                  <div class="tiny muted">
+                    @if (t.payoutAmount || t.estimatedPayout) {
+                      <span class="badge badge-success tiny">₹{{ ((t.payoutAmount || t.estimatedPayout!) / 100) | number:'1.0-0' }}</span>
+                      <span style="font-size: 10px; margin-left: 3px;">(₹{{ ((t.ratePerKm || 800) / 100) | number:'1.0-0' }}/km)</span>
+                    } @else {
+                      <span class="muted tiny">—</span>
+                    }
+                  </div>
                 </td>
                 <td>
                   @if (t.riderId) {

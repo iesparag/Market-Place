@@ -8,6 +8,7 @@ import '../../core/location/delivery_resolution.dart';
 import '../../data/providers.dart';
 import '../../models/store.dart';
 import '../../models/address.dart';
+import '../../data/payment_repository.dart';
 import 'cart_controller.dart';
 import '../../shared/widgets/safe_pop_scope.dart';
 import '../../shared/widgets/product_card.dart';
@@ -21,6 +22,14 @@ class CartScreen extends ConsumerWidget {
     final cart = ref.read(cartProvider.notifier);
     final subtotal = lines.fold<int>(0, (n, l) => n + l.lineTotal);
     final activeAddress = ref.watch(activeDeliveryAddressProvider);
+    final pricing = ref.watch(pricingSettingsProvider).valueOrNull;
+    final stores = ref.watch(vendorsProvider).valueOrNull ?? const [];
+    final deliveryQuote = pricing?.quote(
+      subtotal,
+      address: activeAddress,
+      lines: lines,
+      stores: stores,
+    );
 
     // Grouped by vendor — a multi-vendor cart gets one instructions box per store, not
     // one note that would be shown to every vendor regardless of relevance.
@@ -48,6 +57,14 @@ class CartScreen extends ConsumerWidget {
                     address: activeAddress,
                     onChange: () => _showAddressPicker(context, ref),
                   ),
+                  if (deliveryQuote?.deliveryBreakdown != null) ...[
+                    const SizedBox(height: 10),
+                    _CartDeliveryEstimateCard(
+                      breakdown: deliveryQuote!.deliveryBreakdown!,
+                      address: activeAddress,
+                      subtotal: subtotal,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   for (final entry in groups.entries) ...[
                     _VendorGroup(
@@ -71,10 +88,20 @@ class CartScreen extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Subtotal',
-                            style: TextStyle(
-                                color: context.colors.textMuted, fontSize: 12)),
-                        Text(rupees(subtotal),
+                        Text(
+                          deliveryQuote != null
+                              ? 'Delivery: ${deliveryQuote.delivery == 0 ? "FREE" : rupees(deliveryQuote.delivery)}'
+                              : 'Subtotal',
+                          style: TextStyle(
+                              color: deliveryQuote?.delivery == 0
+                                  ? context.colors.success
+                                  : context.colors.textMuted,
+                              fontWeight: deliveryQuote?.delivery == 0
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 12),
+                        ),
+                        Text(rupees(deliveryQuote?.grandTotal ?? subtotal),
                             style: const TextStyle(
                                 fontWeight: FontWeight.w900, fontSize: 18)),
                       ],
@@ -1013,7 +1040,7 @@ void _showAddressPicker(BuildContext context, WidgetRef ref) {
                   const SizedBox(height: 12),
                   if (addresses.isEmpty)
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       child: Center(
                         child: Text('No saved addresses yet',
                             style: TextStyle(color: context.colors.textMuted)),
@@ -1150,6 +1177,112 @@ class _CartRecommendations extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CartDeliveryEstimateCard extends StatelessWidget {
+  final MultiVendorDeliveryQuoteBreakdown breakdown;
+  final Address? address;
+  final int subtotal;
+
+  const _CartDeliveryEstimateCard({
+    required this.breakdown,
+    required this.address,
+    required this.subtotal,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final b = context.brand;
+    final isFree = breakdown.isFreeDelivery;
+    final count = breakdown.vendors.length;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_shipping_outlined,
+                  size: 16, color: Color(0xFF0284C7)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  count > 1
+                      ? 'Multi-Vendor Delivery ($count Stores)'
+                      : 'Delivery to ${address?.city ?? "your address"}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      color: Color(0xFF0F172A)),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isFree ? const Color(0xFFDCFCE7) : b.soft,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isFree ? 'FREE' : rupees(breakdown.finalDeliveryFee),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: isFree ? const Color(0xFF15803D) : b.primaryDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final leg in breakdown.vendors) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Text(leg.isLocal ? '⚡' : '📦',
+                      style: const TextStyle(fontSize: 12)),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      '${leg.storeName} (${leg.distanceKm != null ? "${leg.distanceKm!.toStringAsFixed(1)} km" : (leg.isLocal ? "Local" : "Courier")}) · ${leg.calculationText}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF475569)),
+                    ),
+                  ),
+                  Text(
+                    rupees(leg.vendorDeliveryFee),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (!isFree && breakdown.freeDeliveryRemaining > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                '💡 Add ${rupees(breakdown.freeDeliveryRemaining)} more for Free Delivery!',
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFB45309)),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

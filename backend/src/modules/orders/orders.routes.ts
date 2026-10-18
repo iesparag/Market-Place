@@ -7,6 +7,7 @@ import { ordersController } from './orders.controller.js';
 export const ordersRoutes = Router();
 
 // Any authenticated user can place an order (customer) and list their own.
+ordersRoutes.post('/quote', authenticate, asyncHandler(ordersController.quote));
 ordersRoutes.post('/', authenticate, asyncHandler(ordersController.create));
 ordersRoutes.get('/', authenticate, asyncHandler(ordersController.list));
 // Must precede '/:id' — otherwise Express would match "recent-products" as an :id param.
