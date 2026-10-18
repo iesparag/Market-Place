@@ -52,3 +52,30 @@ analyticsRoutes.get(
     });
   }),
 );
+
+/** Daily orders + revenue for the last N days — the Analytics page's trend chart. */
+analyticsRoutes.get(
+  '/timeseries',
+  authenticate,
+  authorize('analytics:read'),
+  asyncHandler(async (req, res) => {
+    const user = req.user!;
+    const scoped = user.role === Role.VENDOR || user.role === Role.VENDOR_STAFF;
+    const orderFilter = scoped ? { storeIds: user.storeId } : {};
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const rows = await Order.aggregate<{ _id: string; orders: number; revenue: number }>([
+      { $match: { ...orderFilter, createdAt: { $gte: since }, status: { $in: ['paid', 'fulfilled'] } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          orders: { $sum: 1 },
+          revenue: { $sum: '$amounts.grandTotal' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+    ok(res, rows.map((r) => ({ date: r._id, orders: r.orders, revenue: r.revenue })));
+  }),
+);

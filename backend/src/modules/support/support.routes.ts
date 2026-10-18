@@ -5,8 +5,10 @@ import { authorize } from '../../middleware/authorize.js';
 import { asyncHandler } from '../../common/asyncHandler.js';
 import { env } from '../../config/env.js';
 import { supportController as c } from './support.controller.js';
+import { kbRoutes } from './kb.module.js';
 
 export const supportRoutes = Router();
+supportRoutes.use('/kb', kbRoutes);
 
 // Per-user cap on bot messages (cost + abuse guard). Runs after authenticate so req.user exists.
 const messageLimiter = rateLimit({

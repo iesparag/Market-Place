@@ -175,6 +175,31 @@ export const routes: Routes = [
         loadComponent: () => import('./features/audit/audit.page').then((m) => m.AuditPage),
       },
       {
+        path: 'analytics',
+        canMatch: [permissionGuard('analytics:read')],
+        loadComponent: () => import('./features/analytics/analytics.page').then((m) => m.AnalyticsPage),
+      },
+      {
+        path: 'support',
+        canMatch: [permissionGuard('support:read')],
+        loadComponent: () => import('./features/support/support-inbox.page').then((m) => m.SupportInboxPage),
+      },
+      {
+        path: 'support/kb',
+        canMatch: [permissionGuard('kb:manage')],
+        loadComponent: () => import('./features/support/kb.page').then((m) => m.KbPage),
+      },
+      {
+        path: 'support/settings',
+        canMatch: [permissionGuard('support:config')],
+        loadComponent: () => import('./features/support/support-settings.page').then((m) => m.SupportSettingsPage),
+      },
+      {
+        path: 'integrations',
+        canMatch: [permissionGuard('integration:manage')],
+        loadComponent: () => import('./features/integrations/integrations.page').then((m) => m.IntegrationsPage),
+      },
+      {
         path: 'error-reports',
         canMatch: [permissionGuard('errors:view')],
         loadComponent: () =>

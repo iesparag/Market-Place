@@ -39,6 +39,7 @@ import { errorLogRoutes } from '../modules/errorlog/errorlog.module.js';
 import { loyaltyRoutes } from '../modules/loyalty/loyalty.module.js';
 import { referralRoutes } from '../modules/referral/referral.module.js';
 import { recentlyViewedRoutes } from '../modules/recentlyviewed/recently-viewed.module.js';
+import { integrationsRoutes } from '../modules/integrations/integrations.module.js';
 
 /**
  * Mount every module router. As modules are built, register them here.
@@ -87,6 +88,7 @@ export function buildApiRouter(): Router {
   api.use('/loyalty', loyaltyRoutes);
   api.use('/referral', referralRoutes);
   api.use('/recently-viewed', recentlyViewedRoutes);
+  api.use('/integrations', integrationsRoutes);
 
   return api;
 }
