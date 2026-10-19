@@ -33,9 +33,6 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.1  # generates the launcher icon for all densities
 
-dependency_overrides:
-  geolocator_android: 4.6.1
-
 # Launcher icon: brand green + shopping bag. Run: dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
