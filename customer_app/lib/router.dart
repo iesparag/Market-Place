@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'core/theme/theme.dart';
 import 'features/shell/app_shell.dart';
 import 'features/now/now_screen.dart';
 import 'shared/widgets/safe_pop_scope.dart';
@@ -74,6 +75,9 @@ final appRouter = GoRouter(
         path: '/p/:slug',
         builder: (_, s) => ProductScreen(slug: s.pathParameters['slug']!)),
     GoRoute(
+        path: '/product/:slug',
+        redirect: (_, s) => '/p/${s.pathParameters['slug']}'),
+    GoRoute(
         path: '/store/:slug',
         builder: (_, s) => StoreScreen(slug: s.pathParameters['slug']!)),
     GoRoute(path: '/stores', builder: (_, __) => const StoresListScreen()),
@@ -84,8 +88,16 @@ final appRouter = GoRouter(
     GoRoute(path: '/cart', builder: (_, __) => const CartScreen()),
     GoRoute(path: '/checkout', builder: (_, __) => const CheckoutScreen()),
     GoRoute(path: '/addresses', builder: (_, __) => const AddressesScreen()),
+    GoRoute(path: '/account/addresses', redirect: (_, __) => '/addresses'),
     GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
     GoRoute(path: '/orders', builder: (_, __) => const OrdersScreen()),
+    GoRoute(path: '/account/orders', redirect: (_, __) => '/orders'),
+    GoRoute(
+        path: '/account/orders/:id',
+        redirect: (_, s) => '/order/${s.pathParameters['id']}'),
+    GoRoute(
+        path: '/orders/:id',
+        redirect: (_, s) => '/order/${s.pathParameters['id']}'),
     GoRoute(
         path: '/order/:id',
         builder: (_, s) => OrderDetailScreen(orderId: s.pathParameters['id']!)),
@@ -122,4 +134,43 @@ final appRouter = GoRouter(
         path: '/forgot-password',
         builder: (_, __) => const ForgotPasswordScreen()),
   ],
+  errorBuilder: (context, state) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Page Not Found'),
+      leading: const AppBackButton(),
+    ),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off_rounded,
+                size: 64, color: context.colors.textMuted),
+            const SizedBox(height: 16),
+            Text(
+              'Page not found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: context.colors.ink,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The page you requested could not be found.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: context.colors.textMuted),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/'),
+              icon: const Icon(Icons.home_rounded),
+              label: const Text('Back to Home'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ),
 );

@@ -1146,11 +1146,11 @@ class _AddressCard extends StatelessWidget {
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? b.soft : Colors.white,
+          color: selected ? b.soft : context.colors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: selected ? b.primary : context.colors.border,
-              width: selected ? 1.5 : 1),
+              width: selected ? 1.6 : 1),
         ),
         child: Row(children: [
           Icon(
@@ -1165,7 +1165,9 @@ class _AddressCard extends StatelessWidget {
               children: [
                 Row(children: [
                   Text(address.label,
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: context.colors.ink)),
                   if (address.isDefault) ...[
                     const SizedBox(width: 8),
                     Container(
@@ -1177,6 +1179,7 @@ class _AddressCard extends StatelessWidget {
                         child: Text('Default',
                             style: TextStyle(
                                 fontSize: 10,
+                                fontWeight: FontWeight.w700,
                                 color: context.colors.textMuted))),
                   ],
                 ]),
@@ -1185,9 +1188,12 @@ class _AddressCard extends StatelessWidget {
                     style: TextStyle(
                         color: context.colors.textMuted, fontSize: 13)),
                 if (address.phone != null && address.phone!.isNotEmpty)
-                  Text('📞 ${address.phone}',
-                      style: TextStyle(
-                          color: context.colors.textMuted, fontSize: 12)),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text('📞 ${address.phone}',
+                        style: TextStyle(
+                            color: context.colors.textMuted, fontSize: 12)),
+                  ),
               ],
             ),
           ),
@@ -1223,11 +1229,11 @@ class _MethodCard extends StatelessWidget {
           margin: const EdgeInsets.only(top: 10),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: selected && enabled ? b.soft : Colors.white,
+            color: selected && enabled ? b.soft : context.colors.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected && enabled ? b.primary : context.colors.border,
-              width: selected && enabled ? 1.5 : 1,
+              width: selected && enabled ? 1.6 : 1,
             ),
           ),
           child: Row(children: [
@@ -1246,7 +1252,9 @@ class _MethodCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(method.label,
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: context.colors.ink)),
                     const SizedBox(height: 2),
                     Text(subtitle,
                         style: TextStyle(
@@ -1271,14 +1279,15 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
     final stores = ref.watch(vendorsProvider).valueOrNull ?? [];
     final slots = ref.watch(cartDeliverySlotsProvider);
     final storeIds = lines.map((l) => l.storeId).toSet();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1316,9 +1325,15 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 6),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F9FF),
+                    color: isDark
+                        ? const Color(0xFF0369A1).withValues(alpha: 0.16)
+                        : const Color(0xFFF0F9FF),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFBAE6FD)),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF0284C7).withValues(alpha: 0.4)
+                          : const Color(0xFFBAE6FD),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1333,19 +1348,23 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                           children: [
                             Text(
                               '$storeName · Standard Courier Delivery',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 12.5,
-                                  color: Color(0xFF0369A1)),
+                                  color: isDark
+                                      ? const Color(0xFF38BDF8)
+                                      : const Color(0xFF0369A1)),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               eval.distanceKm != null
                                   ? 'Distance: ~${eval.distanceKm!.round()} km · Estimated 5–7 business days'
                                   : 'Intercity destination · Estimated 5–7 business days',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 11,
-                                  color: Color(0xFF0C4A6E),
+                                  color: isDark
+                                      ? const Color(0xFF7DD3FC)
+                                      : const Color(0xFF0C4A6E),
                                   fontWeight: FontWeight.w600),
                             ),
                             if (address!.city.isNotEmpty)
@@ -1353,8 +1372,11 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text(
                                   'Shipping to ${address!.label} (${address!.city}${address!.pincode != null ? ' - ${address!.pincode}' : ''}) from ${vendor?.city ?? 'vendor city'}',
-                                  style: const TextStyle(
-                                      fontSize: 10.5, color: Color(0xFF0284C7)),
+                                  style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: isDark
+                                          ? const Color(0xFFBAE6FD)
+                                          : const Color(0xFF0284C7)),
                                 ),
                               ),
                           ],
@@ -1370,15 +1392,24 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 6),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F3FF),
+                    color: isDark
+                        ? const Color(0xFF7C3AED).withValues(alpha: 0.16)
+                        : const Color(0xFFF5F3FF),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFDDD6FE)),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF8B5CF6).withValues(alpha: 0.4)
+                          : const Color(0xFFDDD6FE),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.event_available_rounded,
-                          size: 16, color: Color(0xFF7C3AED)),
+                      Icon(Icons.event_available_rounded,
+                          size: 16,
+                          color: isDark
+                              ? const Color(0xFFA78BFA)
+                              : const Color(0xFF7C3AED)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -1386,25 +1417,32 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                           children: [
                             Text(
                               '$storeName · Scheduled Local Delivery',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 12,
-                                  color: Color(0xFF5B21B6)),
+                                  color: isDark
+                                      ? const Color(0xFFC4B5FD)
+                                      : const Color(0xFF5B21B6)),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               slot?.label ??
                                   'Delivery as per your scheduled slot',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 11,
-                                  color: Color(0xFF4C1D95),
+                                  color: isDark
+                                      ? const Color(0xFFDDD6FE)
+                                      : const Color(0xFF4C1D95),
                                   fontWeight: FontWeight.w500),
                             ),
                             if (vendor != null && !vendor.isOpenNow)
-                              const Text(
+                              Text(
                                 'Store is currently closed · will prepare order for chosen slot',
                                 style: TextStyle(
-                                    fontSize: 10, color: Color(0xFF6D28D9)),
+                                    fontSize: 10,
+                                    color: isDark
+                                        ? const Color(0xFFA78BFA)
+                                        : const Color(0xFF6D28D9)),
                               ),
                           ],
                         ),
@@ -1419,9 +1457,15 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 6),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
+                  color: isDark
+                      ? const Color(0xFFD97706).withValues(alpha: 0.16)
+                      : const Color(0xFFFFFBEB),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                        : const Color(0xFFFDE68A),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1436,19 +1480,23 @@ class _DeliveryFulfillmentCard extends ConsumerWidget {
                         children: [
                           Text(
                             '$storeName · Express Now Delivery',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12,
-                                color: Color(0xFF92400E)),
+                                color: isDark
+                                    ? const Color(0xFFFDE68A)
+                                    : const Color(0xFF92400E)),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             eval.distanceKm != null
                                 ? 'Distance: ~${eval.distanceKm!.toStringAsFixed(1)} km · Delivered in 15–30 mins'
                                 : 'Express local delivery in 15–30 mins',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFF78350F),
+                                color: isDark
+                                    ? const Color(0xFFFCD34D)
+                                    : const Color(0xFF78350F),
                                 fontWeight: FontWeight.w500),
                           ),
                         ],

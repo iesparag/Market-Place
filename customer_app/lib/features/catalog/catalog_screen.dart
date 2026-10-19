@@ -473,7 +473,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                             color: context.colors.ink,
                             fontWeight: FontWeight.w700)),
                     value: _veg,
-                    activeThumbColor: context.colors.success,
+                    activeColor: context.colors.success,
                     onChanged: (v) => refresh(() => _veg = v),
                   ),
                   Text('Price',

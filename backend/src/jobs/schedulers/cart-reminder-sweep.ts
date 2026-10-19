@@ -1,3 +1,4 @@
+import { setInterval, clearInterval } from 'node:timers';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { Cart } from '../../modules/cart/cart.module.js';

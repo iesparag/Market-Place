@@ -504,6 +504,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       await ref.read(checkoutRepoProvider).cancelOrder(id);
       ref.invalidate(orderProvider(id));
       ref.invalidate(myOrdersProvider);
+      ref.invalidate(loyaltyBalanceProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Order cancelled')));

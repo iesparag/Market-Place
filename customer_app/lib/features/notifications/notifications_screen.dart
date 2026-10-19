@@ -69,7 +69,7 @@ class _NotificationTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final b = context.brand;
     return Material(
-      color: n.read ? Colors.white : b.soft,
+      color: n.read ? context.colors.surface : b.soft.withValues(alpha: 0.65),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -79,15 +79,30 @@ class _NotificationTile extends ConsumerWidget {
             ref.invalidate(notificationsProvider);
             ref.invalidate(unreadCountProvider);
           }
-          if (n.link != null && n.link!.startsWith('/') && context.mounted) {
-            context.push(n.link!);
+          if (n.link != null && n.link!.trim().isNotEmpty && context.mounted) {
+            var link = n.link!.trim();
+            if (!link.startsWith('/')) link = '/$link';
+            if (link == '/account/orders') {
+              link = '/orders';
+            } else if (link.startsWith('/account/orders/')) {
+              link = '/order/${link.substring('/account/orders/'.length)}';
+            } else if (link.startsWith('/orders/')) {
+              link = '/order/${link.substring('/orders/'.length)}';
+            } else if (link.startsWith('/product/')) {
+              link = '/p/${link.substring('/product/'.length)}';
+            }
+            context.push(link);
           }
         },
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.colors.border)),
+              border: Border.all(
+                  color: n.read
+                      ? context.colors.border
+                      : b.primary.withValues(alpha: 0.35),
+                  width: n.read ? 1 : 1.4)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -160,9 +175,9 @@ class _NotificationTile extends ConsumerWidget {
                         child: Container(
                           width: 105,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                            color: context.colors.bg,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(color: context.colors.border),
                           ),
                           padding: const EdgeInsets.all(6),
                           child: Column(
@@ -174,9 +189,9 @@ class _NotificationTile extends ConsumerWidget {
                                   child: p.image != null
                                       ? CachedNetworkImage(
                                           placeholder: (_, __) => Container(
-                                              color: context.colors.bg),
+                                              color: context.colors.surface),
                                           errorWidget: (_, __, ___) => Container(
-                                              color: context.colors.bg,
+                                              color: context.colors.surface,
                                               child: Icon(
                                                   Icons
                                                       .image_not_supported_outlined,
@@ -188,16 +203,17 @@ class _NotificationTile extends ConsumerWidget {
                                           width: double.infinity,
                                         )
                                       : Container(
-                                          color: const Color(0xFFE2E8F0)),
+                                          color: context.colors.surface),
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(p.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w700)),
+                                      fontWeight: FontWeight.w700,
+                                      color: context.colors.ink)),
                               const SizedBox(height: 2),
                               Row(
                                 children: [
@@ -297,9 +313,13 @@ class _TypeIcon extends StatelessWidget {
       width: 38,
       height: 38,
       margin: const EdgeInsets.only(top: 2),
-      decoration: BoxDecoration(color: brand.soft, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: brand.soft,
+        shape: BoxShape.circle,
+        border: Border.all(color: brand.primary.withValues(alpha: 0.25)),
+      ),
       alignment: Alignment.center,
-      child: Icon(_iconFor(type), color: brand.primaryDark, size: 19),
+      child: Icon(_iconFor(type), color: brand.primary, size: 20),
     );
   }
 

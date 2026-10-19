@@ -1,3 +1,4 @@
+import { setInterval, clearInterval } from 'node:timers';
 import { logger } from '../../config/logger.js';
 import { Wishlist } from '../../modules/wishlist/wishlist.module.js';
 import { Product } from '../../modules/products/product.model.js';
@@ -45,7 +46,7 @@ export async function sweepWishlistPriceDrops(): Promise<number> {
       type: 'promo',
       title: '📉 Price drop on your wishlist',
       body: `${product.title} is now cheaper — was ₹${(w.lastSeenPrice / 100).toFixed(0)}, now ₹${(product.minPrice / 100).toFixed(0)}.`,
-      link: `/product/${product.slug}`,
+      link: `/p/${product.slug}`,
       image: product.images?.[0],
       products: [
         {

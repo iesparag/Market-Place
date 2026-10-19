@@ -344,3 +344,19 @@ class AppTheme {
     );
   }
 }
+
+/// Compatibility extension for Flutter SDK versions before 3.27 that do not have `Color.withValues()`.
+extension ColorWithValuesCompat on Color {
+  Color withValues({
+    double? alpha,
+    double? red,
+    double? green,
+    double? blue,
+    dynamic colorSpace,
+  }) {
+    if (alpha != null) {
+      return withOpacity(alpha.clamp(0.0, 1.0));
+    }
+    return this;
+  }
+}

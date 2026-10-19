@@ -11,7 +11,7 @@ import { paymentProvider } from '../../providers/payment/index.js';
 import { paymentsService } from '../payments/payments.service.js';
 import { settlementService } from '../payments/settlement.service.js';
 import { computeDiscount, markCouponUsed } from '../coupons/coupons.module.js';
-import { previewRedeem, debitLoyaltyPoints } from '../loyalty/loyalty.module.js';
+import { previewRedeem, debitLoyaltyPoints, refundLoyaltyPoints } from '../loyalty/loyalty.module.js';
 import { emitToStore, emitToUser, emitToAdmin, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../notifications/notifications.module.js';
 import { sendOrderEmail, type NotifiableOrder } from './order-email.js';
@@ -387,6 +387,13 @@ export const ordersService = {
       await settlementService.settleCodCollected(id);
     }
 
+    if (status === 'cancelled') {
+      await restock(order.items);
+      if (order.pointsRedeemed && order.pointsRedeemed > 0) {
+        await refundLoyaltyPoints(String(order.customerId), order.pointsRedeemed, order._id);
+      }
+    }
+
     pushOrderStatus(order); // live socket + bell notification
     return order;
   },
@@ -436,6 +443,9 @@ export const ordersService = {
     order.status = 'cancelled';
     await order.save();
     await restock(order.items);
+    if (order.pointsRedeemed && order.pointsRedeemed > 0) {
+      await refundLoyaltyPoints(customerId, order.pointsRedeemed, order._id);
+    }
     safeEmit(() =>
       emitToUser(customerId, SOCKET_EVENTS.ORDER_STATUS_UPDATED, { orderId: id, status: 'cancelled', at: new Date().toISOString() }),
     );
@@ -457,6 +467,9 @@ export const ordersService = {
 
     await paymentsService.refund(id, { reason: 'Refunded from order screen', actorId: actor.id });
     await restock(order.items);
+    if (order.pointsRedeemed && order.pointsRedeemed > 0) {
+      await refundLoyaltyPoints(String(order.customerId), order.pointsRedeemed, order._id);
+    }
     const updated = await Order.findById(id);
     if (updated) void notifyOrder(updated, 'refunded');
     return updated;
@@ -572,7 +585,7 @@ async function notifyOrder(order: NotifiableOrder, event: 'placed' | 'paid' | 'r
     type: 'order',
     title: titles[event] ?? 'Order update',
     body: `${order.orderNumber} · ₹${total}`,
-    link: order._id ? `/order/${String(order._id)}` : '/account/orders',
+    link: order._id ? `/order/${String(order._id)}` : '/orders',
   });
 
   void sendOrderEmail(order, event);

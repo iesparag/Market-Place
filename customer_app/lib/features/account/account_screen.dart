@@ -22,9 +22,16 @@ class AccountScreen extends ConsumerWidget {
           leading: const AppBackButton(),
           title: const Text('Account'),
         ),
-        body: ListView(
-          children: [
-            Container(
+        body: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(loyaltyBalanceProvider);
+            ref.invalidate(authProvider);
+            ref.invalidate(unreadCountProvider);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              Container(
               decoration: BoxDecoration(gradient: context.brand.gradient),
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 26),
               child: Row(children: [
@@ -138,7 +145,8 @@ class AccountScreen extends ConsumerWidget {
                         color: context.colors.textMuted, fontSize: 12))),
           ],
         ),
-        bottomNavigationBar: const AppBottomNav(),
+      ),
+      bottomNavigationBar: const AppBottomNav(),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import { setInterval, clearInterval } from 'node:timers';
 import { logger } from '../../config/logger.js';
 import { autoAssignService } from '../../modules/delivery/auto-assign.service.js';
 

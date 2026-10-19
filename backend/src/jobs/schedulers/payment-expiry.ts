@@ -1,3 +1,4 @@
+import { setInterval, clearInterval } from 'node:timers';
 import { SOCKET_EVENTS } from '@app/shared';
 import { logger } from '../../config/logger.js';
 import { Order } from '../../modules/orders/order.model.js';
@@ -7,6 +8,7 @@ import { getSettings } from '../../modules/settings/settings.model.js';
 import { emitToUser, safeEmit } from '../../realtime/emitters.js';
 import { notify } from '../../modules/notifications/notifications.module.js';
 import { sendOrderEmail } from '../../modules/orders/order-email.js';
+import { refundLoyaltyPoints } from '../../modules/loyalty/loyalty.module.js';
 
 const SWEEP_INTERVAL_MS = 5 * 60_000; // every 5 minutes
 
@@ -63,6 +65,10 @@ export async function expireUnpaidOrders(now = new Date()): Promise<number> {
     );
 
     const customerId = String(order.customerId);
+    if (order.pointsRedeemed && order.pointsRedeemed > 0) {
+      await refundLoyaltyPoints(customerId, order.pointsRedeemed, order._id);
+    }
+
     safeEmit(() =>
       emitToUser(customerId, SOCKET_EVENTS.ORDER_STATUS_UPDATED, {
         orderId,
@@ -74,7 +80,7 @@ export async function expireUnpaidOrders(now = new Date()): Promise<number> {
       type: 'order',
       title: 'Order cancelled — payment not completed',
       body: `${order.orderNumber} was cancelled because payment wasn't completed. Your items are back in stock.`,
-      link: '/account/orders',
+      link: `/order/${orderId}`,
     });
     void sendOrderEmail(order, 'payment_expired');
     expired += 1;
@@ -93,7 +99,7 @@ export function startPaymentExpirySweeper(): void {
     void expireUnpaidOrders().catch((err) => logger.error({ err }, 'payment-expiry: sweep failed'));
   }, SWEEP_INTERVAL_MS);
   // Never hold the process open just for this.
-  timer.unref?.();
+  timer?.unref?.();
   logger.info('Payment expiry sweeper started');
 }
 

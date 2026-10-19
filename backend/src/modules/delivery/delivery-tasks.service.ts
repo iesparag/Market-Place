@@ -351,7 +351,7 @@ export const deliveryTasksService = {
           type: 'order',
           title: 'New order 🛎️',
           body: `${order.orderNumber} · ${items.length} item${items.length === 1 ? '' : 's'}${instructions ? ` · "${instructions}"` : ''}`,
-          link: `/orders/${String(order._id)}`,
+          link: `/order/${String(order._id)}`,
         });
       }
       if (newOrderTemplate && store?.contactPhone) {

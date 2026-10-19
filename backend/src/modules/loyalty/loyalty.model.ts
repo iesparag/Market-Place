@@ -11,7 +11,7 @@ const loyaltyEntrySchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     orderId: { type: Schema.Types.ObjectId, ref: 'Order', index: true },
-    type: { type: String, enum: ['earn', 'redeem'], required: true },
+    type: { type: String, enum: ['earn', 'redeem', 'refund'], required: true },
     points: { type: Number, required: true }, // redeem entries are negative
     note: String,
     idempotencyKey: { type: String, unique: true, sparse: true },

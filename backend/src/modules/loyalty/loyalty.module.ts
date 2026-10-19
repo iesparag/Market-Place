@@ -6,17 +6,35 @@ import { asyncHandler } from '../../common/asyncHandler.js';
 import { ok } from '../../common/apiResponse.js';
 import { AppError } from '../../common/AppError.js';
 import { LoyaltyEntry } from './loyalty.model.js';
+import { Order } from '../orders/order.model.js';
 import { getSettings } from '../settings/settings.model.js';
 
 export const loyaltyRoutes = Router();
 loyaltyRoutes.use(authenticate);
 
 async function balanceFor(userId: string): Promise<number> {
+  // Auto-reconcile any cancelled or refunded orders that haven't been refunded yet
+  try {
+    const unrefunded = await Order.find({
+      customerId: new Types.ObjectId(userId),
+      status: { $in: ['cancelled', 'refunded'] },
+      pointsRedeemed: { $gt: 0 },
+    }).lean();
+
+    for (const o of unrefunded) {
+      if (o.pointsRedeemed && o.pointsRedeemed > 0) {
+        await refundLoyaltyPoints(userId, o.pointsRedeemed, o._id);
+      }
+    }
+  } catch {
+    // Graceful fallback
+  }
+
   const rows = await LoyaltyEntry.aggregate<{ total: number }>([
     { $match: { userId: new Types.ObjectId(userId) } },
     { $group: { _id: null, total: { $sum: '$points' } } },
   ]);
-  return rows[0]?.total ?? 0;
+  return Math.max(0, rows[0]?.total ?? 0);
 }
 
 loyaltyRoutes.get(
@@ -112,5 +130,27 @@ export async function debitLoyaltyPoints(userId: string, points: number, orderId
     points: -points,
     note: 'Redeemed at checkout',
     idempotencyKey: `loyalty:redeem:${String(orderId)}`,
+  });
+}
+
+/**
+ * Refund / restore loyalty points when an order is cancelled or refunded.
+ * Idempotent: safe to call repeatedly.
+ */
+export async function refundLoyaltyPoints(
+  userId: string | Types.ObjectId,
+  points: number,
+  orderId: unknown,
+): Promise<void> {
+  if (!points || points <= 0) return;
+  await LoyaltyEntry.create({
+    userId,
+    orderId,
+    type: 'refund',
+    points: Math.abs(points),
+    note: 'Points restored for cancelled order',
+    idempotencyKey: `loyalty:refund:${String(orderId)}`,
+  }).catch((e: unknown) => {
+    if ((e as { code?: number })?.code !== 11000) throw e;
   });
 }

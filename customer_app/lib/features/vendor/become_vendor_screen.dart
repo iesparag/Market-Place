@@ -142,7 +142,7 @@ class _BecomeVendorScreenState extends ConsumerState<BecomeVendorScreen> {
             _field(_store),
             _label('Store type'),
             DropdownButtonFormField<String>(
-              initialValue: _type,
+              value: _type,
               items: const [
                 DropdownMenuItem(
                     value: 'grocery', child: Text('Grocery / Kirana')),
