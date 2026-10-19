@@ -90,12 +90,12 @@ class MarketplaceApp extends ConsumerWidget {
 
   BrandTokens _cachedLightTokens(SharedPreferences prefs) {
     final raw = prefs.getString(_themeCacheKey);
-    if (raw == null) return BrandTokens.green;
+    if (raw == null) return BrandTokens.orange;
     try {
       return BrandTokens.fromConfig(
           (jsonDecode(raw) as Map).cast<String, dynamic>());
     } catch (_) {
-      return BrandTokens.green;
+      return BrandTokens.orange;
     }
   }
 

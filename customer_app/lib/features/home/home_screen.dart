@@ -24,6 +24,26 @@ import '../../shared/widgets/search_bar_pill.dart';
 import '../../shared/category_emoji.dart';
 import 'festival_greeting_overlay.dart';
 
+class _KeepAliveWrapper extends StatefulWidget {
+  final Widget child;
+  const _KeepAliveWrapper({required this.child});
+
+  @override
+  State<_KeepAliveWrapper> createState() => _KeepAliveWrapperState();
+}
+
+class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -52,12 +72,18 @@ class HomeScreen extends ConsumerWidget {
                   ref.invalidate(bannersProvider);
                   ref.invalidate(categoryTreeProvider);
                   ref.invalidate(vendorsProvider);
+                  ref.invalidate(recentProductsProvider);
+                  ref.invalidate(recentlyViewedProvider);
+                  ref.invalidate(favouriteStoreVendorsProvider);
                 },
                 child: sectionsAsync.when(
+                  skipLoadingOnRefresh: true,
+                  skipLoadingOnReload: true,
                   loading: () => const _LoadingFeed(),
                   error: (e, _) => _err(context, ref, e.toString()),
                   data: (sections) {
                     return ListView(
+                      cacheExtent: 1500,
                       padding: const EdgeInsets.only(bottom: 28),
                       children: [
                         festival.maybeWhen(
@@ -68,15 +94,15 @@ class HomeScreen extends ConsumerWidget {
                         ),
                         // Quick-reorder row: previously-ordered products + favourite stores, always
                         // near the top (not buried in the wishlist screen / account menu) so a
-                        // returning customer can order again in one tap. Hidden entirely when a
-                        // guest or when there's nothing to show — no empty placeholder clutter.
-                        const _OrderAgainSection(),
-                        const _RecentlyViewedSection(),
-                        const _FavouriteStoresSection(),
+                        // returning customer can order again in one tap. Kept alive so scrolling
+                        // down and back up never causes layout shifts or unexpected jumps.
+                        const _KeepAliveWrapper(child: _OrderAgainSection()),
+                        const _KeepAliveWrapper(child: _RecentlyViewedSection()),
+                        const _KeepAliveWrapper(child: _FavouriteStoresSection()),
                         // Every section is rendered dynamically in the EXACT order defined by the portal.
                         // If a section is disabled in the portal, the backend excludes it, so it will not appear here.
                         for (final s in sections)
-                          _renderSection(context, ref, s),
+                          _KeepAliveWrapper(child: _renderSection(context, ref, s)),
                         const _SellCta(),
                       ],
                     );
@@ -463,12 +489,12 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 
   Color _bg(String? hex) {
-    if (hex == null || hex.isEmpty) return const Color(0xFF10B981);
+    if (hex == null || hex.isEmpty) return const Color(0xFFEA580C);
     final h = hex.replaceAll('#', '');
     try {
       return Color(int.parse('FF$h', radix: 16));
     } catch (_) {
-      return const Color(0xFF10B981);
+      return const Color(0xFFEA580C);
     }
   }
 
@@ -1174,7 +1200,7 @@ class _DealProductCard extends ConsumerWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981),
+                      color: context.brand.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.add, color: Colors.white, size: 18),

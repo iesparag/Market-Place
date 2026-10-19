@@ -16,14 +16,13 @@ class BrandColors {
   static const success = Color(0xFF16A34A);
   static const danger = Color(0xFFE23744);
 
-  // Green defaults — the seed for [BrandTokens.green]. Kept so any widget that
-  // still references a static token stays visually consistent with the tokens.
-  static const brand500 = Color(0xFF17A55A);
-  static const brand600 = Color(0xFF0B8A45);
-  static const brand700 = Color(0xFF076B34);
-  static const brandSoft = Color(0xFFE7F6EC);
-  static const gradientStart = Color(0xFF17A55A);
-  static const gradientEnd = Color(0xFF0B7A43);
+  // Orange defaults — the seed for [BrandTokens.orange].
+  static const brand500 = Color(0xFFEA580C);
+  static const brand600 = Color(0xFFC2410C);
+  static const brand700 = Color(0xFF9A3412);
+  static const brandSoft = Color(0xFFFFF7ED);
+  static const gradientStart = Color(0xFFF97316);
+  static const gradientEnd = Color(0xFFEA580C);
   static const brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -125,31 +124,32 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
         colors: [Color.lerp(soft, primary, 0.06)!, canvas],
       );
 
-  static const green = BrandTokens(
-    primary: Color(0xFF0B8A45),
-    primaryDark: Color(0xFF076B34),
-    soft: Color(0xFFE7F6EC),
-    gStart: Color(0xFF17A55A),
-    gEnd: Color(0xFF0B7A43),
-    canvas: Color(0xFFF3F6F4),
+  static const orange = BrandTokens(
+    primary: Color(0xFFEA580C),
+    primaryDark: Color(0xFFC2410C),
+    soft: Color(0xFFFFF7ED),
+    gStart: Color(0xFFF97316),
+    gEnd: Color(0xFFEA580C),
+    canvas: Color(0xFFF9FAFB),
   );
 
-  /// Dark-mode default when the admin hasn't configured a `themeDark` palette —
-  /// mirrors palette-presets.ts's `deriveDark()` on the backend (same lightness math)
-  /// so an unconfigured app and a freshly-applied preset look consistent.
-  static const greenDark = BrandTokens(
-    primary: Color(0xFF17A55A),
-    primaryDark: Color(0xFF4ADE80),
-    soft: Color(0xFF17251C),
-    gStart: Color(0xFF1CB864),
-    gEnd: Color(0xFF0E7A43),
+  static const orangeDark = BrandTokens(
+    primary: Color(0xFFFB923C),
+    primaryDark: Color(0xFFFDBA74),
+    soft: Color(0xFF2C1E14),
+    gStart: Color(0xFFEA580C),
+    gEnd: Color(0xFF9A3412),
     canvas: Color(0xFF121316),
   );
+
+  // Legacy aliases so any existing references compile cleanly
+  static const green = orange;
+  static const greenDark = orangeDark;
 
   /// Build LIGHT tokens from the backend `theme` object. Any missing field is derived
   /// from `primary`, so an admin only *has* to set one colour.
   factory BrandTokens.fromConfig(Map<String, dynamic>? theme) {
-    final primary = _hex(theme?['primary']?.toString()) ?? green.primary;
+    final primary = _hex(theme?['primary']?.toString()) ?? orange.primary;
     return BrandTokens(
       primary: primary,
       primaryDark:
@@ -158,7 +158,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
       gStart:
           _hex(theme?['gradientStart']?.toString()) ?? _shade(primary, 0.12),
       gEnd: _hex(theme?['gradientEnd']?.toString()) ?? _shade(primary, -0.10),
-      canvas: _hex(theme?['canvas']?.toString()) ?? green.canvas,
+      canvas: _hex(theme?['canvas']?.toString()) ?? orange.canvas,
     );
   }
 
@@ -182,7 +182,7 @@ class BrandTokens extends ThemeExtension<BrandTokens> {
           _shade(primary, 0.06),
       gEnd:
           _hex(themeDark?['gradientEnd']?.toString()) ?? _shade(primary, -0.06),
-      canvas: _hex(themeDark?['canvas']?.toString()) ?? greenDark.canvas,
+      canvas: _hex(themeDark?['canvas']?.toString()) ?? orangeDark.canvas,
     );
   }
 

@@ -215,7 +215,7 @@ final storeProvider = FutureProvider.autoDispose.family<StorePageData, String>(
 /// "Order again" home-screen row — distinct products from this customer's past paid
 /// orders, most-recent first, resolved against live product data server-side.
 final recentProductsProvider =
-    FutureProvider.autoDispose<List<Product>>((ref) async {
+    FutureProvider<List<Product>>((ref) async {
   final user = ref.watch(authProvider);
   if (user == null) return [];
   final data =
@@ -227,7 +227,7 @@ final recentProductsProvider =
 /// necessarily bought, most-recently-viewed first. A view is recorded by
 /// recordProductView() from the product screen; this just reads them back.
 final recentlyViewedProvider =
-    FutureProvider.autoDispose<List<Product>>((ref) async {
+    FutureProvider<List<Product>>((ref) async {
   final user = ref.watch(authProvider);
   if (user == null) return [];
   final data =
@@ -245,7 +245,7 @@ void recordProductView(ApiClient api, String productId) {
 /// features/favourites/store_favourite_controller.dart) — same two-provider split as
 /// the product wishlist (ids-set controller + a full-data FutureProvider).
 final favouriteStoreVendorsProvider =
-    FutureProvider.autoDispose<List<Vendor>>((ref) async {
+    FutureProvider<List<Vendor>>((ref) async {
   final user = ref.watch(authProvider);
   // Re-run whenever the ids set changes (e.g. toggling a heart elsewhere) — without
   // this the bottom nav's IndexedStack keeps this provider alive indefinitely and a
